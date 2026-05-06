@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Gestão de Limpeza Urbana – Secretaria da Infraestrutura</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -10,340 +10,199 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root {
-    --bg: #f4f3ef;
-    --surface: #ffffff;
-    --surface2: #eeecea;
-    --border: #d8d6d0;
-    --border2: #c8c5be;
-    --text: #1a1917;
-    --text2: #6b6860;
-    --text3: #9e9b94;
-    --green: #1a6640;
-    --green-bg: #e6f2eb;
-    --green-border: #a8d4b8;
-    --amber: #7a4f00;
-    --amber-bg: #fef3db;
-    --amber-border: #f5cc7a;
-    --red: #8b1a1a;
-    --red-bg: #fdeaea;
-    --red-border: #f0a8a8;
-    --blue: #1a3f7a;
-    --blue-bg: #e8eef8;
-    --blue-border: #a8bce0;
-    --radius: 8px;
-    --radius-lg: 12px;
-    --font: 'IBM Plex Sans', sans-serif;
-    --font-mono: 'IBM Plex Mono', monospace;
-    --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+    --bg:#f4f3ef;--surface:#fff;--surface2:#eeecea;--border:#d8d6d0;--border2:#c8c5be;
+    --text:#1a1917;--text2:#6b6860;--text3:#9e9b94;
+    --green:#1a6640;--green-bg:#e6f2eb;--green-border:#a8d4b8;
+    --amber:#7a4f00;--amber-bg:#fef3db;--amber-border:#f5cc7a;
+    --red:#8b1a1a;--red-bg:#fdeaea;--red-border:#f0a8a8;
+    --blue:#1a3f7a;--blue-bg:#e8eef8;--blue-border:#a8bce0;
+    --radius:8px;--radius-lg:12px;
+    --font:'IBM Plex Sans',sans-serif;--font-mono:'IBM Plex Mono',monospace;
+    --shadow:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.04);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:15px;min-height:100vh}
+
+  /* ── HEADER ── */
+  .header{background:var(--text);color:#fff;padding:0 16px;height:54px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;gap:10px}
+  .header-brand{display:flex;align-items:center;gap:10px;min-width:0}
+  .header-logo{width:32px;height:32px;flex-shrink:0;background:#fff;border-radius:8px;display:flex;align-items:center;justify-content:center}
+  .header-logo i{color:var(--text);font-size:18px}
+  .brand-text{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .brand-sub{font-size:10px;opacity:.5;font-family:var(--font-mono)}
+  .header-right{display:flex;align-items:center;gap:8px;flex-shrink:0}
+  #header-user-label{font-size:12px;opacity:.7;font-family:var(--font-mono);white-space:nowrap}
+  .btn-header{background:rgba(255,255,255,.14);border:none;color:#fff;padding:7px 13px;border-radius:7px;font-size:13px;cursor:pointer;font-family:var(--font);display:flex;align-items:center;gap:5px;white-space:nowrap;transition:background .15s}
+  .btn-header:hover{background:rgba(255,255,255,.24)}
+
+  /* ── MAIN ── */
+  .main{max-width:700px;margin:0 auto;padding:22px 14px 80px}
+
+  /* ── PERFIL ── */
+  #tela-perfil{animation:fadeIn .2s ease}
+  .perfil-title{font-size:21px;font-weight:600;margin:8px 0 4px}
+  .perfil-sub{font-size:14px;color:var(--text2);margin-bottom:24px}
+  .perfil-section-label{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);margin-bottom:10px;font-family:var(--font-mono)}
+  .perfil-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px}
+  .perfil-btn{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:18px;cursor:pointer;text-align:left;width:100%;transition:border-color .15s,box-shadow .15s}
+  .perfil-btn:hover{border-color:var(--border2);box-shadow:var(--shadow)}
+  .picon{font-size:22px;margin-bottom:10px;display:block;color:var(--text2)}
+  .pname{font-size:14px;font-weight:600}
+  .pdesc{font-size:12px;color:var(--text2);margin-top:3px;line-height:1.4}
+  .equipe-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .equipe-btn{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:13px 10px;cursor:pointer;font-family:var(--font);font-size:13px;font-weight:500;display:flex;align-items:center;justify-content:center;gap:7px;color:var(--text);transition:border-color .15s,background .15s}
+  .equipe-btn:hover{border-color:var(--border2);background:var(--surface2)}
+  .equipe-btn i{font-size:15px;color:var(--text2)}
+
+  /* ── MODALS ── */
+  .modal-wrap{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:200;padding:16px}
+  .modal{background:var(--surface);border-radius:var(--radius-lg);padding:24px;max-width:400px;width:100%;border:1px solid var(--border);animation:slideUp .2s ease}
+  .modal-lg{max-width:520px;max-height:90vh;overflow-y:auto}
+  .modal h3{font-size:16px;font-weight:600;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+  .modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:18px;flex-wrap:wrap}
+  .modal-erro{font-size:12px;color:var(--red);margin-top:6px;display:none;align-items:center;gap:5px}
+
+  /* ── APP ── */
+  #tela-app{display:none;animation:fadeIn .2s ease}
+  .btn-voltar{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--text2);cursor:pointer;border:none;background:none;font-family:var(--font);padding:0;margin-bottom:16px;transition:color .15s}
+  .btn-voltar:hover{color:var(--text)}
+
+  /* ── TABS ── */
+  .tabs{display:flex;gap:2px;border-bottom:1px solid var(--border);margin-bottom:18px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .tabs::-webkit-scrollbar{display:none}
+  .tab{padding:10px 13px;font-size:13px;cursor:pointer;border:none;background:none;color:var(--text2);border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap;font-family:var(--font);display:flex;align-items:center;gap:6px;transition:color .15s;flex-shrink:0}
+  .tab:hover{color:var(--text)}
+  .tab.active{color:var(--text);border-bottom-color:var(--text);font-weight:500}
+
+  /* ── SECTIONS ── */
+  .section{display:none}
+  .section.active{display:block;animation:fadeIn .15s ease}
+
+  /* ── CARD / FIELDS ── */
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:18px 20px;margin-bottom:12px}
+  .section-title{font-size:15px;font-weight:600;margin-bottom:16px}
+  .field{margin-bottom:14px}
+  .field label{display:block;font-size:12px;font-weight:500;color:var(--text2);margin-bottom:6px;letter-spacing:.02em}
+  .field input,.field textarea,.field select{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius);font-size:14px;font-family:var(--font);background:var(--bg);color:var(--text);transition:border-color .15s,box-shadow .15s;-webkit-appearance:none;appearance:none}
+  .field select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b6860' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:30px}
+  .field input:focus,.field textarea:focus,.field select:focus{outline:none;border-color:var(--text);box-shadow:0 0 0 3px rgba(26,25,23,.08)}
+  .field textarea{resize:vertical;min-height:80px;line-height:1.5}
+
+  /* ── BUTTONS ── */
+  .btn{padding:10px 18px;border-radius:var(--radius);font-size:13px;font-weight:500;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--text);font-family:var(--font);display:inline-flex;align-items:center;gap:7px;transition:background .15s,border-color .15s;white-space:nowrap;-webkit-tap-highlight-color:transparent}
+  .btn:hover{background:var(--surface2)}
+  .btn:active{transform:scale(.98)}
+  .btn-primary{background:var(--text);color:#fff;border-color:var(--text)}
+  .btn-primary:hover{background:#333}
+  .btn-danger{border-color:var(--red-border);color:var(--red)}
+  .btn-danger:hover{background:var(--red-bg)}
+  .btn-info{border-color:var(--blue-border);color:var(--blue)}
+  .btn-info:hover{background:var(--blue-bg)}
+  .btn-sm{padding:7px 13px;font-size:12px}
+  .btn-full{width:100%;justify-content:center;margin-top:4px}
+
+  /* ── BADGES ── */
+  .badge{display:inline-block;font-size:11px;padding:3px 9px;border-radius:20px;font-weight:500;font-family:var(--font-mono)}
+  .badge-pending{background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-border)}
+  .badge-doing{background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-border)}
+  .badge-done{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)}
+  .badge-urgente{background:var(--red-bg);color:var(--red);border:1px solid var(--red-border)}
+
+  /* ── DEMAND CARD ── */
+  .demand-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px;margin-bottom:10px}
+  .demand-card.urgente{border-left:3px solid #e05555}
+  .demand-header{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:8px}
+  .demand-title{font-size:14px;font-weight:600;flex:1;line-height:1.4}
+  .demand-badges{display:flex;flex-direction:column;gap:4px;align-items:flex-end;flex-shrink:0}
+  .demand-meta{font-size:12px;color:var(--text2);margin-bottom:10px;line-height:1.8}
+  .demand-meta i{font-size:12px;vertical-align:-1px}
+  .maps-link{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--blue);text-decoration:none;padding:7px 11px;border:1px solid var(--blue-border);border-radius:var(--radius);margin-bottom:10px;background:var(--blue-bg);font-family:var(--font-mono);transition:background .15s;word-break:break-all;line-height:1.4}
+  .maps-link:hover{background:#d4e0f4}
+  .maps-link i{flex-shrink:0}
+
+  /* ── ALOCAR BOX ── */
+  .alocar-box{background:var(--amber-bg);border:1px solid var(--amber-border);border-radius:var(--radius);padding:13px;margin-top:12px}
+  .alocar-label{font-size:12px;font-weight:600;color:var(--amber);margin-bottom:8px;display:flex;align-items:center;gap:6px}
+  .alocar-select{width:100%;padding:10px 30px 10px 12px;border:1px solid var(--amber-border);border-radius:var(--radius);font-size:14px;font-family:var(--font);background:#fff;color:var(--text);cursor:pointer;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%237a4f00' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center}
+  .alocar-select:focus{outline:none;border-color:var(--amber);box-shadow:0 0 0 3px rgba(122,79,0,.1)}
+  .alocar-alocada{font-size:13px;font-weight:500;margin-top:8px;display:flex;align-items:center;gap:6px;color:var(--green)}
+
+  .demand-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)}
+  .btn-done{font-size:12px;padding:9px 16px;border-radius:var(--radius);cursor:pointer;border:1px solid var(--green-border);background:var(--green-bg);color:var(--green);display:inline-flex;align-items:center;gap:5px;font-family:var(--font);font-weight:500;transition:background .15s;-webkit-tap-highlight-color:transparent}
+  .btn-done:hover{background:#cde8d8}
+  .btn-done:active{transform:scale(.98)}
+  .btn-del{font-size:12px;padding:9px 14px;border-radius:var(--radius);cursor:pointer;border:1px solid var(--red-border);background:transparent;color:var(--red);display:inline-flex;align-items:center;gap:5px;font-family:var(--font);transition:background .15s}
+  .btn-del:hover{background:var(--red-bg)}
+
+  /* ── STATS ── */
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px}
+  .stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px 8px;text-align:center}
+  .stat-num{font-size:22px;font-weight:600;font-family:var(--font-mono)}
+  .stat-label{font-size:11px;color:var(--text3);margin-top:2px}
+
+  /* ── FILTER ── */
+  .filter-row{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+  .filter-row select{font-size:12px;padding:8px 28px 8px 10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);color:var(--text);font-family:var(--font);cursor:pointer;flex:1;min-width:130px;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b6860' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center}
+
+  /* ── OUTROS ── */
+  .photo-preview{max-width:100%;max-height:180px;border-radius:var(--radius);margin-top:8px;display:block;object-fit:cover;border:1px solid var(--border)}
+  .msg{padding:10px 14px;border-radius:var(--radius);font-size:13px;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+  .msg-success{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)}
+  .msg-danger{background:var(--red-bg);color:var(--red);border:1px solid var(--red-border)}
+  .hist-row{padding:14px 0;border-bottom:1px solid var(--border)}
+  .hist-row:last-child{border-bottom:none}
+  .tag-equipe{display:inline-flex;align-items:center;gap:4px;font-size:11px;padding:2px 8px;border-radius:20px;background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-border);font-family:var(--font-mono)}
+  .empty{text-align:center;padding:40px 20px;color:var(--text3);font-size:14px}
+  .empty i{font-size:32px;display:block;margin-bottom:10px}
+  .rel-content{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:12px;font-size:12px;line-height:1.8;max-height:300px;overflow-y:auto;font-family:var(--font-mono)}
+
+  /* ── RESPONSIVE ── */
+  @media(max-width:500px){
+    .perfil-grid{grid-template-columns:1fr 1fr}
+    .equipe-grid{grid-template-columns:1fr 1fr}
+    .stats{grid-template-columns:repeat(2,1fr)}
+    .demand-header{flex-direction:column;gap:6px}
+    .demand-badges{flex-direction:row}
+    .brand-text{font-size:12px}
+    #header-user-label{display:none}
+    .btn-done,.btn-del{flex:1;justify-content:center}
+    .card{padding:14px}
   }
 
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-
-  body {
-    font-family: var(--font);
-    background: var(--bg);
-    color: var(--text);
-    font-size: 15px;
-    min-height: 100vh;
-  }
-
-  /* HEADER */
-  .header {
-    background: var(--text);
-    color: #fff;
-    padding: 0 20px;
-    height: 52px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    position: sticky;
-    top: 0;
-    z-index: 50;
-  }
-  .header-brand { display: flex; align-items: center; gap: 10px; }
-  .header-brand .logo {
-    width: 28px; height: 28px;
-    background: #fff;
-    border-radius: 6px;
-    display: flex; align-items: center; justify-content: center;
-  }
-  .header-brand .logo i { color: var(--text); font-size: 16px; }
-  .header-brand .brand-text { font-size: 13px; font-weight: 500; letter-spacing: 0.01em; }
-  .header-brand .brand-sub { font-size: 11px; opacity: 0.55; font-family: var(--font-mono); }
-  #header-user { font-size: 12px; opacity: 0.7; font-family: var(--font-mono); display: none; align-items: center; gap: 8px; }
-  #btn-trocar { background: rgba(255,255,255,0.12); border: none; color: #fff; padding: 5px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; font-family: var(--font); }
-  #btn-trocar:hover { background: rgba(255,255,255,0.2); }
-
-  /* MAIN */
-  .main { max-width: 640px; margin: 0 auto; padding: 24px 16px 60px; }
-
-  /* PERFIL SCREEN */
-  #tela-perfil { animation: fadeIn 0.2s ease; }
-  .perfil-title { font-size: 22px; font-weight: 600; margin-bottom: 4px; margin-top: 8px; }
-  .perfil-sub { font-size: 14px; color: var(--text2); margin-bottom: 24px; }
-  .perfil-section-label { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text3); margin-bottom: 10px; font-family: var(--font-mono); }
-  .perfil-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
-  .perfil-btn {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    padding: 18px;
-    cursor: pointer;
-    text-align: left;
-    transition: border-color 0.15s, box-shadow 0.15s;
-    width: 100%;
-  }
-  .perfil-btn:hover { border-color: var(--border2); box-shadow: var(--shadow); }
-  .perfil-btn .picon { font-size: 22px; margin-bottom: 10px; display: block; color: var(--text2); }
-  .perfil-btn .pname { font-size: 14px; font-weight: 600; }
-  .perfil-btn .pdesc { font-size: 12px; color: var(--text2); margin-top: 3px; }
-  .equipe-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-  @media(max-width: 400px){ .equipe-grid { grid-template-columns: 1fr 1fr; } }
-  .equipe-btn {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 12px;
-    cursor: pointer;
-    font-family: var(--font);
-    font-size: 13px;
-    font-weight: 500;
-    display: flex; align-items: center; gap: 8px;
-    color: var(--text);
-    transition: border-color 0.15s;
-  }
-  .equipe-btn:hover { border-color: var(--border2); }
-  .equipe-btn i { font-size: 16px; color: var(--text2); }
-
-  /* APP */
-  #tela-app { display: none; animation: fadeIn 0.2s ease; }
-
-  /* TABS */
-  .tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--border); margin-bottom: 20px; overflow-x: auto; }
-  .tab {
-    padding: 10px 14px;
-    font-size: 13px;
-    cursor: pointer;
-    border: none;
-    background: none;
-    color: var(--text2);
-    border-bottom: 2px solid transparent;
-    margin-bottom: -1px;
-    white-space: nowrap;
-    font-family: var(--font);
-    display: flex; align-items: center; gap: 6px;
-    transition: color 0.15s;
-  }
-  .tab:hover { color: var(--text); }
-  .tab.active { color: var(--text); border-bottom-color: var(--text); font-weight: 500; }
-
-  /* SECTIONS */
-  .section { display: none; }
-  .section.active { display: block; animation: fadeIn 0.15s ease; }
-
-  /* CARDS */
-  .card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    padding: 18px 20px;
-    margin-bottom: 12px;
-  }
-  .section-title { font-size: 15px; font-weight: 600; margin-bottom: 16px; }
-
-  /* FIELDS */
-  .field { margin-bottom: 14px; }
-  .field label { display: block; font-size: 12px; font-weight: 500; color: var(--text2); margin-bottom: 6px; letter-spacing: 0.02em; }
-  .field input, .field textarea, .field select {
-    width: 100%;
-    padding: 9px 12px;
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    font-size: 14px;
-    font-family: var(--font);
-    background: var(--bg);
-    color: var(--text);
-    transition: border-color 0.15s, box-shadow 0.15s;
-    appearance: none;
-  }
-  .field input:focus, .field textarea:focus, .field select:focus {
-    outline: none;
-    border-color: var(--text);
-    box-shadow: 0 0 0 3px rgba(26,25,23,0.08);
-  }
-  .field textarea { resize: vertical; min-height: 80px; line-height: 1.5; }
-
-  /* BUTTONS */
-  .btn {
-    padding: 9px 18px;
-    border-radius: var(--radius);
-    font-size: 13px;
-    font-weight: 500;
-    cursor: pointer;
-    border: 1px solid var(--border);
-    background: var(--surface);
-    color: var(--text);
-    font-family: var(--font);
-    display: inline-flex; align-items: center; gap: 7px;
-    transition: background 0.15s, border-color 0.15s;
-  }
-  .btn:hover { background: var(--surface2); }
-  .btn-primary { background: var(--text); color: #fff; border-color: var(--text); }
-  .btn-primary:hover { background: #333; }
-  .btn-danger { border-color: var(--red-border); color: var(--red); }
-  .btn-danger:hover { background: var(--red-bg); }
-  .btn-info { border-color: var(--blue-border); color: var(--blue); }
-  .btn-info:hover { background: var(--blue-bg); }
-  .btn-sm { padding: 5px 12px; font-size: 12px; border-radius: 20px; }
-
-  /* BADGES */
-  .badge { display: inline-block; font-size: 11px; padding: 3px 9px; border-radius: 20px; font-weight: 500; font-family: var(--font-mono); }
-  .badge-pending { background: var(--amber-bg); color: var(--amber); border: 1px solid var(--amber-border); }
-  .badge-doing { background: var(--blue-bg); color: var(--blue); border: 1px solid var(--blue-border); }
-  .badge-done { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-border); }
-  .badge-urgente { background: var(--red-bg); color: var(--red); border: 1px solid var(--red-border); }
-
-  /* DEMAND CARD */
-  .demand-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    padding: 16px 18px;
-    margin-bottom: 10px;
-    transition: box-shadow 0.15s;
-  }
-  .demand-card:hover { box-shadow: var(--shadow); }
-  .demand-card.urgente { border-left: 3px solid #e05555; }
-  .demand-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 8px; }
-  .demand-title { font-size: 14px; font-weight: 600; flex: 1; line-height: 1.4; }
-  .demand-badges { display: flex; flex-direction: column; gap: 4px; align-items: flex-end; flex-shrink: 0; }
-  .demand-meta { font-size: 12px; color: var(--text2); margin-bottom: 10px; line-height: 1.7; font-family: var(--font-mono); }
-  .demand-meta i { font-size: 12px; vertical-align: -1px; }
-  .maps-link {
-    display: inline-flex; align-items: center; gap: 6px;
-    font-size: 12px; color: var(--blue); text-decoration: none;
-    padding: 6px 11px;
-    border: 1px solid var(--blue-border);
-    border-radius: var(--radius);
-    margin-bottom: 10px;
-    background: var(--blue-bg);
-    font-family: var(--font-mono);
-    transition: background 0.15s;
-  }
-  .maps-link:hover { background: #d4e0f4; }
-  .maps-link i { font-size: 13px; }
-  .demand-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
-  .demand-actions select {
-    font-size: 12px; padding: 6px 10px;
-    border: 1px solid var(--border); border-radius: var(--radius);
-    background: var(--bg); color: var(--text); font-family: var(--font);
-    cursor: pointer;
-  }
-  .btn-done {
-    font-size: 12px; padding: 6px 14px; border-radius: 20px; cursor: pointer;
-    border: 1px solid var(--green-border); background: var(--green-bg); color: var(--green);
-    display: inline-flex; align-items: center; gap: 5px; font-family: var(--font); font-weight: 500;
-    transition: background 0.15s;
-  }
-  .btn-done:hover { background: #cde8d8; }
-  .btn-del {
-    font-size: 12px; padding: 6px 12px; border-radius: 20px; cursor: pointer;
-    border: 1px solid var(--red-border); background: transparent; color: var(--red);
-    display: inline-flex; align-items: center; gap: 5px; font-family: var(--font);
-    transition: background 0.15s;
-  }
-  .btn-del:hover { background: var(--red-bg); }
-
-  /* STATS */
-  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 18px; }
-  @media(max-width: 380px){ .stats { grid-template-columns: repeat(2,1fr); } }
-  .stat { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; text-align: center; }
-  .stat-num { font-size: 22px; font-weight: 600; font-family: var(--font-mono); }
-  .stat-label { font-size: 11px; color: var(--text3); margin-top: 2px; letter-spacing: 0.03em; }
-
-  /* FILTER */
-  .filter-row { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
-  .filter-row select {
-    font-size: 12px; padding: 6px 10px;
-    border: 1px solid var(--border); border-radius: var(--radius);
-    background: var(--surface); color: var(--text); font-family: var(--font); cursor: pointer;
-  }
-
-  /* PHOTO */
-  .photo-preview { max-width: 100%; max-height: 160px; border-radius: var(--radius); margin-top: 8px; display: block; object-fit: cover; border: 1px solid var(--border); }
-
-  /* MSG */
-  .msg { padding: 10px 14px; border-radius: var(--radius); font-size: 13px; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
-  .msg-success { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-border); }
-  .msg-danger { background: var(--red-bg); color: var(--red); border: 1px solid var(--red-border); }
-
-  /* HIST */
-  .hist-row { padding: 14px 0; border-bottom: 1px solid var(--border); }
-  .hist-row:last-child { border-bottom: none; }
-
-  /* TAG */
-  .tag-equipe {
-    display: inline-flex; align-items: center; gap: 4px;
-    font-size: 11px; padding: 2px 8px; border-radius: 20px;
-    background: var(--blue-bg); color: var(--blue); border: 1px solid var(--blue-border);
-    font-family: var(--font-mono);
-  }
-
-  /* EMPTY */
-  .empty { text-align: center; padding: 40px 20px; color: var(--text3); font-size: 14px; }
-  .empty i { font-size: 32px; display: block; margin-bottom: 10px; }
-
-  /* MODALS */
-  .modal-wrap {
-    position: fixed; inset: 0; background: rgba(0,0,0,0.5);
-    display: flex; align-items: center; justify-content: center; z-index: 200; padding: 16px;
-  }
-  .modal {
-    background: var(--surface); border-radius: var(--radius-lg);
-    padding: 24px; max-width: 440px; width: 100%;
-    border: 1px solid var(--border); max-height: 90vh; overflow-y: auto;
-    animation: slideUp 0.2s ease;
-  }
-  .modal h3 { font-size: 16px; font-weight: 600; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
-  .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 18px; flex-wrap: wrap; }
-  .rel-content { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; margin-bottom: 12px; font-size: 12px; line-height: 1.8; max-height: 320px; overflow-y: auto; font-family: var(--font-mono); }
-
-  /* ANIMATIONS */
-  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-  @keyframes slideUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
-
-  /* SCROLLBAR */
-  ::-webkit-scrollbar { width: 5px; height: 5px; }
-  ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+  @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+  @keyframes slideUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+  ::-webkit-scrollbar{width:5px;height:5px}
+  ::-webkit-scrollbar-track{background:transparent}
+  ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
 </style>
 </head>
 <body>
 
+<!-- HEADER -->
 <div class="header">
   <div class="header-brand">
-    <div class="logo"><i class="ti ti-building-community"></i></div>
+    <div class="header-logo"><i class="ti ti-building-community"></i></div>
     <div>
       <div class="brand-text">Secretaria da Infraestrutura</div>
       <div class="brand-sub">Ribeirão Preto – SP</div>
     </div>
   </div>
-  <div id="header-user">
+  <div class="header-right" id="header-right" style="display:none">
     <span id="header-user-label"></span>
-    <button id="btn-trocar" onclick="voltarPerfil()"><i class="ti ti-logout"></i> Trocar</button>
+    <button class="btn-header" onclick="voltarPerfil()"><i class="ti ti-chevron-left"></i> Voltar</button>
   </div>
 </div>
 
 <div class="main">
 
-  <!-- TELA PERFIL -->
+  <!-- ════ TELA PERFIL ════ -->
   <div id="tela-perfil">
     <p class="perfil-title">Gestão de limpeza urbana</p>
-    <p class="perfil-sub">Selecione seu perfil para entrar no sistema.</p>
+    <p class="perfil-sub">Selecione seu perfil para acessar o sistema.</p>
 
     <p class="perfil-section-label">Secretaria / Fiscal</p>
     <div class="perfil-grid">
-      <button class="perfil-btn" onclick="entrarComo('secretaria')">
+      <button class="perfil-btn" onclick="tentarSecretaria()">
         <i class="ti ti-building picon"></i>
         <div class="pname">Secretaria</div>
         <div class="pdesc">Registrar e gerenciar demandas</div>
@@ -351,7 +210,7 @@
       <button class="perfil-btn" onclick="entrarComo('fiscal')">
         <i class="ti ti-eye picon"></i>
         <div class="pname">Fiscal</div>
-        <div class="pdesc">Painel completo e relatórios em PDF</div>
+        <div class="pdesc">Painel completo e relatórios PDF</div>
       </button>
     </div>
 
@@ -365,8 +224,12 @@
     </div>
   </div>
 
-  <!-- APP PRINCIPAL -->
+  <!-- ════ APP PRINCIPAL ════ -->
   <div id="tela-app">
+    <button class="btn-voltar" onclick="voltarPerfil()">
+      <i class="ti ti-arrow-left"></i> Voltar à seleção de perfil
+    </button>
+
     <div class="tabs" id="tabs-container"></div>
     <div id="msg-global" style="display:none" class="msg"></div>
 
@@ -376,11 +239,11 @@
         <p class="section-title">Registrar nova demanda</p>
         <div class="field">
           <label>Quem está solicitando</label>
-          <input id="solicitante" type="text" placeholder="Nome e setor">
+          <input id="solicitante" type="text" placeholder="Nome e setor" autocomplete="off">
         </div>
         <div class="field">
           <label>Endereço completo</label>
-          <input id="endereco" type="text" placeholder="Ex: Rua das Flores, 120 – Jardim Paulista, Ribeirão Preto">
+          <input id="endereco" type="text" placeholder="Ex: Rua das Flores, 120 – Jardim Paulista">
         </div>
         <div class="field">
           <label>Descrição do serviço</label>
@@ -390,21 +253,21 @@
           <label>Prioridade</label>
           <select id="prioridade">
             <option value="normal">Normal</option>
-            <option value="urgente">Urgente</option>
+            <option value="urgente">⚡ Urgente</option>
           </select>
         </div>
         <div class="field">
           <label>Foto do local (opcional)</label>
-          <input type="file" id="foto" accept="image/*" onchange="previewFoto(this,'foto-preview')">
-          <img id="foto-preview" style="display:none" class="photo-preview" alt="Prévia da foto">
+          <input type="file" id="foto" accept="image/*" capture="environment" onchange="previewFoto(this,'foto-preview')">
+          <img id="foto-preview" style="display:none" class="photo-preview" alt="Prévia">
         </div>
-        <button class="btn btn-primary" onclick="enviarDemanda()">
+        <button class="btn btn-primary btn-full" onclick="enviarDemanda()">
           <i class="ti ti-send"></i> Enviar demanda
         </button>
       </div>
     </div>
 
-    <!-- GERENCIAR (secretaria) -->
+    <!-- GERENCIAR -->
     <div id="sec-gerenciar" class="section">
       <p class="section-title">Gerenciar demandas abertas</p>
       <div id="lista-gerenciar"></div>
@@ -431,17 +294,13 @@
       <div id="lista-painel"></div>
     </div>
 
-    <!-- RELATÓRIO / HISTÓRICO -->
+    <!-- RELATÓRIO -->
     <div id="sec-historico" class="section">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
         <p class="section-title" style="margin:0">Demandas concluídas</p>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button class="btn btn-info" onclick="gerarRelatorio()">
-            <i class="ti ti-file-type-pdf"></i> Gerar PDF
-          </button>
-          <button class="btn btn-danger btn-sm" id="btn-apagar-conc" onclick="confirmarApagarConcluidas()" style="display:none">
-            <i class="ti ti-trash"></i> Apagar concluídas
-          </button>
+          <button class="btn btn-info btn-sm" onclick="gerarRelatorio()"><i class="ti ti-file-type-pdf"></i> Gerar PDF</button>
+          <button class="btn btn-danger btn-sm" id="btn-apagar-conc" onclick="confirmarApagarConcluidas()" style="display:none"><i class="ti ti-trash"></i> Apagar concluídas</button>
         </div>
       </div>
       <div id="lista-historico"></div>
@@ -454,7 +313,24 @@
   </div>
 </div>
 
-<!-- MODAL CHECK -->
+<!-- ════ MODAL SENHA ════ -->
+<div id="modal-senha" class="modal-wrap" style="display:none">
+  <div class="modal">
+    <h3><i class="ti ti-lock" style="color:var(--amber)"></i> Acesso restrito – Secretaria</h3>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:16px">Esta área é exclusiva para servidores autorizados. Digite a senha para continuar.</p>
+    <div class="field">
+      <label>Senha de acesso</label>
+      <input type="password" id="input-senha" placeholder="••••••••" onkeydown="if(event.key==='Enter')verificarSenha()">
+      <div class="modal-erro" id="msg-senha-erro"><i class="ti ti-alert-circle"></i> Senha incorreta. Tente novamente.</div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="fecharModal('modal-senha')">Cancelar</button>
+      <button class="btn btn-primary" onclick="verificarSenha()"><i class="ti ti-login"></i> Entrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════ MODAL CHECK ════ -->
 <div id="modal-check" class="modal-wrap" style="display:none">
   <div class="modal">
     <h3><i class="ti ti-circle-check" style="color:var(--green)"></i> Confirmar conclusão</h3>
@@ -464,407 +340,448 @@
     </div>
     <div class="field">
       <label>Foto do serviço concluído (obrigatória)</label>
-      <input type="file" id="check-foto" accept="image/*" onchange="previewFoto(this,'check-foto-prev')">
+      <input type="file" id="check-foto" accept="image/*" capture="environment" onchange="previewFoto(this,'check-foto-prev')">
       <img id="check-foto-prev" style="display:none" class="photo-preview" alt="Foto conclusão">
     </div>
     <div class="modal-actions">
       <button class="btn" onclick="fecharModal('modal-check')">Cancelar</button>
-      <button class="btn btn-primary" onclick="confirmarCheck()">
-        <i class="ti ti-check"></i> Confirmar
-      </button>
+      <button class="btn btn-primary" onclick="confirmarCheck()"><i class="ti ti-check"></i> Confirmar</button>
     </div>
   </div>
 </div>
 
-<!-- MODAL RELATÓRIO -->
+<!-- ════ MODAL RELATÓRIO ════ -->
 <div id="modal-relatorio" class="modal-wrap" style="display:none">
-  <div class="modal" style="max-width:500px">
-    <h3><i class="ti ti-file-type-pdf" style="color:var(--red)"></i> Relatório de demandas concluídas</h3>
+  <div class="modal modal-lg">
+    <h3><i class="ti ti-file-type-pdf" style="color:var(--red)"></i> Relatório — Demandas concluídas</h3>
     <div class="rel-content" id="rel-conteudo"></div>
-    <p style="font-size:12px;color:var(--text2);margin-bottom:4px">
-      <i class="ti ti-info-circle" style="font-size:13px;vertical-align:-1px"></i>
-      O PDF será baixado com todas as demandas concluídas e fotos.
-    </p>
+    <p style="font-size:12px;color:var(--text2);margin-bottom:4px"><i class="ti ti-info-circle" style="vertical-align:-1px"></i> O PDF será baixado com todas as demandas e fotos de conclusão.</p>
     <div class="modal-actions">
       <button class="btn" onclick="fecharModal('modal-relatorio')">Fechar</button>
-      <button class="btn btn-primary" onclick="baixarPDF()">
-        <i class="ti ti-download"></i> Baixar PDF
-      </button>
+      <button class="btn btn-primary" onclick="baixarPDF()"><i class="ti ti-download"></i> Baixar PDF</button>
     </div>
   </div>
 </div>
 
 <script>
-  // ── ESTADO ──────────────────────────────────────────────
-  let demandas = [];
-  try { demandas = JSON.parse(localStorage.getItem('demandas_rp') || '[]'); } catch(e) {}
-  let perfil = '', equipeAtual = '', checkId = null;
+// ══════════════════════════════════════
+// CONFIGURAÇÃO — altere a senha aqui
+// ══════════════════════════════════════
+const SENHA_SECRETARIA = 'secretaria123';
 
-  function save() {
-    try { localStorage.setItem('demandas_rp', JSON.stringify(demandas)); } catch(e) {}
+// ══════════════════════════════════════
+// ESTADO
+// ══════════════════════════════════════
+let demandas = [];
+try { demandas = JSON.parse(localStorage.getItem('demandas_rp') || '[]'); } catch(e) {}
+let perfil = '', equipeAtual = '', checkId = null;
+function save() { try { localStorage.setItem('demandas_rp', JSON.stringify(demandas)); } catch(e) {} }
+
+// ══════════════════════════════════════
+// SENHA
+// ══════════════════════════════════════
+function tentarSecretaria() {
+  document.getElementById('input-senha').value = '';
+  document.getElementById('msg-senha-erro').style.display = 'none';
+  document.getElementById('modal-senha').style.display = 'flex';
+  setTimeout(() => document.getElementById('input-senha').focus(), 150);
+}
+
+function verificarSenha() {
+  const val = document.getElementById('input-senha').value;
+  if (val === SENHA_SECRETARIA) {
+    fecharModal('modal-senha');
+    entrarComo('secretaria');
+  } else {
+    document.getElementById('msg-senha-erro').style.display = 'flex';
+    document.getElementById('input-senha').value = '';
+    document.getElementById('input-senha').focus();
   }
+}
 
-  // ── UTILS ────────────────────────────────────────────────
-  function mapsUrl(e) {
-    return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(e + ', Ribeirão Preto, SP');
+// ══════════════════════════════════════
+// NAVEGAÇÃO
+// ══════════════════════════════════════
+function entrarComo(p) {
+  perfil = p;
+  document.getElementById('tela-perfil').style.display = 'none';
+  document.getElementById('tela-app').style.display = 'block';
+  document.getElementById('header-right').style.display = 'flex';
+
+  const tabs = document.getElementById('tabs-container');
+  let html = '', titulo = '', sec = '';
+
+  if (p === 'secretaria') {
+    titulo = '🏢 Secretaria';
+    html = `<button class="tab active" onclick="showTab('nova',event)"><i class="ti ti-plus"></i> Nova demanda</button>
+            <button class="tab" onclick="showTab('gerenciar',event)"><i class="ti ti-settings"></i> Gerenciar</button>`;
+    sec = 'nova';
+  } else if (p === 'fiscal') {
+    titulo = '👁 Fiscal';
+    html = `<button class="tab active" onclick="showTab('painel',event)"><i class="ti ti-layout-dashboard"></i> Painel</button>
+            <button class="tab" onclick="showTab('historico',event)"><i class="ti ti-history"></i> Relatório PDF</button>`;
+    sec = 'painel';
+  } else {
+    const num = p.replace('equipe','');
+    equipeAtual = `Equipe ${num}`;
+    titulo = '👷 ' + equipeAtual;
+    html = `<button class="tab active" onclick="showTab('equipe',event)"><i class="ti ti-clipboard-list"></i> Minhas demandas</button>`;
+    sec = 'equipe';
   }
+  tabs.innerHTML = html;
+  document.getElementById('header-user-label').textContent = titulo;
+  setTimeout(() => { showSection(sec); renderSection(sec); }, 0);
+}
 
-  function cardMaps(e) {
-    return `<a href="${mapsUrl(e)}" target="_blank" class="maps-link">
-      <i class="ti ti-map-pin"></i> ${e} <i class="ti ti-external-link" style="font-size:11px"></i>
-    </a>`;
+function voltarPerfil() {
+  perfil = ''; equipeAtual = '';
+  document.getElementById('tela-perfil').style.display = 'block';
+  document.getElementById('tela-app').style.display = 'none';
+  document.getElementById('header-right').style.display = 'none';
+}
+
+function showTab(t, ev) {
+  document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+  if (ev) ev.target.closest('.tab').classList.add('active');
+  showSection(t); renderSection(t);
+}
+
+function showSection(t) {
+  ['nova','gerenciar','painel','historico','equipe'].forEach(s => {
+    const el = document.getElementById('sec-' + s);
+    if (el) el.classList.remove('active');
+  });
+  const el = document.getElementById('sec-' + t);
+  if (el) el.classList.add('active');
+}
+
+function renderSection(t) {
+  if (t === 'painel')    renderPainel();
+  if (t === 'historico') renderHistorico();
+  if (t === 'equipe')    renderEquipe();
+  if (t === 'gerenciar') renderGerenciar();
+}
+
+function fecharModal(id) { document.getElementById(id).style.display = 'none'; }
+
+// ══════════════════════════════════════
+// UTILS
+// ══════════════════════════════════════
+function mapsUrl(e) { return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(e + ', Ribeirão Preto, SP'); }
+
+function cardMaps(e) {
+  return `<a href="${mapsUrl(e)}" target="_blank" class="maps-link">
+    <i class="ti ti-map-pin"></i>${e}<i class="ti ti-external-link" style="font-size:11px;flex-shrink:0"></i>
+  </a>`;
+}
+
+function badgeHtml(s) {
+  const c = s==='pendente'?'badge-pending':s==='em andamento'?'badge-doing':'badge-done';
+  return `<span class="badge ${c}">${s}</span>`;
+}
+
+function showMsg(txt, tipo='success') {
+  const el = document.getElementById('msg-global');
+  el.innerHTML = `<i class="ti ti-${tipo==='success'?'circle-check':'alert-circle'}"></i> ${txt}`;
+  el.className = 'msg msg-' + tipo;
+  el.style.display = 'flex';
+  setTimeout(() => el.style.display = 'none', 3500);
+}
+
+function previewFoto(input, prevId) {
+  const prev = document.getElementById(prevId);
+  if (input.files && input.files[0]) {
+    const r = new FileReader();
+    r.onload = e => { prev.src = e.target.result; prev.style.display = 'block'; };
+    r.readAsDataURL(input.files[0]);
   }
+}
 
-  function badgeHtml(s) {
-    const c = s === 'pendente' ? 'badge-pending' : s === 'em andamento' ? 'badge-doing' : 'badge-done';
-    return `<span class="badge ${c}">${s}</span>`;
-  }
+// ══════════════════════════════════════
+// DEMANDAS
+// ══════════════════════════════════════
+function enviarDemanda() {
+  const sol  = document.getElementById('solicitante').value.trim();
+  const end  = document.getElementById('endereco').value.trim();
+  const desc = document.getElementById('descricao').value.trim();
+  const prio = document.getElementById('prioridade').value;
+  const prev = document.getElementById('foto-preview');
+  if (!sol||!end||!desc) { alert('Preencha solicitante, endereço e descrição.'); return; }
+  demandas.unshift({
+    id: Date.now(), solicitante:sol, endereco:end, descricao:desc, prioridade:prio,
+    foto: prev.style.display!=='none' ? prev.src : null,
+    status:'pendente', equipe:'',
+    data: new Date().toLocaleDateString('pt-BR'),
+    hora: new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),
+    dataConclusao:null, fotoConclusao:null
+  });
+  save();
+  ['solicitante','endereco','descricao'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('prioridade').value = 'normal';
+  prev.style.display='none'; prev.src='';
+  document.getElementById('foto').value='';
+  showMsg('Demanda registrada com sucesso!');
+}
 
-  function showMsg(txt, tipo = 'success') {
-    const el = document.getElementById('msg-global');
-    el.innerHTML = `<i class="ti ti-${tipo === 'success' ? 'circle-check' : 'alert-circle'}"></i> ${txt}`;
-    el.className = 'msg msg-' + tipo;
-    el.style.display = 'flex';
-    setTimeout(() => el.style.display = 'none', 3500);
-  }
+function atribuir(id, equipe) {
+  const d = demandas.find(x => x.id === id);
+  if (!d) return;
+  d.equipe = equipe;
+  d.status = equipe ? 'em andamento' : 'pendente';
+  save(); renderPainel();
+}
 
-  function previewFoto(input, prevId) {
-    const prev = document.getElementById(prevId);
-    if (input.files && input.files[0]) {
-      const r = new FileReader();
-      r.onload = e => { prev.src = e.target.result; prev.style.display = 'block'; };
-      r.readAsDataURL(input.files[0]);
-    }
-  }
+function deletarDemanda(id) {
+  if (!confirm('Tem certeza que deseja apagar esta demanda?')) return;
+  demandas = demandas.filter(x => x.id !== id); save();
+  if (perfil==='secretaria') renderGerenciar(); else renderPainel();
+}
 
-  function fecharModal(id) {
-    document.getElementById(id).style.display = 'none';
-  }
+function abrirCheck(id) {
+  checkId = id;
+  document.getElementById('check-data').value = new Date().toISOString().split('T')[0];
+  document.getElementById('check-foto-prev').style.display='none';
+  document.getElementById('check-foto').value='';
+  document.getElementById('modal-check').style.display='flex';
+}
 
-  // ── PERFIL ───────────────────────────────────────────────
-  function entrarComo(p) {
-    perfil = p;
-    document.getElementById('tela-perfil').style.display = 'none';
-    document.getElementById('tela-app').style.display = 'block';
-    document.getElementById('header-user').style.display = 'flex';
-
-    const tabs = document.getElementById('tabs-container');
-    let html = '', titulo = '', primeiraSecao = '';
-
-    if (p === 'secretaria') {
-      titulo = 'Secretaria';
-      html = `
-        <button class="tab active" onclick="showTab('nova',event)"><i class="ti ti-plus"></i> Nova demanda</button>
-        <button class="tab" onclick="showTab('gerenciar',event)"><i class="ti ti-settings"></i> Gerenciar</button>`;
-      primeiraSecao = 'nova';
-    } else if (p === 'fiscal') {
-      titulo = 'Fiscal';
-      html = `
-        <button class="tab active" onclick="showTab('painel',event)"><i class="ti ti-layout-dashboard"></i> Painel</button>
-        <button class="tab" onclick="showTab('historico',event)"><i class="ti ti-history"></i> Relatório</button>`;
-      primeiraSecao = 'painel';
-    } else {
-      const num = p.replace('equipe', '');
-      equipeAtual = `Equipe ${num}`;
-      titulo = equipeAtual;
-      html = `<button class="tab active" onclick="showTab('equipe',event)"><i class="ti ti-clipboard-list"></i> Minhas demandas</button>`;
-      primeiraSecao = 'equipe';
-    }
-
-    tabs.innerHTML = html;
-    document.getElementById('header-user-label').textContent = titulo;
-    setTimeout(() => { showSection(primeiraSecao); renderSection(primeiraSecao); }, 0);
-  }
-
-  function voltarPerfil() {
-    perfil = ''; equipeAtual = '';
-    document.getElementById('tela-perfil').style.display = 'block';
-    document.getElementById('tela-app').style.display = 'none';
-    document.getElementById('header-user').style.display = 'none';
-  }
-
-  function showTab(t, ev) {
-    document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
-    if (ev) ev.target.closest('.tab').classList.add('active');
-    showSection(t);
-    renderSection(t);
-  }
-
-  function showSection(t) {
-    ['nova', 'gerenciar', 'painel', 'historico', 'equipe'].forEach(s => {
-      const el = document.getElementById('sec-' + s);
-      if (el) el.classList.remove('active');
-    });
-    const el = document.getElementById('sec-' + t);
-    if (el) el.classList.add('active');
-  }
-
-  function renderSection(t) {
-    if (t === 'painel') renderPainel();
-    if (t === 'historico') renderHistorico();
-    if (t === 'equipe') renderEquipe();
-    if (t === 'gerenciar') renderGerenciar();
-  }
-
-  // ── DEMANDAS ─────────────────────────────────────────────
-  function enviarDemanda() {
-    const sol = document.getElementById('solicitante').value.trim();
-    const end = document.getElementById('endereco').value.trim();
-    const desc = document.getElementById('descricao').value.trim();
-    const prio = document.getElementById('prioridade').value;
-    const prev = document.getElementById('foto-preview');
-    if (!sol || !end || !desc) { alert('Preencha solicitante, endereço e descrição.'); return; }
-    demandas.unshift({
-      id: Date.now(), solicitante: sol, endereco: end, descricao: desc, prioridade: prio,
-      foto: prev.style.display !== 'none' ? prev.src : null,
-      status: 'pendente', equipe: '',
-      data: new Date().toLocaleDateString('pt-BR'),
-      hora: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-      dataConclusao: null, fotoConclusao: null
-    });
+function confirmarCheck() {
+  const data = document.getElementById('check-data').value;
+  const prev = document.getElementById('check-foto-prev');
+  if (!data) { alert('Informe a data de conclusão.'); return; }
+  if (prev.style.display==='none'||!prev.src) { alert('Adicione a foto do serviço concluído.'); return; }
+  const d = demandas.find(x => x.id === checkId);
+  if (d) {
+    d.status = 'concluído';
+    d.dataConclusao = new Date(data+'T12:00:00').toLocaleDateString('pt-BR');
+    d.fotoConclusao = prev.src;
     save();
-    ['solicitante', 'endereco', 'descricao'].forEach(id => document.getElementById(id).value = '');
-    document.getElementById('prioridade').value = 'normal';
-    prev.style.display = 'none'; prev.src = '';
-    document.getElementById('foto').value = '';
-    showMsg('Demanda registrada com sucesso!');
   }
+  fecharModal('modal-check');
+  showMsg('Demanda marcada como concluída!');
+  renderEquipe();
+}
 
-  function atribuir(id, equipe) {
-    const d = demandas.find(x => x.id === id);
-    if (d) { d.equipe = equipe; if (equipe && d.status === 'pendente') d.status = 'em andamento'; save(); renderPainel(); }
-  }
+function confirmarApagarConcluidas() {
+  const n = demandas.filter(d => d.status==='concluído').length;
+  if (!n) { alert('Não há demandas concluídas para apagar.'); return; }
+  if (!confirm(`Apagar ${n} demandas concluídas?\nGere o PDF antes de continuar!`)) return;
+  demandas = demandas.filter(d => d.status!=='concluído'); save(); renderHistorico();
+  showMsg('Demandas concluídas apagadas.');
+}
 
-  function deletarDemanda(id) {
-    if (!confirm('Tem certeza que deseja apagar esta demanda?')) return;
-    demandas = demandas.filter(x => x.id !== id); save();
-    if (perfil === 'secretaria') renderGerenciar(); else renderPainel();
-  }
+// ══════════════════════════════════════
+// RENDERS
+// ══════════════════════════════════════
+function renderStats() {
+  const pend = demandas.filter(d=>d.status==='pendente').length;
+  const and  = demandas.filter(d=>d.status==='em andamento').length;
+  const conc = demandas.filter(d=>d.status==='concluído').length;
+  document.getElementById('stats-box').innerHTML = `
+    <div class="stat"><div class="stat-num">${demandas.length}</div><div class="stat-label">Total</div></div>
+    <div class="stat"><div class="stat-num" style="color:var(--amber)">${pend}</div><div class="stat-label">Pendentes</div></div>
+    <div class="stat"><div class="stat-num" style="color:var(--blue)">${and}</div><div class="stat-label">Em andamento</div></div>
+    <div class="stat"><div class="stat-num" style="color:var(--green)">${conc}</div><div class="stat-label">Concluídas</div></div>`;
+}
 
-  function abrirCheck(id) {
-    checkId = id;
-    document.getElementById('check-data').value = new Date().toISOString().split('T')[0];
-    document.getElementById('check-foto-prev').style.display = 'none';
-    document.getElementById('check-foto').value = '';
-    document.getElementById('modal-check').style.display = 'flex';
-  }
+function alocarHtml(d) {
+  const eqs = [1,2,3,4,5].map(n =>
+    `<option value="Equipe ${n}" ${d.equipe===`Equipe ${n}`?'selected':''}>Equipe ${n}</option>`
+  ).join('');
+  return `
+    <div class="alocar-box">
+      <div class="alocar-label"><i class="ti ti-users"></i> Atribuir equipe responsável</div>
+      <select class="alocar-select" onchange="atribuir(${d.id}, this.value)">
+        <option value="">— Selecione uma equipe —</option>
+        ${eqs}
+      </select>
+      ${d.equipe ? `<div class="alocar-alocada"><i class="ti ti-circle-check"></i> <span class="tag-equipe">${d.equipe}</span> alocada</div>` : ''}
+    </div>`;
+}
 
-  function confirmarCheck() {
-    const data = document.getElementById('check-data').value;
-    const prev = document.getElementById('check-foto-prev');
-    if (!data) { alert('Informe a data de conclusão.'); return; }
-    if (prev.style.display === 'none' || !prev.src) { alert('Adicione uma foto do serviço concluído.'); return; }
-    const d = demandas.find(x => x.id === checkId);
-    if (d) {
-      d.status = 'concluído';
-      d.dataConclusao = new Date(data + 'T12:00:00').toLocaleDateString('pt-BR');
-      d.fotoConclusao = prev.src;
-      save();
-    }
-    fecharModal('modal-check');
-    showMsg('Demanda marcada como concluída!');
-    renderEquipe();
-  }
-
-  function confirmarApagarConcluidas() {
-    const n = demandas.filter(d => d.status === 'concluído').length;
-    if (!n) { alert('Não há demandas concluídas para apagar.'); return; }
-    if (!confirm(`Apagar ${n} demandas concluídas?\nRecomenda-se gerar o PDF antes de apagar.`)) return;
-    demandas = demandas.filter(d => d.status !== 'concluído'); save(); renderHistorico();
-    showMsg('Demandas concluídas apagadas.');
-  }
-
-  // ── RENDERS ──────────────────────────────────────────────
-  function renderStats() {
-    const pend = demandas.filter(d => d.status === 'pendente').length;
-    const and = demandas.filter(d => d.status === 'em andamento').length;
-    const conc = demandas.filter(d => d.status === 'concluído').length;
-    document.getElementById('stats-box').innerHTML = `
-      <div class="stat"><div class="stat-num">${demandas.length}</div><div class="stat-label">Total</div></div>
-      <div class="stat"><div class="stat-num" style="color:var(--amber)">${pend}</div><div class="stat-label">Pendentes</div></div>
-      <div class="stat"><div class="stat-num" style="color:var(--blue)">${and}</div><div class="stat-label">Em andamento</div></div>
-      <div class="stat"><div class="stat-num" style="color:var(--green)">${conc}</div><div class="stat-label">Concluídas</div></div>`;
-  }
-
-  function demandaCardHTML(d, { mostrarAtribuir = false, mostrarApagar = false, mostrarCheck = false } = {}) {
-    const opcEquipes = [1, 2, 3, 4, 5].map(n =>
-      `<option value="Equipe ${n}" ${d.equipe === `Equipe ${n}` ? 'selected' : ''}>Equipe ${n}</option>`
-    ).join('');
-    return `
-      <div class="demand-card ${d.prioridade === 'urgente' ? 'urgente' : ''}">
-        <div class="demand-header">
-          <span class="demand-title">${d.descricao}</span>
-          <div class="demand-badges">
-            ${badgeHtml(d.status)}
-            ${d.prioridade === 'urgente' ? '<span class="badge badge-urgente">⚡ urgente</span>' : ''}
-          </div>
+function renderPainel() {
+  renderStats();
+  const fs = document.getElementById('filtro-status').value;
+  const fe = document.getElementById('filtro-equipe').value;
+  let lista = demandas.filter(d => d.status !== 'concluído');
+  if (fs) lista = lista.filter(d => d.status === fs);
+  if (fe) lista = lista.filter(d => d.equipe === fe);
+  const el = document.getElementById('lista-painel');
+  if (!lista.length) { el.innerHTML='<div class="empty"><i class="ti ti-check"></i>Nenhuma demanda aberta</div>'; return; }
+  el.innerHTML = lista.map(d => `
+    <div class="demand-card ${d.prioridade==='urgente'?'urgente':''}">
+      <div class="demand-header">
+        <span class="demand-title">${d.descricao}</span>
+        <div class="demand-badges">
+          ${badgeHtml(d.status)}
+          ${d.prioridade==='urgente'?'<span class="badge badge-urgente">⚡ urgente</span>':''}
         </div>
-        <div class="demand-meta">
-          <i class="ti ti-user"></i> ${d.solicitante} &nbsp;·&nbsp;
-          <i class="ti ti-clock"></i> ${d.data} ${d.hora}
-          ${d.equipe ? `&nbsp;·&nbsp;<span class="tag-equipe"><i class="ti ti-users" style="font-size:11px"></i> ${d.equipe}</span>` : ''}
+      </div>
+      <div class="demand-meta">
+        <i class="ti ti-user"></i> ${d.solicitante} &nbsp;·&nbsp;
+        <i class="ti ti-clock"></i> ${d.data} ${d.hora}
+      </div>
+      ${cardMaps(d.endereco)}
+      ${d.foto?`<img src="${d.foto}" class="photo-preview" alt="Foto" style="margin-bottom:10px">`:''}
+      ${alocarHtml(d)}
+      <div class="demand-actions">
+        <button class="btn-del" onclick="deletarDemanda(${d.id})"><i class="ti ti-trash"></i> Apagar</button>
+      </div>
+    </div>`).join('');
+}
+
+function renderGerenciar() {
+  const lista = demandas.filter(d => d.status !== 'concluído');
+  const el = document.getElementById('lista-gerenciar');
+  if (!lista.length) { el.innerHTML='<div class="empty"><i class="ti ti-check"></i>Nenhuma demanda aberta</div>'; return; }
+  el.innerHTML = lista.map(d => `
+    <div class="demand-card ${d.prioridade==='urgente'?'urgente':''}">
+      <div class="demand-header">
+        <span class="demand-title">${d.descricao}</span>
+        <div class="demand-badges">
+          ${badgeHtml(d.status)}
+          ${d.prioridade==='urgente'?'<span class="badge badge-urgente">⚡ urgente</span>':''}
         </div>
-        ${cardMaps(d.endereco)}
-        ${d.foto ? `<img src="${d.foto}" class="photo-preview" alt="Foto ocorrência" style="margin-bottom:10px">` : ''}
-        <div class="demand-actions">
-          ${mostrarAtribuir ? `<select onchange="atribuir(${d.id},this.value)"><option value="">Atribuir equipe…</option>${opcEquipes}</select>` : ''}
-          ${mostrarCheck ? `<button class="btn-done" onclick="abrirCheck(${d.id})"><i class="ti ti-camera"></i> Concluir com foto</button>` : ''}
-          ${mostrarApagar ? `<button class="btn-del" onclick="deletarDemanda(${d.id})"><i class="ti ti-trash"></i> Apagar</button>` : ''}
+      </div>
+      <div class="demand-meta">
+        <i class="ti ti-user"></i> ${d.solicitante} &nbsp;·&nbsp;
+        <i class="ti ti-clock"></i> ${d.data} ${d.hora}
+        ${d.equipe?`&nbsp;·&nbsp;<span class="tag-equipe">${d.equipe}</span>`:''}
+      </div>
+      ${cardMaps(d.endereco)}
+      <div class="demand-actions">
+        <button class="btn-del" onclick="deletarDemanda(${d.id})"><i class="ti ti-trash"></i> Apagar demanda</button>
+      </div>
+    </div>`).join('');
+}
+
+function renderEquipe() {
+  const lista = demandas.filter(d => d.equipe===equipeAtual && d.status!=='concluído');
+  const el = document.getElementById('lista-equipe');
+  if (!lista.length) { el.innerHTML=`<div class="empty"><i class="ti ti-check"></i>Nenhuma demanda atribuída para ${equipeAtual}</div>`; return; }
+  el.innerHTML = lista.map(d => `
+    <div class="demand-card ${d.prioridade==='urgente'?'urgente':''}">
+      <div class="demand-header">
+        <span class="demand-title">${d.descricao}</span>
+        <div class="demand-badges">
+          ${badgeHtml(d.status)}
+          ${d.prioridade==='urgente'?'<span class="badge badge-urgente">⚡ urgente</span>':''}
         </div>
-      </div>`;
-  }
+      </div>
+      <div class="demand-meta"><i class="ti ti-clock"></i> ${d.data} ${d.hora}</div>
+      ${cardMaps(d.endereco)}
+      ${d.foto?`<img src="${d.foto}" class="photo-preview" alt="Foto" style="margin-bottom:10px">`:''}
+      <div class="demand-actions">
+        <button class="btn-done" onclick="abrirCheck(${d.id})">
+          <i class="ti ti-camera"></i> Concluir com foto e data
+        </button>
+      </div>
+    </div>`).join('');
+}
 
-  function renderPainel() {
-    renderStats();
-    const fs = document.getElementById('filtro-status').value;
-    const fe = document.getElementById('filtro-equipe').value;
-    let lista = demandas.filter(d => d.status !== 'concluído');
-    if (fs) lista = lista.filter(d => d.status === fs);
-    if (fe) lista = lista.filter(d => d.equipe === fe);
-    const el = document.getElementById('lista-painel');
-    if (!lista.length) { el.innerHTML = '<div class="empty"><i class="ti ti-check"></i>Nenhuma demanda aberta</div>'; return; }
-    el.innerHTML = lista.map(d => demandaCardHTML(d, { mostrarAtribuir: true, mostrarApagar: true })).join('');
-  }
+function renderHistorico() {
+  const conc = demandas.filter(d => d.status==='concluído');
+  const el = document.getElementById('lista-historico');
+  const btn = document.getElementById('btn-apagar-conc');
+  if (btn) btn.style.display = conc.length ? 'inline-flex' : 'none';
+  if (!conc.length) { el.innerHTML='<div class="empty"><i class="ti ti-history"></i>Nenhum serviço concluído ainda</div>'; return; }
+  el.innerHTML = `<div class="card">${conc.map(d=>`
+    <div class="hist-row">
+      <div style="font-size:14px;font-weight:600;margin-bottom:6px">${d.descricao}</div>
+      ${cardMaps(d.endereco)}
+      <div style="font-size:12px;color:var(--text2);margin-top:6px">
+        <i class="ti ti-user" style="font-size:12px"></i> ${d.solicitante}
+        ${d.equipe?`&nbsp;·&nbsp;<span class="tag-equipe">${d.equipe}</span>`:''}
+        &nbsp;·&nbsp; Conclusão: <strong>${d.dataConclusao||'—'}</strong>
+      </div>
+      ${d.fotoConclusao?`<img src="${d.fotoConclusao}" class="photo-preview" alt="Foto conclusão" style="margin-top:10px">`:''}
+    </div>`).join('')}</div>`;
+}
 
-  function renderGerenciar() {
-    const lista = demandas.filter(d => d.status !== 'concluído');
-    const el = document.getElementById('lista-gerenciar');
-    if (!lista.length) { el.innerHTML = '<div class="empty"><i class="ti ti-check"></i>Nenhuma demanda aberta</div>'; return; }
-    el.innerHTML = lista.map(d => demandaCardHTML(d, { mostrarApagar: true })).join('');
-  }
+// ══════════════════════════════════════
+// PDF
+// ══════════════════════════════════════
+function gerarRelatorio() {
+  const conc = demandas.filter(d => d.status==='concluído');
+  if (!conc.length) { alert('Não há demandas concluídas para gerar relatório.'); return; }
+  const hoje = new Date().toLocaleDateString('pt-BR');
+  const html = conc.map((d,i)=>`
+    <div style="margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--border)">
+      <strong>${i+1}. ${d.descricao}</strong><br>
+      Solicitante: ${d.solicitante}<br>Endereço: ${d.endereco}<br>
+      Abertura: ${d.data} ${d.hora}<br>Conclusão: ${d.dataConclusao||'—'}<br>
+      Equipe: ${d.equipe||'—'} ${d.prioridade==='urgente'?'⚡ URGENTE':''}
+    </div>`).join('');
+  document.getElementById('rel-conteudo').innerHTML =
+    `<strong>Total: ${conc.length} demandas concluídas</strong><br>Gerado em: ${hoje}<br><br>${html}`;
+  document.getElementById('modal-relatorio').style.display='flex';
+}
 
-  function renderEquipe() {
-    const lista = demandas.filter(d => d.equipe === equipeAtual && d.status !== 'concluído');
-    const el = document.getElementById('lista-equipe');
-    if (!lista.length) { el.innerHTML = `<div class="empty"><i class="ti ti-check"></i>Nenhuma demanda atribuída para ${equipeAtual}</div>`; return; }
-    el.innerHTML = lista.map(d => demandaCardHTML(d, { mostrarCheck: true })).join('');
-  }
+function baixarPDF() {
+  const conc = demandas.filter(d => d.status==='concluído');
+  if (!conc.length) return;
+  const {jsPDF} = window.jspdf;
+  const doc = new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+  const hoje = new Date().toLocaleDateString('pt-BR');
+  const W=210, M=15, lH=6;
+  let y=M;
+  function chk(n=10){if(y+n>284){doc.addPage();y=M;}}
 
-  function renderHistorico() {
-    const conc = demandas.filter(d => d.status === 'concluído');
-    const el = document.getElementById('lista-historico');
-    const btn = document.getElementById('btn-apagar-conc');
-    if (btn) btn.style.display = conc.length ? 'inline-flex' : 'none';
-    if (!conc.length) { el.innerHTML = '<div class="empty"><i class="ti ti-history"></i>Nenhum serviço concluído ainda</div>'; return; }
-    el.innerHTML = `<div class="card">${conc.map(d => `
-      <div class="hist-row">
-        <div style="font-size:14px;font-weight:600;margin-bottom:6px">${d.descricao}</div>
-        ${cardMaps(d.endereco)}
-        <div style="font-size:12px;color:var(--text2);margin-top:6px;font-family:var(--font-mono)">
-          <i class="ti ti-user" style="font-size:12px"></i> ${d.solicitante} &nbsp;·&nbsp;
-          ${d.equipe ? `<span class="tag-equipe"><i class="ti ti-users" style="font-size:11px"></i> ${d.equipe}</span>` : ''}
-          &nbsp;·&nbsp; Conclusão: <strong>${d.dataConclusao || '—'}</strong>
-        </div>
-        ${d.fotoConclusao ? `<img src="${d.fotoConclusao}" class="photo-preview" alt="Foto conclusão" style="margin-top:10px">` : ''}
-      </div>`).join('')}</div>`;
-  }
+  // Cabeçalho
+  doc.setFillColor(26,25,23);doc.rect(0,0,W,26,'F');
+  doc.setTextColor(255,255,255);
+  doc.setFontSize(13);doc.setFont('helvetica','bold');
+  doc.text('Secretaria da Infraestrutura – Ribeirão Preto',M,11);
+  doc.setFontSize(9);doc.setFont('helvetica','normal');
+  doc.text('Gestão de Limpeza Urbana',M,17);
+  doc.text(`Gerado em: ${hoje}`,W-M,17,{align:'right'});
+  y=34;
 
-  // ── RELATÓRIO PDF ─────────────────────────────────────────
-  function gerarRelatorio() {
-    const conc = demandas.filter(d => d.status === 'concluído');
-    if (!conc.length) { alert('Não há demandas concluídas para gerar relatório.'); return; }
-    const hoje = new Date().toLocaleDateString('pt-BR');
-    const html = conc.map((d, i) => `
-      <div style="margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--border)">
-        <strong>${i + 1}. ${d.descricao}</strong><br>
-        Solicitante: ${d.solicitante}<br>
-        Endereço: ${d.endereco}<br>
-        Abertura: ${d.data} ${d.hora}<br>
-        Conclusão: ${d.dataConclusao || '—'}<br>
-        Equipe: ${d.equipe || '—'} &nbsp; ${d.prioridade === 'urgente' ? '⚡ urgente' : ''}
-      </div>`).join('');
-    document.getElementById('rel-conteudo').innerHTML =
-      `<strong>Total: ${conc.length} demandas concluídas</strong><br>Gerado em: ${hoje}<br><br>${html}`;
-    document.getElementById('modal-relatorio').style.display = 'flex';
-  }
+  doc.setTextColor(26,25,23);
+  doc.setFontSize(16);doc.setFont('helvetica','bold');
+  doc.text('Relatório de Demandas Concluídas',M,y);y+=7;
+  doc.setFontSize(10);doc.setFont('helvetica','normal');doc.setTextColor(100,100,100);
+  doc.text(`Total: ${conc.length} demanda${conc.length>1?'s':''} concluída${conc.length>1?'s':''}`,M,y);y+=4;
+  doc.setDrawColor(210,210,210);doc.line(M,y,W-M,y);y+=8;
 
-  function baixarPDF() {
-    const conc = demandas.filter(d => d.status === 'concluído');
-    if (!conc.length) return;
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-    const hoje = new Date().toLocaleDateString('pt-BR');
-    const W = 210, M = 15, lineH = 6;
-    let y = M;
+  conc.forEach((d,i)=>{
+    chk(38);
+    doc.setFillColor(244,243,239);doc.roundedRect(M,y,W-M*2,10,1,1,'F');
+    doc.setFontSize(10);doc.setFont('helvetica','bold');doc.setTextColor(26,25,23);
+    const titulo=doc.splitTextToSize(`${i+1}. ${d.descricao}`,W-M*2-6);
+    doc.text(titulo,M+3,y+6.5);
+    y+=10+(titulo.length-1)*5+4;
 
-    function checkPage(needed = 10) {
-      if (y + needed > 285) { doc.addPage(); y = M; }
-    }
-
-    // Cabeçalho
-    doc.setFillColor(26, 25, 23);
-    doc.rect(0, 0, W, 24, 'F');
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(12); doc.setFont('helvetica', 'bold');
-    doc.text('Secretaria da Infraestrutura – Ribeirão Preto', M, 10);
-    doc.setFontSize(9); doc.setFont('helvetica', 'normal');
-    doc.text('Gestão de Limpeza Urbana', M, 16);
-    doc.setFontSize(8);
-    doc.text(`Gerado em: ${hoje}`, W - M, 16, { align: 'right' });
-    y = 32;
-
-    // Título
-    doc.setTextColor(26, 25, 23);
-    doc.setFontSize(15); doc.setFont('helvetica', 'bold');
-    doc.text('Relatório de Demandas Concluídas', M, y); y += 7;
-    doc.setFontSize(9); doc.setFont('helvetica', 'normal'); doc.setTextColor(100, 100, 100);
-    doc.text(`Total: ${conc.length} demanda${conc.length > 1 ? 's' : ''}`, M, y); y += 4;
-    doc.setDrawColor(200, 200, 200); doc.line(M, y, W - M, y); y += 7;
-
-    // Demandas
-    conc.forEach((d, i) => {
-      checkPage(35);
-
-      // Número + título
-      doc.setFillColor(245, 244, 240);
-      doc.roundedRect(M, y, W - M * 2, 9, 1, 1, 'F');
-      doc.setFontSize(10); doc.setFont('helvetica', 'bold'); doc.setTextColor(26, 25, 23);
-      const titulo = doc.splitTextToSize(`${i + 1}. ${d.descricao}`, W - M * 2 - 6);
-      doc.text(titulo, M + 3, y + 6);
-      y += 9 + (titulo.length - 1) * 5 + 3;
-
-      const campos = [
-        ['Solicitante', d.solicitante],
-        ['Endereço', d.endereco],
-        ['Abertura', `${d.data} às ${d.hora}`],
-        ['Conclusão', d.dataConclusao || '—'],
-        ['Equipe', d.equipe || '—'],
-        ['Prioridade', d.prioridade],
-      ];
-
-      doc.setFontSize(9);
-      campos.forEach(([label, val]) => {
-        checkPage(7);
-        doc.setFont('helvetica', 'bold'); doc.setTextColor(80, 80, 80);
-        doc.text(label + ':', M + 3, y);
-        doc.setFont('helvetica', 'normal'); doc.setTextColor(26, 25, 23);
-        const lines = doc.splitTextToSize(String(val), W - M * 2 - 36);
-        doc.text(lines, M + 36, y);
-        y += lineH * lines.length;
-      });
-
-      // Foto de conclusão
-      if (d.fotoConclusao) {
-        checkPage(50);
-        try {
-          doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(80, 80, 80);
-          doc.text('Foto do serviço concluído:', M + 3, y); y += 4;
-          doc.addImage(d.fotoConclusao, 'JPEG', M + 3, y, 65, 45); y += 48;
-        } catch (err) { /* ignora erros de imagem */ }
-      }
-
-      checkPage(5);
-      doc.setDrawColor(220, 220, 220); doc.line(M, y, W - M, y); y += 6;
+    const campos=[
+      ['Solicitante',d.solicitante],['Endereço',d.endereco],
+      ['Abertura',`${d.data} às ${d.hora}`],['Conclusão',d.dataConclusao||'—'],
+      ['Equipe',d.equipe||'—'],['Prioridade',d.prioridade==='urgente'?'URGENTE':'Normal'],
+    ];
+    doc.setFontSize(9);
+    campos.forEach(([l,v])=>{
+      chk(7);
+      doc.setFont('helvetica','bold');doc.setTextColor(90,90,90);doc.text(l+':',M+3,y);
+      doc.setFont('helvetica','normal');doc.setTextColor(26,25,23);
+      const lines=doc.splitTextToSize(String(v),W-M*2-36);
+      doc.text(lines,M+36,y);y+=lH*lines.length;
     });
 
-    // Rodapé última página
-    checkPage(8);
-    doc.setFontSize(8); doc.setTextColor(160, 160, 160); doc.setFont('helvetica', 'italic');
-    doc.text('Documento gerado automaticamente – Sistema de Gestão de Limpeza Urbana / Secretaria da Infraestrutura de Ribeirão Preto', M, y, { maxWidth: W - M * 2 });
+    if(d.fotoConclusao){
+      chk(52);
+      try{
+        doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(90,90,90);
+        doc.text('Foto do serviço concluído:',M+3,y);y+=4;
+        doc.addImage(d.fotoConclusao,'JPEG',M+3,y,70,50);y+=53;
+      }catch(e){}
+    }
+    chk(6);doc.setDrawColor(220,220,220);doc.line(M,y,W-M,y);y+=7;
+  });
 
-    const nomeArq = `relatorio_demandas_${hoje.replace(/\//g, '-')}.pdf`;
-    doc.save(nomeArq);
-  }
+  chk(10);
+  doc.setFontSize(8);doc.setTextColor(160,160,160);doc.setFont('helvetica','italic');
+  doc.text('Documento gerado automaticamente – Sistema de Gestão de Limpeza Urbana / Secretaria da Infraestrutura de Ribeirão Preto',M,y,{maxWidth:W-M*2});
+  doc.save(`relatorio_demandas_${hoje.replace(/\//g,'-')}.pdf`);
+}
 </script>
 </body>
 </html>
