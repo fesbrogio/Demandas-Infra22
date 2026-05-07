@@ -8,6 +8,40 @@
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<!-- Firebase -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import {
+    getFirestore, collection, addDoc, onSnapshot, doc,
+    updateDoc, deleteDoc, query, orderBy, serverTimestamp
+  } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyAOeJwqEKzVQNtKdQgFmgo7F4w1Xl2gno8",
+    authDomain: "demandas-limp-rp.firebaseapp.com",
+    projectId: "demandas-limp-rp",
+    storageBucket: "demandas-limp-rp.firebasestorage.app",
+    messagingSenderId: "327199319082",
+    appId: "1:327199319082:web:d04f07df17d532b7c04f53"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db  = getFirestore(app);
+  const col = collection(db, "demandas");
+
+  // Escuta em tempo real — atualiza todos os dispositivos automaticamente
+  onSnapshot(query(col, orderBy("criadoEm", "desc")), (snap) => {
+    window._demandas = snap.docs.map(d => ({ _id: d.id, ...d.data() }));
+    window._renderAtual && window._renderAtual();
+  });
+
+  // Expõe funções ao escopo global
+  window._db = db;
+  window._col = col;
+  window._addDoc    = (data)        => addDoc(col, { ...data, criadoEm: serverTimestamp() });
+  window._updateDoc = (id, data)    => updateDoc(doc(db, "demandas", id), data);
+  window._deleteDoc = (id)          => deleteDoc(doc(db, "demandas", id));
+</script>
 <style>
   :root {
     --bg:#f4f3ef;--surface:#fff;--surface2:#eeecea;--border:#d8d6d0;--border2:#c8c5be;
@@ -18,12 +52,12 @@
     --blue:#1a3f7a;--blue-bg:#e8eef8;--blue-border:#a8bce0;
     --radius:8px;--radius-lg:12px;
     --font:'IBM Plex Sans',sans-serif;--font-mono:'IBM Plex Mono',monospace;
-    --shadow:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.04);
+    --shadow:0 1px 3px rgba(0,0,0,.08);
   }
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:15px;min-height:100vh}
 
-  /* ── HEADER ── */
+  /* HEADER */
   .header{background:var(--text);color:#fff;padding:0 16px;height:54px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;gap:10px}
   .header-brand{display:flex;align-items:center;gap:10px;min-width:0}
   .header-logo{width:32px;height:32px;flex-shrink:0;background:#fff;border-radius:8px;display:flex;align-items:center;justify-content:center}
@@ -32,13 +66,13 @@
   .brand-sub{font-size:10px;opacity:.5;font-family:var(--font-mono)}
   .header-right{display:flex;align-items:center;gap:8px;flex-shrink:0}
   #header-user-label{font-size:12px;opacity:.7;font-family:var(--font-mono);white-space:nowrap}
-  .btn-header{background:rgba(255,255,255,.14);border:none;color:#fff;padding:7px 13px;border-radius:7px;font-size:13px;cursor:pointer;font-family:var(--font);display:flex;align-items:center;gap:5px;white-space:nowrap;transition:background .15s}
+  .btn-header{background:rgba(255,255,255,.14);border:none;color:#fff;padding:7px 13px;border-radius:7px;font-size:13px;cursor:pointer;font-family:var(--font);display:flex;align-items:center;gap:5px;transition:background .15s}
   .btn-header:hover{background:rgba(255,255,255,.24)}
 
-  /* ── MAIN ── */
+  /* MAIN */
   .main{max-width:700px;margin:0 auto;padding:22px 14px 80px}
 
-  /* ── PERFIL ── */
+  /* PERFIL */
   #tela-perfil{animation:fadeIn .2s ease}
   .perfil-title{font-size:21px;font-weight:600;margin:8px 0 4px}
   .perfil-sub{font-size:14px;color:var(--text2);margin-bottom:24px}
@@ -54,7 +88,7 @@
   .equipe-btn:hover{border-color:var(--border2);background:var(--surface2)}
   .equipe-btn i{font-size:15px;color:var(--text2)}
 
-  /* ── MODALS ── */
+  /* MODALS */
   .modal-wrap{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:200;padding:16px}
   .modal{background:var(--surface);border-radius:var(--radius-lg);padding:24px;max-width:400px;width:100%;border:1px solid var(--border);animation:slideUp .2s ease}
   .modal-lg{max-width:520px;max-height:90vh;overflow-y:auto}
@@ -62,34 +96,47 @@
   .modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:18px;flex-wrap:wrap}
   .modal-erro{font-size:12px;color:var(--red);margin-top:6px;display:none;align-items:center;gap:5px}
 
-  /* ── APP ── */
+  /* APP */
   #tela-app{display:none;animation:fadeIn .2s ease}
   .btn-voltar{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--text2);cursor:pointer;border:none;background:none;font-family:var(--font);padding:0;margin-bottom:16px;transition:color .15s}
   .btn-voltar:hover{color:var(--text)}
 
-  /* ── TABS ── */
+  /* TABS */
   .tabs{display:flex;gap:2px;border-bottom:1px solid var(--border);margin-bottom:18px;overflow-x:auto;-webkit-overflow-scrolling:touch}
   .tabs::-webkit-scrollbar{display:none}
   .tab{padding:10px 13px;font-size:13px;cursor:pointer;border:none;background:none;color:var(--text2);border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap;font-family:var(--font);display:flex;align-items:center;gap:6px;transition:color .15s;flex-shrink:0}
   .tab:hover{color:var(--text)}
   .tab.active{color:var(--text);border-bottom-color:var(--text);font-weight:500}
 
-  /* ── SECTIONS ── */
+  /* SECTIONS */
   .section{display:none}
   .section.active{display:block;animation:fadeIn .15s ease}
 
-  /* ── CARD / FIELDS ── */
+  /* LOADING */
+  .loading{text-align:center;padding:40px 20px;color:var(--text3);font-size:14px}
+  .loading i{font-size:28px;display:block;margin-bottom:8px;animation:spin 1s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  /* CARD / FIELDS */
   .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:18px 20px;margin-bottom:12px}
   .section-title{font-size:15px;font-weight:600;margin-bottom:16px}
   .field{margin-bottom:14px}
-  .field label{display:block;font-size:12px;font-weight:500;color:var(--text2);margin-bottom:6px;letter-spacing:.02em}
-  .field input,.field textarea,.field select{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius);font-size:14px;font-family:var(--font);background:var(--bg);color:var(--text);transition:border-color .15s,box-shadow .15s;-webkit-appearance:none;appearance:none}
+  .field label{display:block;font-size:12px;font-weight:500;color:var(--text2);margin-bottom:6px}
+  .field input,.field textarea,.field select{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius);font-size:14px;font-family:var(--font);background:var(--bg);color:var(--text);-webkit-appearance:none;appearance:none;transition:border-color .15s}
   .field select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b6860' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:30px}
   .field input:focus,.field textarea:focus,.field select:focus{outline:none;border-color:var(--text);box-shadow:0 0 0 3px rgba(26,25,23,.08)}
   .field textarea{resize:vertical;min-height:80px;line-height:1.5}
+  .divider{height:1px;background:var(--border);margin:16px 0}
 
-  /* ── BUTTONS ── */
-  .btn{padding:10px 18px;border-radius:var(--radius);font-size:13px;font-weight:500;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--text);font-family:var(--font);display:inline-flex;align-items:center;gap:7px;transition:background .15s,border-color .15s;white-space:nowrap;-webkit-tap-highlight-color:transparent}
+  /* CAMPO EQUIPE DESTACADO */
+  .field-equipe{margin-bottom:14px}
+  .field-equipe label{display:block;font-size:12px;font-weight:600;color:var(--amber);margin-bottom:6px;display:flex;align-items:center;gap:5px}
+  .field-equipe select{width:100%;padding:11px 32px 11px 12px;border:2px solid var(--amber-border);border-radius:var(--radius);font-size:14px;font-family:var(--font);background:var(--amber-bg);color:var(--text);-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%237a4f00' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;font-weight:500;cursor:pointer}
+  .field-equipe select:focus{outline:none;border-color:var(--amber);box-shadow:0 0 0 3px rgba(122,79,0,.12)}
+  .field-equipe .equipe-hint{font-size:11px;color:var(--amber);margin-top:5px;display:flex;align-items:center;gap:4px}
+
+  /* BUTTONS */
+  .btn{padding:10px 18px;border-radius:var(--radius);font-size:13px;font-weight:500;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--text);font-family:var(--font);display:inline-flex;align-items:center;gap:7px;transition:background .15s;white-space:nowrap;-webkit-tap-highlight-color:transparent}
   .btn:hover{background:var(--surface2)}
   .btn:active{transform:scale(.98)}
   .btn-primary{background:var(--text);color:#fff;border-color:var(--text)}
@@ -101,14 +148,14 @@
   .btn-sm{padding:7px 13px;font-size:12px}
   .btn-full{width:100%;justify-content:center;margin-top:4px}
 
-  /* ── BADGES ── */
+  /* BADGES */
   .badge{display:inline-block;font-size:11px;padding:3px 9px;border-radius:20px;font-weight:500;font-family:var(--font-mono)}
   .badge-pending{background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-border)}
   .badge-doing{background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-border)}
   .badge-done{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)}
   .badge-urgente{background:var(--red-bg);color:var(--red);border:1px solid var(--red-border)}
 
-  /* ── DEMAND CARD ── */
+  /* DEMAND CARD */
   .demand-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px;margin-bottom:10px}
   .demand-card.urgente{border-left:3px solid #e05555}
   .demand-header{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:8px}
@@ -120,31 +167,30 @@
   .maps-link:hover{background:#d4e0f4}
   .maps-link i{flex-shrink:0}
 
-  /* ── ALOCAR BOX ── */
-  .alocar-box{background:var(--amber-bg);border:1px solid var(--amber-border);border-radius:var(--radius);padding:13px;margin-top:12px}
+  /* ALOCAR BOX */
+  .alocar-box{background:var(--amber-bg);border:2px solid var(--amber-border);border-radius:var(--radius);padding:13px;margin-top:12px}
   .alocar-label{font-size:12px;font-weight:600;color:var(--amber);margin-bottom:8px;display:flex;align-items:center;gap:6px}
-  .alocar-select{width:100%;padding:10px 30px 10px 12px;border:1px solid var(--amber-border);border-radius:var(--radius);font-size:14px;font-family:var(--font);background:#fff;color:var(--text);cursor:pointer;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%237a4f00' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center}
-  .alocar-select:focus{outline:none;border-color:var(--amber);box-shadow:0 0 0 3px rgba(122,79,0,.1)}
+  .alocar-select{width:100%;padding:10px 30px 10px 12px;border:1px solid var(--amber-border);border-radius:var(--radius);font-size:14px;font-family:var(--font);background:#fff;color:var(--text);cursor:pointer;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%237a4f00' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;font-weight:500}
+  .alocar-select:focus{outline:none;border-color:var(--amber)}
   .alocar-alocada{font-size:13px;font-weight:500;margin-top:8px;display:flex;align-items:center;gap:6px;color:var(--green)}
 
   .demand-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)}
-  .btn-done{font-size:12px;padding:9px 16px;border-radius:var(--radius);cursor:pointer;border:1px solid var(--green-border);background:var(--green-bg);color:var(--green);display:inline-flex;align-items:center;gap:5px;font-family:var(--font);font-weight:500;transition:background .15s;-webkit-tap-highlight-color:transparent}
+  .btn-done{font-size:12px;padding:9px 16px;border-radius:var(--radius);cursor:pointer;border:1px solid var(--green-border);background:var(--green-bg);color:var(--green);display:inline-flex;align-items:center;gap:5px;font-family:var(--font);font-weight:500;transition:background .15s}
   .btn-done:hover{background:#cde8d8}
-  .btn-done:active{transform:scale(.98)}
   .btn-del{font-size:12px;padding:9px 14px;border-radius:var(--radius);cursor:pointer;border:1px solid var(--red-border);background:transparent;color:var(--red);display:inline-flex;align-items:center;gap:5px;font-family:var(--font);transition:background .15s}
   .btn-del:hover{background:var(--red-bg)}
 
-  /* ── STATS ── */
+  /* STATS */
   .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px}
   .stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px 8px;text-align:center}
   .stat-num{font-size:22px;font-weight:600;font-family:var(--font-mono)}
   .stat-label{font-size:11px;color:var(--text3);margin-top:2px}
 
-  /* ── FILTER ── */
+  /* FILTER */
   .filter-row{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
   .filter-row select{font-size:12px;padding:8px 28px 8px 10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);color:var(--text);font-family:var(--font);cursor:pointer;flex:1;min-width:130px;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b6860' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center}
 
-  /* ── OUTROS ── */
+  /* OUTROS */
   .photo-preview{max-width:100%;max-height:180px;border-radius:var(--radius);margin-top:8px;display:block;object-fit:cover;border:1px solid var(--border)}
   .msg{padding:10px 14px;border-radius:var(--radius);font-size:13px;margin-bottom:14px;display:flex;align-items:center;gap:8px}
   .msg-success{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)}
@@ -156,7 +202,12 @@
   .empty i{font-size:32px;display:block;margin-bottom:10px}
   .rel-content{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:12px;font-size:12px;line-height:1.8;max-height:300px;overflow-y:auto;font-family:var(--font-mono)}
 
-  /* ── RESPONSIVE ── */
+  /* INDICADOR TEMPO REAL */
+  .realtime-badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--green);font-family:var(--font-mono);margin-bottom:14px}
+  .realtime-dot{width:7px;height:7px;background:var(--green);border-radius:50%;animation:pulse 1.5s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+  /* RESPONSIVE */
   @media(max-width:500px){
     .perfil-grid{grid-template-columns:1fr 1fr}
     .equipe-grid{grid-template-columns:1fr 1fr}
@@ -195,7 +246,7 @@
 
 <div class="main">
 
-  <!-- ════ TELA PERFIL ════ -->
+  <!-- TELA PERFIL -->
   <div id="tela-perfil">
     <p class="perfil-title">Gestão de limpeza urbana</p>
     <p class="perfil-sub">Selecione seu perfil para acessar o sistema.</p>
@@ -205,7 +256,7 @@
       <button class="perfil-btn" onclick="tentarSecretaria()">
         <i class="ti ti-building picon"></i>
         <div class="pname">Secretaria</div>
-        <div class="pdesc">Registrar e gerenciar demandas</div>
+        <div class="pdesc">Registrar e alocar demandas por equipe</div>
       </button>
       <button class="perfil-btn" onclick="entrarComo('fiscal')">
         <i class="ti ti-eye picon"></i>
@@ -224,12 +275,11 @@
     </div>
   </div>
 
-  <!-- ════ APP PRINCIPAL ════ -->
+  <!-- APP PRINCIPAL -->
   <div id="tela-app">
     <button class="btn-voltar" onclick="voltarPerfil()">
       <i class="ti ti-arrow-left"></i> Voltar à seleção de perfil
     </button>
-
     <div class="tabs" id="tabs-container"></div>
     <div id="msg-global" style="display:none" class="msg"></div>
 
@@ -255,6 +305,19 @@
             <option value="normal">Normal</option>
             <option value="urgente">⚡ Urgente</option>
           </select>
+        </div>
+        <div class="divider"></div>
+        <div class="field-equipe">
+          <label><i class="ti ti-users"></i> Equipe responsável</label>
+          <select id="equipe-nova">
+            <option value="">— Selecione a equipe —</option>
+            <option value="Equipe 1">Equipe 1</option>
+            <option value="Equipe 2">Equipe 2</option>
+            <option value="Equipe 3">Equipe 3</option>
+            <option value="Equipe 4">Equipe 4</option>
+            <option value="Equipe 5">Equipe 5</option>
+          </select>
+          <div class="equipe-hint"><i class="ti ti-info-circle"></i> Selecione a equipe que vai executar o serviço</div>
         </div>
         <div class="field">
           <label>Foto do local (opcional)</label>
@@ -313,11 +376,11 @@
   </div>
 </div>
 
-<!-- ════ MODAL SENHA ════ -->
+<!-- MODAL SENHA -->
 <div id="modal-senha" class="modal-wrap" style="display:none">
   <div class="modal">
     <h3><i class="ti ti-lock" style="color:var(--amber)"></i> Acesso restrito – Secretaria</h3>
-    <p style="font-size:13px;color:var(--text2);margin-bottom:16px">Esta área é exclusiva para servidores autorizados. Digite a senha para continuar.</p>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:16px">Esta área é exclusiva para servidores autorizados.</p>
     <div class="field">
       <label>Senha de acesso</label>
       <input type="password" id="input-senha" placeholder="••••••••" onkeydown="if(event.key==='Enter')verificarSenha()">
@@ -330,7 +393,7 @@
   </div>
 </div>
 
-<!-- ════ MODAL CHECK ════ -->
+<!-- MODAL CHECK -->
 <div id="modal-check" class="modal-wrap" style="display:none">
   <div class="modal">
     <h3><i class="ti ti-circle-check" style="color:var(--green)"></i> Confirmar conclusão</h3>
@@ -350,12 +413,12 @@
   </div>
 </div>
 
-<!-- ════ MODAL RELATÓRIO ════ -->
+<!-- MODAL RELATÓRIO -->
 <div id="modal-relatorio" class="modal-wrap" style="display:none">
   <div class="modal modal-lg">
     <h3><i class="ti ti-file-type-pdf" style="color:var(--red)"></i> Relatório — Demandas concluídas</h3>
     <div class="rel-content" id="rel-conteudo"></div>
-    <p style="font-size:12px;color:var(--text2);margin-bottom:4px"><i class="ti ti-info-circle" style="vertical-align:-1px"></i> O PDF será baixado com todas as demandas e fotos de conclusão.</p>
+    <p style="font-size:12px;color:var(--text2);margin-bottom:4px"><i class="ti ti-info-circle" style="vertical-align:-1px"></i> O PDF inclui todas as demandas e fotos de conclusão.</p>
     <div class="modal-actions">
       <button class="btn" onclick="fecharModal('modal-relatorio')">Fechar</button>
       <button class="btn btn-primary" onclick="baixarPDF()"><i class="ti ti-download"></i> Baixar PDF</button>
@@ -364,34 +427,32 @@
 </div>
 
 <script>
-// ══════════════════════════════════════
-// CONFIGURAÇÃO — altere a senha aqui
-// ══════════════════════════════════════
-const SENHA_SECRETARIA = 'secretaria123';
+// ── CONFIGURAÇÃO ─────────────────────────────
+const SENHA_SECRETARIA = 'secretaria123'; // altere aqui
 
-// ══════════════════════════════════════
-// ESTADO
-// ══════════════════════════════════════
-let demandas = [];
-try { demandas = JSON.parse(localStorage.getItem('demandas_rp') || '[]'); } catch(e) {}
+// ── ESTADO ───────────────────────────────────
 let perfil = '', equipeAtual = '', checkId = null;
-function save() { try { localStorage.setItem('demandas_rp', JSON.stringify(demandas)); } catch(e) {} }
+let _secaoAtual = '';
+window._demandas = [];
 
-// ══════════════════════════════════════
-// SENHA
-// ══════════════════════════════════════
+// Função chamada sempre que o Firebase atualiza os dados
+window._renderAtual = () => {
+  if (_secaoAtual === 'painel')    renderPainel();
+  if (_secaoAtual === 'historico') renderHistorico();
+  if (_secaoAtual === 'equipe')    renderEquipe();
+  if (_secaoAtual === 'gerenciar') renderGerenciar();
+};
+
+// ── SENHA ─────────────────────────────────────
 function tentarSecretaria() {
   document.getElementById('input-senha').value = '';
   document.getElementById('msg-senha-erro').style.display = 'none';
   document.getElementById('modal-senha').style.display = 'flex';
   setTimeout(() => document.getElementById('input-senha').focus(), 150);
 }
-
 function verificarSenha() {
-  const val = document.getElementById('input-senha').value;
-  if (val === SENHA_SECRETARIA) {
-    fecharModal('modal-senha');
-    entrarComo('secretaria');
+  if (document.getElementById('input-senha').value === SENHA_SECRETARIA) {
+    fecharModal('modal-senha'); entrarComo('secretaria');
   } else {
     document.getElementById('msg-senha-erro').style.display = 'flex';
     document.getElementById('input-senha').value = '';
@@ -399,9 +460,7 @@ function verificarSenha() {
   }
 }
 
-// ══════════════════════════════════════
-// NAVEGAÇÃO
-// ══════════════════════════════════════
+// ── NAVEGAÇÃO ─────────────────────────────────
 function entrarComo(p) {
   perfil = p;
   document.getElementById('tela-perfil').style.display = 'none';
@@ -434,7 +493,7 @@ function entrarComo(p) {
 }
 
 function voltarPerfil() {
-  perfil = ''; equipeAtual = '';
+  perfil = ''; equipeAtual = ''; _secaoAtual = '';
   document.getElementById('tela-perfil').style.display = 'block';
   document.getElementById('tela-app').style.display = 'none';
   document.getElementById('header-right').style.display = 'none';
@@ -453,6 +512,7 @@ function showSection(t) {
   });
   const el = document.getElementById('sec-' + t);
   if (el) el.classList.add('active');
+  _secaoAtual = t;
 }
 
 function renderSection(t) {
@@ -464,30 +524,22 @@ function renderSection(t) {
 
 function fecharModal(id) { document.getElementById(id).style.display = 'none'; }
 
-// ══════════════════════════════════════
-// UTILS
-// ══════════════════════════════════════
+// ── UTILS ─────────────────────────────────────
 function mapsUrl(e) { return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(e + ', Ribeirão Preto, SP'); }
-
 function cardMaps(e) {
   return `<a href="${mapsUrl(e)}" target="_blank" class="maps-link">
-    <i class="ti ti-map-pin"></i>${e}<i class="ti ti-external-link" style="font-size:11px;flex-shrink:0"></i>
-  </a>`;
+    <i class="ti ti-map-pin"></i>${e}<i class="ti ti-external-link" style="font-size:11px;flex-shrink:0"></i></a>`;
 }
-
 function badgeHtml(s) {
   const c = s==='pendente'?'badge-pending':s==='em andamento'?'badge-doing':'badge-done';
   return `<span class="badge ${c}">${s}</span>`;
 }
-
 function showMsg(txt, tipo='success') {
   const el = document.getElementById('msg-global');
   el.innerHTML = `<i class="ti ti-${tipo==='success'?'circle-check':'alert-circle'}"></i> ${txt}`;
-  el.className = 'msg msg-' + tipo;
-  el.style.display = 'flex';
+  el.className = 'msg msg-' + tipo; el.style.display = 'flex';
   setTimeout(() => el.style.display = 'none', 3500);
 }
-
 function previewFoto(input, prevId) {
   const prev = document.getElementById(prevId);
   if (input.files && input.files[0]) {
@@ -496,89 +548,122 @@ function previewFoto(input, prevId) {
     r.readAsDataURL(input.files[0]);
   }
 }
-
-// ══════════════════════════════════════
-// DEMANDAS
-// ══════════════════════════════════════
-function enviarDemanda() {
-  const sol  = document.getElementById('solicitante').value.trim();
-  const end  = document.getElementById('endereco').value.trim();
-  const desc = document.getElementById('descricao').value.trim();
-  const prio = document.getElementById('prioridade').value;
-  const prev = document.getElementById('foto-preview');
-  if (!sol||!end||!desc) { alert('Preencha solicitante, endereço e descrição.'); return; }
-  demandas.unshift({
-    id: Date.now(), solicitante:sol, endereco:end, descricao:desc, prioridade:prio,
-    foto: prev.style.display!=='none' ? prev.src : null,
-    status:'pendente', equipe:'',
-    data: new Date().toLocaleDateString('pt-BR'),
-    hora: new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),
-    dataConclusao:null, fotoConclusao:null
-  });
-  save();
-  ['solicitante','endereco','descricao'].forEach(id => document.getElementById(id).value = '');
-  document.getElementById('prioridade').value = 'normal';
-  prev.style.display='none'; prev.src='';
-  document.getElementById('foto').value='';
-  showMsg('Demanda registrada com sucesso!');
+function realtimeBadge() {
+  return `<div class="realtime-badge"><span class="realtime-dot"></span> Atualização em tempo real</div>`;
 }
 
-function atribuir(id, equipe) {
-  const d = demandas.find(x => x.id === id);
-  if (!d) return;
-  d.equipe = equipe;
-  d.status = equipe ? 'em andamento' : 'pendente';
-  save(); renderPainel();
+// ── DEMANDAS (Firebase) ───────────────────────
+async function enviarDemanda() {
+  const sol    = document.getElementById('solicitante').value.trim();
+  const end    = document.getElementById('endereco').value.trim();
+  const desc   = document.getElementById('descricao').value.trim();
+  const prio   = document.getElementById('prioridade').value;
+  const equipe = document.getElementById('equipe-nova').value;
+  const prev   = document.getElementById('foto-preview');
+
+  if (!sol || !end || !desc) { alert('Preencha solicitante, endereço e descrição.'); return; }
+  if (!equipe) { alert('Selecione a equipe responsável pelo serviço.'); return; }
+
+  // Comprime a foto antes de salvar (máx 400px, qualidade 0.6)
+  let fotoBase64 = null;
+  if (prev.style.display !== 'none' && prev.src) {
+    fotoBase64 = await comprimirImagem(prev.src, 400, 0.6);
+  }
+
+  try {
+    await window._addDoc({
+      solicitante: sol, endereco: end, descricao: desc, prioridade: prio,
+      foto: fotoBase64,
+      status: 'em andamento', equipe: equipe,
+      data: new Date().toLocaleDateString('pt-BR'),
+      hora: new Date().toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}),
+      dataConclusao: null, fotoConclusao: null
+    });
+    ['solicitante','endereco','descricao'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('prioridade').value = 'normal';
+    document.getElementById('equipe-nova').value = '';
+    prev.style.display = 'none'; prev.src = '';
+    document.getElementById('foto').value = '';
+    showMsg(`✓ Demanda registrada e atribuída para ${equipe}!`);
+  } catch(e) {
+    showMsg('Erro ao salvar. Verifique a conexão.', 'danger');
+  }
 }
 
-function deletarDemanda(id) {
+async function atribuir(id, equipe) {
+  try {
+    await window._updateDoc(id, { equipe, status: equipe ? 'em andamento' : 'pendente' });
+  } catch(e) { showMsg('Erro ao atribuir equipe.', 'danger'); }
+}
+
+async function deletarDemanda(id) {
   if (!confirm('Tem certeza que deseja apagar esta demanda?')) return;
-  demandas = demandas.filter(x => x.id !== id); save();
-  if (perfil==='secretaria') renderGerenciar(); else renderPainel();
+  try { await window._deleteDoc(id); } catch(e) { showMsg('Erro ao apagar.', 'danger'); }
 }
 
 function abrirCheck(id) {
   checkId = id;
   document.getElementById('check-data').value = new Date().toISOString().split('T')[0];
-  document.getElementById('check-foto-prev').style.display='none';
-  document.getElementById('check-foto').value='';
-  document.getElementById('modal-check').style.display='flex';
+  document.getElementById('check-foto-prev').style.display = 'none';
+  document.getElementById('check-foto').value = '';
+  document.getElementById('modal-check').style.display = 'flex';
 }
 
-function confirmarCheck() {
+async function confirmarCheck() {
   const data = document.getElementById('check-data').value;
   const prev = document.getElementById('check-foto-prev');
   if (!data) { alert('Informe a data de conclusão.'); return; }
-  if (prev.style.display==='none'||!prev.src) { alert('Adicione a foto do serviço concluído.'); return; }
-  const d = demandas.find(x => x.id === checkId);
-  if (d) {
-    d.status = 'concluído';
-    d.dataConclusao = new Date(data+'T12:00:00').toLocaleDateString('pt-BR');
-    d.fotoConclusao = prev.src;
-    save();
-  }
-  fecharModal('modal-check');
-  showMsg('Demanda marcada como concluída!');
-  renderEquipe();
+  if (prev.style.display === 'none' || !prev.src) { alert('Adicione a foto do serviço concluído.'); return; }
+
+  const fotoComp = await comprimirImagem(prev.src, 500, 0.65);
+  try {
+    await window._updateDoc(checkId, {
+      status: 'concluído',
+      dataConclusao: new Date(data + 'T12:00:00').toLocaleDateString('pt-BR'),
+      fotoConclusao: fotoComp
+    });
+    fecharModal('modal-check');
+    showMsg('Demanda marcada como concluída!');
+  } catch(e) { showMsg('Erro ao salvar conclusão.', 'danger'); }
 }
 
-function confirmarApagarConcluidas() {
-  const n = demandas.filter(d => d.status==='concluído').length;
-  if (!n) { alert('Não há demandas concluídas para apagar.'); return; }
-  if (!confirm(`Apagar ${n} demandas concluídas?\nGere o PDF antes de continuar!`)) return;
-  demandas = demandas.filter(d => d.status!=='concluído'); save(); renderHistorico();
-  showMsg('Demandas concluídas apagadas.');
+async function confirmarApagarConcluidas() {
+  const conc = window._demandas.filter(d => d.status === 'concluído');
+  if (!conc.length) { alert('Não há demandas concluídas para apagar.'); return; }
+  if (!confirm(`Apagar ${conc.length} demandas concluídas?\nGere o PDF antes de continuar!`)) return;
+  try {
+    await Promise.all(conc.map(d => window._deleteDoc(d._id)));
+    showMsg('Demandas concluídas apagadas.');
+  } catch(e) { showMsg('Erro ao apagar.', 'danger'); }
 }
 
-// ══════════════════════════════════════
-// RENDERS
-// ══════════════════════════════════════
+// Comprime imagem antes de salvar no Firebase
+function comprimirImagem(src, maxPx, quality) {
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      let w = img.width, h = img.height;
+      if (w > maxPx || h > maxPx) {
+        if (w > h) { h = Math.round(h * maxPx / w); w = maxPx; }
+        else { w = Math.round(w * maxPx / h); h = maxPx; }
+      }
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      resolve(canvas.toDataURL('image/jpeg', quality));
+    };
+    img.src = src;
+  });
+}
+
+// ── RENDERS ───────────────────────────────────
 function renderStats() {
-  const pend = demandas.filter(d=>d.status==='pendente').length;
-  const and  = demandas.filter(d=>d.status==='em andamento').length;
-  const conc = demandas.filter(d=>d.status==='concluído').length;
+  const d = window._demandas;
+  const pend = d.filter(x => x.status==='pendente').length;
+  const and  = d.filter(x => x.status==='em andamento').length;
+  const conc = d.filter(x => x.status==='concluído').length;
   document.getElementById('stats-box').innerHTML = `
-    <div class="stat"><div class="stat-num">${demandas.length}</div><div class="stat-label">Total</div></div>
+    <div class="stat"><div class="stat-num">${d.length}</div><div class="stat-label">Total</div></div>
     <div class="stat"><div class="stat-num" style="color:var(--amber)">${pend}</div><div class="stat-label">Pendentes</div></div>
     <div class="stat"><div class="stat-num" style="color:var(--blue)">${and}</div><div class="stat-label">Em andamento</div></div>
     <div class="stat"><div class="stat-num" style="color:var(--green)">${conc}</div><div class="stat-label">Concluídas</div></div>`;
@@ -590,102 +675,85 @@ function alocarHtml(d) {
   ).join('');
   return `
     <div class="alocar-box">
-      <div class="alocar-label"><i class="ti ti-users"></i> Atribuir equipe responsável</div>
-      <select class="alocar-select" onchange="atribuir(${d.id}, this.value)">
-        <option value="">— Selecione uma equipe —</option>
-        ${eqs}
+      <div class="alocar-label"><i class="ti ti-users"></i> Equipe responsável</div>
+      <select class="alocar-select" onchange="atribuir('${d._id}', this.value)">
+        <option value="">— Selecione a equipe —</option>${eqs}
       </select>
       ${d.equipe ? `<div class="alocar-alocada"><i class="ti ti-circle-check"></i> <span class="tag-equipe">${d.equipe}</span> alocada</div>` : ''}
     </div>`;
+}
+
+function renderGerenciar() {
+  const lista = window._demandas.filter(d => d.status !== 'concluído');
+  const el = document.getElementById('lista-gerenciar');
+  if (!lista.length) { el.innerHTML='<div class="empty"><i class="ti ti-check"></i>Nenhuma demanda aberta</div>'; return; }
+  el.innerHTML = realtimeBadge() + lista.map(d => `
+    <div class="demand-card ${d.prioridade==='urgente'?'urgente':''}">
+      <div class="demand-header">
+        <span class="demand-title">${d.descricao}</span>
+        <div class="demand-badges">${badgeHtml(d.status)}${d.prioridade==='urgente'?'<span class="badge badge-urgente">⚡ urgente</span>':''}</div>
+      </div>
+      <div class="demand-meta"><i class="ti ti-user"></i> ${d.solicitante} &nbsp;·&nbsp; <i class="ti ti-clock"></i> ${d.data} ${d.hora}</div>
+      ${cardMaps(d.endereco)}
+      ${d.foto?`<img src="${d.foto}" class="photo-preview" alt="Foto" style="margin-bottom:10px">`:''}
+      ${alocarHtml(d)}
+      <div class="demand-actions">
+        <button class="btn-del" onclick="deletarDemanda('${d._id}')"><i class="ti ti-trash"></i> Apagar</button>
+      </div>
+    </div>`).join('');
 }
 
 function renderPainel() {
   renderStats();
   const fs = document.getElementById('filtro-status').value;
   const fe = document.getElementById('filtro-equipe').value;
-  let lista = demandas.filter(d => d.status !== 'concluído');
+  let lista = window._demandas.filter(d => d.status !== 'concluído');
   if (fs) lista = lista.filter(d => d.status === fs);
   if (fe) lista = lista.filter(d => d.equipe === fe);
   const el = document.getElementById('lista-painel');
   if (!lista.length) { el.innerHTML='<div class="empty"><i class="ti ti-check"></i>Nenhuma demanda aberta</div>'; return; }
-  el.innerHTML = lista.map(d => `
+  el.innerHTML = realtimeBadge() + lista.map(d => `
     <div class="demand-card ${d.prioridade==='urgente'?'urgente':''}">
       <div class="demand-header">
         <span class="demand-title">${d.descricao}</span>
-        <div class="demand-badges">
-          ${badgeHtml(d.status)}
-          ${d.prioridade==='urgente'?'<span class="badge badge-urgente">⚡ urgente</span>':''}
-        </div>
+        <div class="demand-badges">${badgeHtml(d.status)}${d.prioridade==='urgente'?'<span class="badge badge-urgente">⚡ urgente</span>':''}</div>
       </div>
-      <div class="demand-meta">
-        <i class="ti ti-user"></i> ${d.solicitante} &nbsp;·&nbsp;
-        <i class="ti ti-clock"></i> ${d.data} ${d.hora}
-      </div>
+      <div class="demand-meta"><i class="ti ti-user"></i> ${d.solicitante} &nbsp;·&nbsp; <i class="ti ti-clock"></i> ${d.data} ${d.hora}</div>
       ${cardMaps(d.endereco)}
       ${d.foto?`<img src="${d.foto}" class="photo-preview" alt="Foto" style="margin-bottom:10px">`:''}
       ${alocarHtml(d)}
       <div class="demand-actions">
-        <button class="btn-del" onclick="deletarDemanda(${d.id})"><i class="ti ti-trash"></i> Apagar</button>
-      </div>
-    </div>`).join('');
-}
-
-function renderGerenciar() {
-  const lista = demandas.filter(d => d.status !== 'concluído');
-  const el = document.getElementById('lista-gerenciar');
-  if (!lista.length) { el.innerHTML='<div class="empty"><i class="ti ti-check"></i>Nenhuma demanda aberta</div>'; return; }
-  el.innerHTML = lista.map(d => `
-    <div class="demand-card ${d.prioridade==='urgente'?'urgente':''}">
-      <div class="demand-header">
-        <span class="demand-title">${d.descricao}</span>
-        <div class="demand-badges">
-          ${badgeHtml(d.status)}
-          ${d.prioridade==='urgente'?'<span class="badge badge-urgente">⚡ urgente</span>':''}
-        </div>
-      </div>
-      <div class="demand-meta">
-        <i class="ti ti-user"></i> ${d.solicitante} &nbsp;·&nbsp;
-        <i class="ti ti-clock"></i> ${d.data} ${d.hora}
-        ${d.equipe?`&nbsp;·&nbsp;<span class="tag-equipe">${d.equipe}</span>`:''}
-      </div>
-      ${cardMaps(d.endereco)}
-      <div class="demand-actions">
-        <button class="btn-del" onclick="deletarDemanda(${d.id})"><i class="ti ti-trash"></i> Apagar demanda</button>
+        <button class="btn-del" onclick="deletarDemanda('${d._id}')"><i class="ti ti-trash"></i> Apagar</button>
       </div>
     </div>`).join('');
 }
 
 function renderEquipe() {
-  const lista = demandas.filter(d => d.equipe===equipeAtual && d.status!=='concluído');
+  const lista = window._demandas.filter(d => d.equipe===equipeAtual && d.status!=='concluído');
   const el = document.getElementById('lista-equipe');
   if (!lista.length) { el.innerHTML=`<div class="empty"><i class="ti ti-check"></i>Nenhuma demanda atribuída para ${equipeAtual}</div>`; return; }
-  el.innerHTML = lista.map(d => `
+  el.innerHTML = realtimeBadge() + lista.map(d => `
     <div class="demand-card ${d.prioridade==='urgente'?'urgente':''}">
       <div class="demand-header">
         <span class="demand-title">${d.descricao}</span>
-        <div class="demand-badges">
-          ${badgeHtml(d.status)}
-          ${d.prioridade==='urgente'?'<span class="badge badge-urgente">⚡ urgente</span>':''}
-        </div>
+        <div class="demand-badges">${badgeHtml(d.status)}${d.prioridade==='urgente'?'<span class="badge badge-urgente">⚡ urgente</span>':''}</div>
       </div>
       <div class="demand-meta"><i class="ti ti-clock"></i> ${d.data} ${d.hora}</div>
       ${cardMaps(d.endereco)}
       ${d.foto?`<img src="${d.foto}" class="photo-preview" alt="Foto" style="margin-bottom:10px">`:''}
       <div class="demand-actions">
-        <button class="btn-done" onclick="abrirCheck(${d.id})">
-          <i class="ti ti-camera"></i> Concluir com foto e data
-        </button>
+        <button class="btn-done" onclick="abrirCheck('${d._id}')"><i class="ti ti-camera"></i> Concluir com foto e data</button>
       </div>
     </div>`).join('');
 }
 
 function renderHistorico() {
-  const conc = demandas.filter(d => d.status==='concluído');
+  const conc = window._demandas.filter(d => d.status==='concluído');
   const el = document.getElementById('lista-historico');
   const btn = document.getElementById('btn-apagar-conc');
   if (btn) btn.style.display = conc.length ? 'inline-flex' : 'none';
   if (!conc.length) { el.innerHTML='<div class="empty"><i class="ti ti-history"></i>Nenhum serviço concluído ainda</div>'; return; }
-  el.innerHTML = `<div class="card">${conc.map(d=>`
+  el.innerHTML = realtimeBadge() + `<div class="card">${conc.map(d=>`
     <div class="hist-row">
       <div style="font-size:14px;font-weight:600;margin-bottom:6px">${d.descricao}</div>
       ${cardMaps(d.endereco)}
@@ -698,36 +766,32 @@ function renderHistorico() {
     </div>`).join('')}</div>`;
 }
 
-// ══════════════════════════════════════
-// PDF
-// ══════════════════════════════════════
+// ── PDF ───────────────────────────────────────
 function gerarRelatorio() {
-  const conc = demandas.filter(d => d.status==='concluído');
+  const conc = window._demandas.filter(d => d.status==='concluído');
   if (!conc.length) { alert('Não há demandas concluídas para gerar relatório.'); return; }
   const hoje = new Date().toLocaleDateString('pt-BR');
-  const html = conc.map((d,i)=>`
-    <div style="margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--border)">
-      <strong>${i+1}. ${d.descricao}</strong><br>
-      Solicitante: ${d.solicitante}<br>Endereço: ${d.endereco}<br>
-      Abertura: ${d.data} ${d.hora}<br>Conclusão: ${d.dataConclusao||'—'}<br>
-      Equipe: ${d.equipe||'—'} ${d.prioridade==='urgente'?'⚡ URGENTE':''}
-    </div>`).join('');
   document.getElementById('rel-conteudo').innerHTML =
-    `<strong>Total: ${conc.length} demandas concluídas</strong><br>Gerado em: ${hoje}<br><br>${html}`;
+    `<strong>Total: ${conc.length} demandas concluídas</strong><br>Gerado em: ${hoje}<br><br>` +
+    conc.map((d,i)=>`
+      <div style="margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--border)">
+        <strong>${i+1}. ${d.descricao}</strong><br>
+        Solicitante: ${d.solicitante}<br>Endereço: ${d.endereco}<br>
+        Abertura: ${d.data} ${d.hora}<br>Conclusão: ${d.dataConclusao||'—'}<br>
+        Equipe: ${d.equipe||'—'} ${d.prioridade==='urgente'?'⚡ URGENTE':''}
+      </div>`).join('');
   document.getElementById('modal-relatorio').style.display='flex';
 }
 
 function baixarPDF() {
-  const conc = demandas.filter(d => d.status==='concluído');
+  const conc = window._demandas.filter(d => d.status==='concluído');
   if (!conc.length) return;
   const {jsPDF} = window.jspdf;
   const doc = new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
   const hoje = new Date().toLocaleDateString('pt-BR');
-  const W=210, M=15, lH=6;
-  let y=M;
+  const W=210, M=15, lH=6; let y=M;
   function chk(n=10){if(y+n>284){doc.addPage();y=M;}}
 
-  // Cabeçalho
   doc.setFillColor(26,25,23);doc.rect(0,0,W,26,'F');
   doc.setTextColor(255,255,255);
   doc.setFontSize(13);doc.setFont('helvetica','bold');
@@ -737,8 +801,7 @@ function baixarPDF() {
   doc.text(`Gerado em: ${hoje}`,W-M,17,{align:'right'});
   y=34;
 
-  doc.setTextColor(26,25,23);
-  doc.setFontSize(16);doc.setFont('helvetica','bold');
+  doc.setTextColor(26,25,23);doc.setFontSize(16);doc.setFont('helvetica','bold');
   doc.text('Relatório de Demandas Concluídas',M,y);y+=7;
   doc.setFontSize(10);doc.setFont('helvetica','normal');doc.setTextColor(100,100,100);
   doc.text(`Total: ${conc.length} demanda${conc.length>1?'s':''} concluída${conc.length>1?'s':''}`,M,y);y+=4;
@@ -749,36 +812,26 @@ function baixarPDF() {
     doc.setFillColor(244,243,239);doc.roundedRect(M,y,W-M*2,10,1,1,'F');
     doc.setFontSize(10);doc.setFont('helvetica','bold');doc.setTextColor(26,25,23);
     const titulo=doc.splitTextToSize(`${i+1}. ${d.descricao}`,W-M*2-6);
-    doc.text(titulo,M+3,y+6.5);
-    y+=10+(titulo.length-1)*5+4;
+    doc.text(titulo,M+3,y+6.5);y+=10+(titulo.length-1)*5+4;
 
-    const campos=[
-      ['Solicitante',d.solicitante],['Endereço',d.endereco],
-      ['Abertura',`${d.data} às ${d.hora}`],['Conclusão',d.dataConclusao||'—'],
-      ['Equipe',d.equipe||'—'],['Prioridade',d.prioridade==='urgente'?'URGENTE':'Normal'],
-    ];
-    doc.setFontSize(9);
-    campos.forEach(([l,v])=>{
-      chk(7);
-      doc.setFont('helvetica','bold');doc.setTextColor(90,90,90);doc.text(l+':',M+3,y);
-      doc.setFont('helvetica','normal');doc.setTextColor(26,25,23);
-      const lines=doc.splitTextToSize(String(v),W-M*2-36);
-      doc.text(lines,M+36,y);y+=lH*lines.length;
+    [['Solicitante',d.solicitante],['Endereço',d.endereco],
+     ['Abertura',`${d.data} às ${d.hora}`],['Conclusão',d.dataConclusao||'—'],
+     ['Equipe',d.equipe||'—'],['Prioridade',d.prioridade==='urgente'?'URGENTE':'Normal']
+    ].forEach(([l,v])=>{
+      chk(7);doc.setFontSize(9);doc.setFont('helvetica','bold');doc.setTextColor(90,90,90);
+      doc.text(l+':',M+3,y);doc.setFont('helvetica','normal');doc.setTextColor(26,25,23);
+      const lines=doc.splitTextToSize(String(v),W-M*2-36);doc.text(lines,M+36,y);y+=lH*lines.length;
     });
 
-    if(d.fotoConclusao){
-      chk(52);
-      try{
-        doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(90,90,90);
-        doc.text('Foto do serviço concluído:',M+3,y);y+=4;
-        doc.addImage(d.fotoConclusao,'JPEG',M+3,y,70,50);y+=53;
-      }catch(e){}
-    }
+    if(d.fotoConclusao){chk(52);try{
+      doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(90,90,90);
+      doc.text('Foto do serviço concluído:',M+3,y);y+=4;
+      doc.addImage(d.fotoConclusao,'JPEG',M+3,y,70,50);y+=53;
+    }catch(e){}}
     chk(6);doc.setDrawColor(220,220,220);doc.line(M,y,W-M,y);y+=7;
   });
 
-  chk(10);
-  doc.setFontSize(8);doc.setTextColor(160,160,160);doc.setFont('helvetica','italic');
+  chk(10);doc.setFontSize(8);doc.setTextColor(160,160,160);doc.setFont('helvetica','italic');
   doc.text('Documento gerado automaticamente – Sistema de Gestão de Limpeza Urbana / Secretaria da Infraestrutura de Ribeirão Preto',M,y,{maxWidth:W-M*2});
   doc.save(`relatorio_demandas_${hoje.replace(/\//g,'-')}.pdf`);
 }
