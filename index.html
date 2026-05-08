@@ -8,11 +8,12 @@
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
   import {
     getFirestore, collection, addDoc, onSnapshot, doc,
-    updateDoc, deleteDoc, query, orderBy, serverTimestamp
+    updateDoc, deleteDoc, query, orderBy, serverTimestamp, setDoc, getDocs
   } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
   const firebaseConfig = {
@@ -27,23 +28,33 @@
   const app = initializeApp(firebaseConfig);
   const db  = getFirestore(app);
   const col = collection(db, "demandas");
+  const colStats = collection(db, "estatisticas_mensais");
 
-  onSnapshot(query(col, orderBy("criadoEm", "desc")), (snap) => {
-    // Urgentes primeiro, depois por data
+  // Escuta demandas em tempo real
+  onSnapshot(query(col, orderBy("criadoEm","desc")), (snap) => {
     const docs = snap.docs.map(d => ({ _id: d.id, ...d.data() }));
-    docs.sort((a, b) => {
-      if (a.prioridade === 'urgente' && b.prioridade !== 'urgente') return -1;
-      if (a.prioridade !== 'urgente' && b.prioridade === 'urgente') return 1;
+    docs.sort((a,b) => {
+      if (a.prioridade==='urgente' && b.prioridade!=='urgente') return -1;
+      if (a.prioridade!=='urgente' && b.prioridade==='urgente') return 1;
       return 0;
     });
     window._demandas = docs;
     window._renderAtual && window._renderAtual();
   });
 
-  window._db = db; window._col = col;
-  window._addDoc    = (data) => addDoc(col, { ...data, criadoEm: serverTimestamp() });
-  window._updateDoc = (id, data) => updateDoc(doc(db, "demandas", id), data);
-  window._deleteDoc = (id) => deleteDoc(doc(db, "demandas", id));
+  // Escuta estatísticas mensais em tempo real
+  onSnapshot(query(colStats, orderBy("mesISO","asc")), (snap) => {
+    window._estatisticas = snap.docs.map(d => ({ _id: d.id, ...d.data() }));
+    if (window._secaoAtual === 'dashboard') window.renderDashboard && window.renderDashboard();
+  });
+
+  window._db = db;
+  window._addDoc     = (data)     => addDoc(col, { ...data, criadoEm: serverTimestamp() });
+  window._updateDoc  = (id, data) => updateDoc(doc(db, "demandas", id), data);
+  window._deleteDoc  = (id)       => deleteDoc(doc(db, "demandas", id));
+  window._salvarEstatistica = async (mesISO, dados) => {
+    await setDoc(doc(db, "estatisticas_mensais", mesISO), dados);
+  };
 </script>
 <style>
   :root {
@@ -54,6 +65,7 @@
     --red:#8b1a1a;--red-bg:#fdeaea;--red-border:#f0a8a8;
     --blue:#1a3f7a;--blue-bg:#e8eef8;--blue-border:#a8bce0;
     --purple:#4a1a7a;--purple-bg:#f0e8f8;--purple-border:#c8a8e0;
+    --orange:#7a3a00;--orange-bg:#fff0e0;--orange-border:#f5b87a;
     --radius:8px;--radius-lg:12px;
     --font:'IBM Plex Sans',sans-serif;--font-mono:'IBM Plex Mono',monospace;
     --shadow:0 1px 3px rgba(0,0,0,.08);
@@ -61,7 +73,6 @@
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:15px;min-height:100vh}
 
-  /* HEADER */
   .header{background:var(--text);color:#fff;padding:0 16px;height:54px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;gap:10px}
   .header-brand{display:flex;align-items:center;gap:10px;min-width:0}
   .header-logo{width:32px;height:32px;flex-shrink:0;background:#fff;border-radius:8px;display:flex;align-items:center;justify-content:center}
@@ -73,9 +84,8 @@
   .btn-header{background:rgba(255,255,255,.14);border:none;color:#fff;padding:7px 13px;border-radius:7px;font-size:13px;cursor:pointer;font-family:var(--font);display:flex;align-items:center;gap:5px;transition:background .15s}
   .btn-header:hover{background:rgba(255,255,255,.24)}
 
-  .main{max-width:700px;margin:0 auto;padding:22px 14px 80px}
+  .main{max-width:720px;margin:0 auto;padding:22px 14px 80px}
 
-  /* PERFIL */
   #tela-perfil{animation:fadeIn .2s ease}
   .perfil-title{font-size:21px;font-weight:600;margin:8px 0 4px}
   .perfil-sub{font-size:14px;color:var(--text2);margin-bottom:24px}
@@ -91,7 +101,6 @@
   .equipe-btn:hover{border-color:var(--border2);background:var(--surface2)}
   .equipe-btn i{font-size:15px;color:var(--text2)}
 
-  /* MODALS */
   .modal-wrap{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:200;padding:16px}
   .modal{background:var(--surface);border-radius:var(--radius-lg);padding:24px;max-width:400px;width:100%;border:1px solid var(--border);animation:slideUp .2s ease}
   .modal-lg{max-width:520px;max-height:90vh;overflow-y:auto}
@@ -99,12 +108,10 @@
   .modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:18px;flex-wrap:wrap}
   .modal-erro{font-size:12px;color:var(--red);margin-top:6px;display:none;align-items:center;gap:5px}
 
-  /* APP */
   #tela-app{display:none;animation:fadeIn .2s ease}
   .btn-voltar{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--text2);cursor:pointer;border:none;background:none;font-family:var(--font);padding:0;margin-bottom:16px;transition:color .15s}
   .btn-voltar:hover{color:var(--text)}
 
-  /* TABS */
   .tabs{display:flex;gap:2px;border-bottom:1px solid var(--border);margin-bottom:18px;overflow-x:auto;-webkit-overflow-scrolling:touch}
   .tabs::-webkit-scrollbar{display:none}
   .tab{padding:10px 13px;font-size:13px;cursor:pointer;border:none;background:none;color:var(--text2);border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap;font-family:var(--font);display:flex;align-items:center;gap:6px;transition:color .15s;flex-shrink:0}
@@ -114,7 +121,6 @@
   .section{display:none}
   .section.active{display:block;animation:fadeIn .15s ease}
 
-  /* CARD / FIELDS */
   .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:18px 20px;margin-bottom:12px}
   .section-title{font-size:15px;font-weight:600;margin-bottom:16px}
   .field{margin-bottom:14px}
@@ -125,14 +131,12 @@
   .field textarea{resize:vertical;min-height:80px;line-height:1.5}
   .divider{height:1px;background:var(--border);margin:16px 0}
 
-  /* CAMPO DESTACADO (equipe / zona) */
   .field-destaque{margin-bottom:14px}
   .field-destaque label{display:block;font-size:12px;font-weight:600;color:var(--amber);margin-bottom:6px;display:flex;align-items:center;gap:5px}
   .field-destaque select{width:100%;padding:11px 32px 11px 12px;border:2px solid var(--amber-border);border-radius:var(--radius);font-size:14px;font-family:var(--font);background:var(--amber-bg);color:var(--text);-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%237a4f00' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;font-weight:500;cursor:pointer}
   .field-destaque select:focus{outline:none;border-color:var(--amber);box-shadow:0 0 0 3px rgba(122,79,0,.12)}
   .field-destaque .hint{font-size:11px;color:var(--amber);margin-top:5px;display:flex;align-items:center;gap:4px}
 
-  /* BUTTONS */
   .btn{padding:10px 18px;border-radius:var(--radius);font-size:13px;font-weight:500;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--text);font-family:var(--font);display:inline-flex;align-items:center;gap:7px;transition:background .15s;white-space:nowrap;-webkit-tap-highlight-color:transparent}
   .btn:hover{background:var(--surface2)}
   .btn:active{transform:scale(.98)}
@@ -145,17 +149,17 @@
   .btn-sm{padding:7px 13px;font-size:12px}
   .btn-full{width:100%;justify-content:center;margin-top:4px}
 
-  /* BADGES */
   .badge{display:inline-block;font-size:11px;padding:3px 9px;border-radius:20px;font-weight:500;font-family:var(--font-mono)}
   .badge-pending{background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-border)}
   .badge-doing{background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-border)}
   .badge-done{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)}
   .badge-urgente{background:var(--red-bg);color:var(--red);border:1px solid var(--red-border);font-weight:700}
   .badge-zona{background:var(--purple-bg);color:var(--purple);border:1px solid var(--purple-border)}
+  .badge-atrasada{background:var(--orange-bg);color:var(--orange);border:1px solid var(--orange-border);font-weight:600}
 
-  /* DEMAND CARD */
-  .demand-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px;margin-bottom:10px;transition:box-shadow .15s}
+  .demand-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px;margin-bottom:10px}
   .demand-card.urgente{border-left:4px solid #e05555;background:#fffafa}
+  .demand-card.atrasada{border-left:4px solid #d97706}
   .demand-card.urgente .demand-title::before{content:'⚡ '}
   .demand-header{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:8px}
   .demand-title{font-size:14px;font-weight:600;flex:1;line-height:1.4}
@@ -166,7 +170,6 @@
   .maps-link:hover{background:#d4e0f4}
   .maps-link i{flex-shrink:0}
 
-  /* ALOCAR BOX */
   .alocar-box{background:var(--amber-bg);border:2px solid var(--amber-border);border-radius:var(--radius);padding:13px;margin-top:12px}
   .alocar-label{font-size:12px;font-weight:600;color:var(--amber);margin-bottom:8px;display:flex;align-items:center;gap:6px}
   .alocar-select{width:100%;padding:10px 30px 10px 12px;border:1px solid var(--amber-border);border-radius:var(--radius);font-size:14px;font-family:var(--font);background:#fff;color:var(--text);cursor:pointer;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%237a4f00' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;font-weight:500}
@@ -179,17 +182,14 @@
   .btn-del{font-size:12px;padding:9px 14px;border-radius:var(--radius);cursor:pointer;border:1px solid var(--red-border);background:transparent;color:var(--red);display:inline-flex;align-items:center;gap:5px;font-family:var(--font);transition:background .15s}
   .btn-del:hover{background:var(--red-bg)}
 
-  /* STATS */
   .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px}
   .stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px 8px;text-align:center}
   .stat-num{font-size:22px;font-weight:600;font-family:var(--font-mono)}
   .stat-label{font-size:11px;color:var(--text3);margin-top:2px}
 
-  /* FILTER */
   .filter-row{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
   .filter-row select{font-size:12px;padding:8px 28px 8px 10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);color:var(--text);font-family:var(--font);cursor:pointer;flex:1;min-width:120px;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b6860' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center}
 
-  /* OUTROS */
   .photo-preview{max-width:100%;max-height:180px;border-radius:var(--radius);margin-top:8px;display:block;object-fit:cover;border:1px solid var(--border)}
   .msg{padding:10px 14px;border-radius:var(--radius);font-size:13px;margin-bottom:14px;display:flex;align-items:center;gap:8px}
   .msg-success{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)}
@@ -203,12 +203,35 @@
   .rel-content{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:12px;font-size:12px;line-height:1.8;max-height:300px;overflow-y:auto;font-family:var(--font-mono)}
   .realtime-badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--green);font-family:var(--font-mono);margin-bottom:14px}
   .realtime-dot{width:7px;height:7px;background:var(--green);border-radius:50%;animation:pulse 1.5s infinite}
-  .urgente-topo{background:var(--red-bg);border:1px solid var(--red-border);border-radius:var(--radius);padding:8px 12px;font-size:12px;color:var(--red);font-weight:600;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+  .alerta-topo{border-radius:var(--radius);padding:10px 14px;font-size:13px;font-weight:600;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+  .alerta-urgente{background:var(--red-bg);border:1px solid var(--red-border);color:var(--red)}
+  .alerta-atrasada{background:var(--orange-bg);border:1px solid var(--orange-border);color:var(--orange)}
+
+  /* ── DASHBOARD ── */
+  .dash-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
+  .dash-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px}
+  .dash-card h4{font-size:13px;font-weight:600;color:var(--text2);margin-bottom:12px;display:flex;align-items:center;gap:6px}
+  .dash-card canvas{width:100%!important}
+  .dash-card-full{grid-column:1/-1}
+  .mes-selector{display:flex;align-items:center;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+  .mes-selector select{font-size:13px;padding:7px 28px 7px 10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);color:var(--text);font-family:var(--font);cursor:pointer;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b6860' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center}
+  .mes-selector label{font-size:13px;color:var(--text2);font-weight:500}
+  .dash-stat-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+  .dash-stat{background:var(--bg);border-radius:var(--radius);padding:10px;text-align:center}
+  .dash-stat-num{font-size:20px;font-weight:600;font-family:var(--font-mono)}
+  .dash-stat-label{font-size:11px;color:var(--text3);margin-top:2px}
+  .sem-dados{text-align:center;padding:30px;color:var(--text3);font-size:13px}
+  .historico-meses{display:flex;flex-direction:column;gap:6px}
+  .mes-row{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--bg);border-radius:var(--radius);font-size:13px}
+  .mes-row-nome{font-weight:500}
+  .mes-row-num{font-family:var(--font-mono);font-weight:600;color:var(--green)}
 
   @media(max-width:500px){
     .perfil-grid{grid-template-columns:1fr 1fr}
     .equipe-grid{grid-template-columns:1fr 1fr}
     .stats{grid-template-columns:repeat(2,1fr)}
+    .dash-grid{grid-template-columns:1fr}
+    .dash-card-full{grid-column:1}
     .demand-header{flex-direction:column;gap:6px}
     .demand-badges{flex-direction:row}
     .brand-text{font-size:12px}
@@ -216,6 +239,7 @@
     .btn-done,.btn-del{flex:1;justify-content:center}
     .card{padding:14px}
   }
+
   @keyframes fadeIn{from{opacity:0}to{opacity:1}}
   @keyframes slideUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
   @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
@@ -242,7 +266,7 @@
 
 <div class="main">
 
-  <!-- TELA PERFIL -->
+  <!-- PERFIL -->
   <div id="tela-perfil">
     <p class="perfil-title">Gestão de limpeza urbana</p>
     <p class="perfil-sub">Selecione seu perfil para acessar o sistema.</p>
@@ -256,7 +280,7 @@
       <button class="perfil-btn" onclick="entrarComo('fiscal')">
         <i class="ti ti-eye picon"></i>
         <div class="pname">Fiscal</div>
-        <div class="pdesc">Painel completo e relatórios PDF</div>
+        <div class="pdesc">Painel completo, dashboard e relatórios</div>
       </button>
     </div>
     <p class="perfil-section-label">Encarregado de equipe</p>
@@ -280,27 +304,13 @@
     <div id="sec-nova" class="section">
       <div class="card">
         <p class="section-title">Registrar nova demanda</p>
-        <div class="field">
-          <label>Quem está solicitando</label>
-          <input id="solicitante" type="text" placeholder="Nome e setor" autocomplete="off">
-        </div>
-        <div class="field">
-          <label>Endereço completo</label>
-          <input id="endereco" type="text" placeholder="Ex: Rua das Flores, 120 – Jardim Paulista">
-        </div>
-        <div class="field">
-          <label>Descrição do serviço</label>
-          <textarea id="descricao" placeholder="Descreva o que precisa ser feito…"></textarea>
-        </div>
-        <div class="field">
-          <label>Prioridade</label>
-          <select id="prioridade">
-            <option value="normal">Normal</option>
-            <option value="urgente">⚡ Urgente</option>
-          </select>
+        <div class="field"><label>Quem está solicitando</label><input id="solicitante" type="text" placeholder="Nome e setor" autocomplete="off"></div>
+        <div class="field"><label>Endereço completo</label><input id="endereco" type="text" placeholder="Ex: Rua das Flores, 120 – Jardim Paulista"></div>
+        <div class="field"><label>Descrição do serviço</label><textarea id="descricao" placeholder="Descreva o que precisa ser feito…"></textarea></div>
+        <div class="field"><label>Prioridade</label>
+          <select id="prioridade"><option value="normal">Normal</option><option value="urgente">⚡ Urgente</option></select>
         </div>
         <div class="divider"></div>
-        <!-- ZONA -->
         <div class="field-destaque">
           <label><i class="ti ti-map"></i> Zona da cidade</label>
           <select id="zona-nova">
@@ -313,7 +323,6 @@
           </select>
           <div class="hint"><i class="ti ti-info-circle"></i> Região onde o serviço será executado</div>
         </div>
-        <!-- EQUIPE -->
         <div class="field-destaque">
           <label><i class="ti ti-users"></i> Equipe responsável</label>
           <select id="equipe-nova">
@@ -327,9 +336,7 @@
           </select>
           <div class="hint"><i class="ti ti-info-circle"></i> Equipe que vai executar o serviço</div>
         </div>
-        <div class="field">
-          <label>Foto do local (opcional)</label>
-          <!-- SEM capture="environment" para permitir galeria também -->
+        <div class="field"><label>Foto do local (opcional)</label>
           <input type="file" id="foto" accept="image/*" onchange="previewFoto(this,'foto-preview')">
           <img id="foto-preview" style="display:none" class="photo-preview" alt="Prévia">
         </div>
@@ -360,7 +367,7 @@
           <option value="Equipe 3">Equipe 3</option>
           <option value="Equipe 4">Equipe 4</option>
           <option value="Equipe 5">Equipe 5</option>
-          <option value="Equipe 6 (Retroescavadeira)">Equipe 6 (Retroescavadeira)</option>
+          <option value="Equipe 6 (Retroescavadeira)">Equipe 6</option>
         </select>
         <select id="filtro-zona-painel" onchange="renderPainel()">
           <option value="">Todas as zonas</option>
@@ -374,7 +381,18 @@
       <div id="lista-painel"></div>
     </div>
 
-    <!-- RELATÓRIO -->
+    <!-- DASHBOARD -->
+    <div id="sec-dashboard" class="section">
+      <p class="section-title">Dashboard — Histórico mensal</p>
+      <div class="mes-selector">
+        <label><i class="ti ti-calendar"></i> Visualizar mês:</label>
+        <select id="sel-mes-dash" onchange="renderDashboard()"></select>
+        <span style="font-size:12px;color:var(--text3)">Os dados históricos são preservados mesmo após apagar demandas.</span>
+      </div>
+      <div id="dash-conteudo"></div>
+    </div>
+
+    <!-- CONCLUÍDAS / PDF -->
     <div id="sec-historico" class="section">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
         <p class="section-title" style="margin:0">Demandas concluídas</p>
@@ -388,8 +406,7 @@
 
     <!-- EQUIPE -->
     <div id="sec-equipe" class="section">
-      <!-- Filtro de zona para equipes -->
-      <div class="filter-row" id="filtro-equipe-zona-row">
+      <div class="filter-row">
         <select id="filtro-zona-equipe" onchange="renderEquipe()">
           <option value="">Todas as zonas</option>
           <option value="Zona Norte">Zona Norte</option>
@@ -412,7 +429,7 @@
     <div class="field">
       <label>Senha de acesso</label>
       <input type="password" id="input-senha" placeholder="••••••••" onkeydown="if(event.key==='Enter')verificarSenha()">
-      <div class="modal-erro" id="msg-senha-erro"><i class="ti ti-alert-circle"></i> Senha incorreta. Tente novamente.</div>
+      <div class="modal-erro" id="msg-senha-erro"><i class="ti ti-alert-circle"></i> Senha incorreta.</div>
     </div>
     <div class="modal-actions">
       <button class="btn" onclick="fecharModal('modal-senha')">Cancelar</button>
@@ -425,13 +442,9 @@
 <div id="modal-check" class="modal-wrap" style="display:none">
   <div class="modal">
     <h3><i class="ti ti-circle-check" style="color:var(--green)"></i> Confirmar conclusão</h3>
-    <div class="field">
-      <label>Data de conclusão</label>
-      <input type="date" id="check-data">
-    </div>
+    <div class="field"><label>Data de conclusão</label><input type="date" id="check-data"></div>
     <div class="field">
       <label>Foto do serviço concluído (obrigatória)</label>
-      <!-- SEM capture="environment" para permitir galeria também -->
       <input type="file" id="check-foto" accept="image/*" onchange="previewFoto(this,'check-foto-prev')">
       <img id="check-foto-prev" style="display:none" class="photo-preview" alt="Foto conclusão">
     </div>
@@ -456,18 +469,39 @@
 </div>
 
 <script>
-// ── CONFIGURAÇÃO ─────────────────────
-const SENHA_SECRETARIA = 'infra22'; // SENHA ATUALIZADA
+// ── CONFIG ────────────────────────────
+const SENHA_SECRETARIA = 'infra22';
+const HORAS_ALERTA = 168; // 7 dias
 
 // ── ESTADO ───────────────────────────
-let perfil = '', equipeAtual = '', checkId = null, _secaoAtual = '';
+let perfil = '', equipeAtual = '', checkId = null;
+window._secaoAtual = '';
 window._demandas = [];
+window._estatisticas = [];
+
+// Gráficos Chart.js ativos
+let _charts = {};
+
 window._renderAtual = () => {
-  if (_secaoAtual === 'painel')    renderPainel();
-  if (_secaoAtual === 'historico') renderHistorico();
-  if (_secaoAtual === 'equipe')    renderEquipe();
-  if (_secaoAtual === 'gerenciar') renderGerenciar();
+  const s = window._secaoAtual;
+  if (s === 'painel')     renderPainel();
+  if (s === 'historico')  renderHistorico();
+  if (s === 'equipe')     renderEquipe();
+  if (s === 'gerenciar')  renderGerenciar();
+  if (s === 'dashboard')  renderDashboard();
 };
+
+// ── HORAS ABERTAS ─────────────────────
+function horasAbertas(d) {
+  if (!d.criadoEm) return 0;
+  const ts = d.criadoEm.seconds ? d.criadoEm.seconds * 1000 : Date.now();
+  return (Date.now() - ts) / 3600000;
+}
+
+function labelTempo(horas) {
+  if (horas < 24) return `${Math.floor(horas)}h aberta`;
+  return `${Math.floor(horas/24)}d aberta`;
+}
 
 // ── SENHA ─────────────────────────────
 function tentarSecretaria() {
@@ -494,6 +528,7 @@ function entrarComo(p) {
   document.getElementById('header-right').style.display = 'flex';
   const tabs = document.getElementById('tabs-container');
   let html = '', titulo = '', sec = '';
+
   if (p === 'secretaria') {
     titulo = '🏢 Secretaria';
     html = `<button class="tab active" onclick="showTab('nova',event)"><i class="ti ti-plus"></i> Nova demanda</button>
@@ -502,11 +537,12 @@ function entrarComo(p) {
   } else if (p === 'fiscal') {
     titulo = '👁 Fiscal';
     html = `<button class="tab active" onclick="showTab('painel',event)"><i class="ti ti-layout-dashboard"></i> Painel</button>
+            <button class="tab" onclick="showTab('dashboard',event)"><i class="ti ti-chart-bar"></i> Dashboard</button>
             <button class="tab" onclick="showTab('historico',event)"><i class="ti ti-history"></i> Concluídas / PDF</button>`;
     sec = 'painel';
   } else {
     const num = p.replace('equipe','');
-    equipeAtual = num==='6' ? 'Equipe 6 (Retroescavadeira)' : `Equipe ${num}`;
+    equipeAtual = num === '6' ? 'Equipe 6 (Retroescavadeira)' : `Equipe ${num}`;
     titulo = '👷 ' + equipeAtual;
     html = `<button class="tab active" onclick="showTab('equipe',event)"><i class="ti ti-clipboard-list"></i> Minhas demandas</button>`;
     sec = 'equipe';
@@ -517,7 +553,9 @@ function entrarComo(p) {
 }
 
 function voltarPerfil() {
-  perfil = ''; equipeAtual = ''; _secaoAtual = '';
+  perfil = ''; equipeAtual = ''; window._secaoAtual = '';
+  Object.values(_charts).forEach(c => c.destroy());
+  _charts = {};
   document.getElementById('tela-perfil').style.display = 'block';
   document.getElementById('tela-app').style.display = 'none';
   document.getElementById('header-right').style.display = 'none';
@@ -530,13 +568,13 @@ function showTab(t, ev) {
 }
 
 function showSection(t) {
-  ['nova','gerenciar','painel','historico','equipe'].forEach(s => {
+  ['nova','gerenciar','painel','dashboard','historico','equipe'].forEach(s => {
     const el = document.getElementById('sec-' + s);
     if (el) el.classList.remove('active');
   });
   const el = document.getElementById('sec-' + t);
   if (el) el.classList.add('active');
-  _secaoAtual = t;
+  window._secaoAtual = t;
 }
 
 function renderSection(t) {
@@ -544,6 +582,7 @@ function renderSection(t) {
   if (t === 'historico') renderHistorico();
   if (t === 'equipe')    renderEquipe();
   if (t === 'gerenciar') renderGerenciar();
+  if (t === 'dashboard') renderDashboard();
 }
 
 function fecharModal(id) { document.getElementById(id).style.display = 'none'; }
@@ -601,7 +640,7 @@ async function enviarDemanda() {
   const zona   = document.getElementById('zona-nova').value;
   const equipe = document.getElementById('equipe-nova').value;
   const prev   = document.getElementById('foto-preview');
-  if (!sol || !end || !desc) { alert('Preencha solicitante, endereço e descrição.'); return; }
+  if (!sol||!end||!desc) { alert('Preencha solicitante, endereço e descrição.'); return; }
   if (!zona)   { alert('Selecione a zona da cidade.'); return; }
   if (!equipe) { alert('Selecione a equipe responsável.'); return; }
   let fotoBase64 = null;
@@ -657,13 +696,51 @@ async function confirmarCheck() {
   } catch(e) { showMsg('Erro ao salvar conclusão.','danger'); }
 }
 
+// Salva resumo mensal ANTES de apagar
 async function confirmarApagarConcluidas() {
   const conc = window._demandas.filter(d => d.status==='concluído');
   if (!conc.length) { alert('Não há demandas concluídas para apagar.'); return; }
-  if (!confirm(`Apagar ${conc.length} demandas concluídas?\nGere o PDF antes de continuar!`)) return;
+  if (!confirm(`Apagar ${conc.length} demandas concluídas?\n\nO resumo estatístico do mês será salvo automaticamente antes de apagar.\n\nGere o PDF antes se quiser o relatório detalhado!`)) return;
+
+  // Agrupa por mês e salva estatísticas
+  const porMes = {};
+  conc.forEach(d => {
+    const mesKey = d.data ? d.data.split('/').slice(1).reverse().join('-') : new Date().toISOString().slice(0,7);
+    const mesISO = mesKey.length === 7 ? mesKey : new Date().toISOString().slice(0,7);
+    if (!porMes[mesISO]) porMes[mesISO] = [];
+    porMes[mesISO].push(d);
+  });
+
+  for (const [mesISO, lista] of Object.entries(porMes)) {
+    const equipes = {};
+    const zonas   = {};
+    const nomes   = ['Equipe 1','Equipe 2','Equipe 3','Equipe 4','Equipe 5','Equipe 6 (Retroescavadeira)'];
+    const znomes  = ['Zona Norte','Zona Sul','Zona Leste','Zona Oeste','Centro'];
+    nomes.forEach(e => equipes[e] = lista.filter(d => d.equipe===e).length);
+    znomes.forEach(z => zonas[z]  = lista.filter(d => d.zona===z).length);
+    const urgentes = lista.filter(d => d.prioridade==='urgente').length;
+    // Mescla com estatísticas existentes do mesmo mês
+    const existente = (window._estatisticas||[]).find(e => e._id===mesISO);
+    const totalAnterior = existente ? (existente.total||0) : 0;
+    const novoTotal = totalAnterior + lista.length;
+    const novasEquipes = {...(existente?.porEquipe||{})};
+    const novasZonas   = {...(existente?.porZona||{})};
+    nomes.forEach(e => novasEquipes[e] = (novasEquipes[e]||0) + (equipes[e]||0));
+    znomes.forEach(z => novasZonas[z]  = (novasZonas[z]||0)  + (zonas[z]||0));
+    const [ano, mes] = mesISO.split('-');
+    const nomeMes = new Date(parseInt(ano), parseInt(mes)-1, 1).toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+    await window._salvarEstatistica(mesISO, {
+      mesISO, nomeMes,
+      total: novoTotal,
+      urgentes: (existente?.urgentes||0) + urgentes,
+      porEquipe: novasEquipes,
+      porZona: novasZonas
+    });
+  }
+
   try {
     await Promise.all(conc.map(d => window._deleteDoc(d._id)));
-    showMsg('Demandas concluídas apagadas.');
+    showMsg(`✓ ${conc.length} demandas apagadas. Resumo mensal salvo no dashboard!`);
   } catch(e) { showMsg('Erro ao apagar.','danger'); }
 }
 
@@ -681,7 +758,8 @@ function renderStats() {
 }
 
 function alocarHtml(d) {
-  const eqs=[1,2,3,4,5].map(n=>`<option value="Equipe ${n}" ${d.equipe===`Equipe ${n}`?'selected':''}>Equipe ${n}</option>`).join('')+`<option value="Equipe 6 (Retroescavadeira)" ${d.equipe==="Equipe 6 (Retroescavadeira)"?'selected':''}>Equipe 6 (Retroescavadeira)</option>`;
+  const equipes = ['Equipe 1','Equipe 2','Equipe 3','Equipe 4','Equipe 5','Equipe 6 (Retroescavadeira)'];
+  const eqs = equipes.map(e=>`<option value="${e}" ${d.equipe===e?'selected':''}>${e}</option>`).join('');
   return `<div class="alocar-box">
     <div class="alocar-label"><i class="ti ti-users"></i> Equipe responsável</div>
     <select class="alocar-select" onchange="atribuir('${d._id}',this.value)">
@@ -693,13 +771,17 @@ function alocarHtml(d) {
 
 function demandaCardHtml(d, opts={}) {
   const { mostrarAlocar=false, mostrarApagar=false, mostrarCheck=false, mostrarConcluido=false } = opts;
+  const horas = horasAbertas(d);
+  const atrasada = d.status !== 'concluído' && horas >= HORAS_ALERTA;
+  const classeCard = d.prioridade==='urgente' ? 'urgente' : atrasada ? 'atrasada' : '';
   return `
-    <div class="demand-card ${d.prioridade==='urgente'?'urgente':''}">
+    <div class="demand-card ${classeCard}">
       <div class="demand-header">
         <span class="demand-title">${d.descricao}</span>
         <div class="demand-badges">
           ${badgeHtml(d.status)}
           ${d.prioridade==='urgente'?'<span class="badge badge-urgente">⚡ URGENTE</span>':''}
+          ${atrasada?`<span class="badge badge-atrasada">⏰ ${labelTempo(horas)}</span>`:''}
           ${d.zona?`<span class="badge badge-zona">${d.zona}</span>`:''}
         </div>
       </div>
@@ -707,7 +789,7 @@ function demandaCardHtml(d, opts={}) {
         <i class="ti ti-user"></i> ${d.solicitante} &nbsp;·&nbsp;
         <i class="ti ti-clock"></i> ${d.data} ${d.hora}
         ${d.equipe?`&nbsp;·&nbsp;<span class="tag-equipe">${d.equipe}</span>`:''}
-        ${mostrarConcluido&&d.dataConclusao?`&nbsp;·&nbsp; ✅ Concluído em: <strong>${d.dataConclusao}</strong>`:''}
+        ${mostrarConcluido&&d.dataConclusao?`&nbsp;·&nbsp;✅ <strong>${d.dataConclusao}</strong>`:''}
       </div>
       ${cardMaps(d.endereco)}
       ${d.foto?`<img src="${d.foto}" class="photo-preview" alt="Foto" style="margin-bottom:10px">`:''}
@@ -739,11 +821,11 @@ function renderPainel() {
   const el = document.getElementById('lista-painel');
   if (!lista.length) { el.innerHTML='<div class="empty"><i class="ti ti-check"></i>Nenhuma demanda encontrada</div>'; return; }
 
-  const urgentes = lista.filter(d => d.prioridade==='urgente' && d.status!=='concluído');
+  const urgentes  = lista.filter(d => d.prioridade==='urgente' && d.status!=='concluído');
+  const atrasadas = lista.filter(d => d.status!=='concluído' && horasAbertas(d) >= HORAS_ALERTA && d.prioridade!=='urgente');
   let html = realtimeBadge();
-  if (urgentes.length) {
-    html += `<div class="urgente-topo"><i class="ti ti-alert-triangle"></i> ${urgentes.length} demanda${urgentes.length>1?'s':''} urgente${urgentes.length>1?'s':''} em aberto</div>`;
-  }
+  if (urgentes.length)  html += `<div class="alerta-topo alerta-urgente"><i class="ti ti-alert-triangle"></i> ${urgentes.length} demanda${urgentes.length>1?'s':''} urgente${urgentes.length>1?'s':''} em aberto</div>`;
+  if (atrasadas.length) html += `<div class="alerta-topo alerta-atrasada"><i class="ti ti-clock"></i> ${atrasadas.length} demanda${atrasadas.length>1?'s':''} com mais de 7 dias em aberto</div>`;
   html += lista.map(d => demandaCardHtml(d,{
     mostrarAlocar: d.status !== 'concluído',
     mostrarApagar: true,
@@ -757,15 +839,12 @@ function renderEquipe() {
   let lista = window._demandas.filter(d => d.equipe===equipeAtual && d.status!=='concluído');
   if (fz) lista = lista.filter(d => d.zona === fz);
   const el = document.getElementById('lista-equipe');
-  if (!lista.length) {
-    el.innerHTML=`<div class="empty"><i class="ti ti-check"></i>Nenhuma demanda${fz?' na '+fz:''} para ${equipeAtual}</div>`;
-    return;
-  }
-  const urgentes = lista.filter(d => d.prioridade==='urgente');
+  if (!lista.length) { el.innerHTML=`<div class="empty"><i class="ti ti-check"></i>Nenhuma demanda${fz?' na '+fz:''} para ${equipeAtual}</div>`; return; }
+  const urgentes  = lista.filter(d => d.prioridade==='urgente');
+  const atrasadas = lista.filter(d => horasAbertas(d) >= HORAS_ALERTA && d.prioridade!=='urgente');
   let html = realtimeBadge();
-  if (urgentes.length) {
-    html += `<div class="urgente-topo"><i class="ti ti-alert-triangle"></i> ${urgentes.length} demanda${urgentes.length>1?'s':''} urgente${urgentes.length>1?'s':''} — execute primeiro!</div>`;
-  }
+  if (urgentes.length)  html += `<div class="alerta-topo alerta-urgente"><i class="ti ti-alert-triangle"></i> ${urgentes.length} demanda${urgentes.length>1?'s':''} urgente${urgentes.length>1?'s':''} — execute primeiro!</div>`;
+  if (atrasadas.length) html += `<div class="alerta-topo alerta-atrasada"><i class="ti ti-clock"></i> ${atrasadas.length} demanda${atrasadas.length>1?'s':''} com mais de 7 dias em aberto</div>`;
   html += lista.map(d => demandaCardHtml(d,{mostrarCheck:true})).join('');
   el.innerHTML = html;
 }
@@ -790,6 +869,128 @@ function renderHistorico() {
     </div>`).join('')}</div>`;
 }
 
+// ── DASHBOARD ─────────────────────────
+function popularSelectMeses() {
+  const sel = document.getElementById('sel-mes-dash');
+  if (!sel) return;
+  const meses = window._estatisticas || [];
+  // Também inclui meses com demandas abertas agora
+  const mesesAtivos = new Set();
+  window._demandas.forEach(d => {
+    if (d.data) {
+      const partes = d.data.split('/');
+      if (partes.length === 3) mesesAtivos.add(`${partes[2]}-${partes[1]}`);
+    }
+  });
+  const todosMeses = [...new Set([...meses.map(m=>m._id||m.mesISO), ...mesesAtivos])].sort().reverse();
+  const valorAtual = sel.value;
+  sel.innerHTML = todosMeses.length
+    ? todosMeses.map(m => {
+        const [ano,mes] = m.split('-');
+        const nome = new Date(parseInt(ano),parseInt(mes)-1,1).toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+        return `<option value="${m}">${nome.charAt(0).toUpperCase()+nome.slice(1)}</option>`;
+      }).join('')
+    : '<option value="">Sem dados ainda</option>';
+  if (valorAtual && [...sel.options].some(o=>o.value===valorAtual)) sel.value = valorAtual;
+}
+
+window.renderDashboard = function() {
+  popularSelectMeses();
+  const sel = document.getElementById('sel-mes-dash');
+  const mesISO = sel?.value;
+  const conteudo = document.getElementById('dash-conteudo');
+  if (!mesISO || !conteudo) return;
+
+  // Dados salvos (histórico)
+  const stat = (window._estatisticas||[]).find(e => e._id===mesISO || e.mesISO===mesISO);
+  // Dados ao vivo do mês atual
+  const [ano, mes] = mesISO.split('-');
+  const demMes = window._demandas.filter(d => {
+    if (!d.data) return false;
+    const p = d.data.split('/');
+    return p.length===3 && p[2]===ano && p[1]===mes;
+  });
+  const concMes   = demMes.filter(d=>d.status==='concluído');
+  const aberMes   = demMes.filter(d=>d.status!=='concluído');
+  const urgMes    = demMes.filter(d=>d.prioridade==='urgente');
+
+  // Totais: combina ao vivo + histórico salvo
+  const totalConc = concMes.length + (stat?.total||0);
+  const totalUrg  = urgMes.length + (stat?.urgentes||0);
+
+  const equipes = ['Equipe 1','Equipe 2','Equipe 3','Equipe 4','Equipe 5','Equipe 6 (Retroescavadeira)'];
+  const zonas   = ['Zona Norte','Zona Sul','Zona Leste','Zona Oeste','Centro'];
+  const eqLabels = ['Eq.1','Eq.2','Eq.3','Eq.4','Eq.5','Eq.6'];
+
+  const porEquipe = equipes.map(e => (concMes.filter(d=>d.equipe===e).length) + (stat?.porEquipe?.[e]||0));
+  const porZona   = zonas.map(z   => (concMes.filter(d=>d.zona===z).length)   + (stat?.porZona?.[z]||0));
+  const abertasEq = equipes.map(e => aberMes.filter(d=>d.equipe===e).length);
+
+  conteudo.innerHTML = `
+    <div class="dash-stat-row">
+      <div class="dash-stat"><div class="dash-stat-num" style="color:var(--green)">${totalConc}</div><div class="dash-stat-label">Concluídas</div></div>
+      <div class="dash-stat"><div class="dash-stat-num" style="color:var(--blue)">${aberMes.length}</div><div class="dash-stat-label">Em aberto</div></div>
+      <div class="dash-stat"><div class="dash-stat-num" style="color:var(--red)">${totalUrg}</div><div class="dash-stat-label">Urgentes</div></div>
+    </div>
+    <div class="dash-grid">
+      <div class="dash-card">
+        <h4><i class="ti ti-chart-bar"></i> Concluídas por equipe</h4>
+        <canvas id="chart-equipe"></canvas>
+      </div>
+      <div class="dash-card">
+        <h4><i class="ti ti-chart-pie"></i> Concluídas por zona</h4>
+        <canvas id="chart-zona"></canvas>
+      </div>
+      <div class="dash-card dash-card-full">
+        <h4><i class="ti ti-users"></i> Demandas em aberto por equipe</h4>
+        <canvas id="chart-abertas"></canvas>
+      </div>
+    </div>
+    <div class="dash-card">
+      <h4><i class="ti ti-history"></i> Histórico de meses anteriores</h4>
+      <div class="historico-meses" id="hist-meses"></div>
+    </div>`;
+
+  // Destrói gráficos anteriores
+  ['chart-equipe','chart-zona','chart-abertas'].forEach(id => {
+    if (_charts[id]) { _charts[id].destroy(); delete _charts[id]; }
+  });
+
+  const cores = ['#1a6640','#1a3f7a','#7a4f00','#4a1a7a','#7a3a00','#2a5f5a'];
+  const coresZona = ['#1a6640','#1a3f7a','#7a4f00','#4a1a7a','#7a3a00'];
+
+  _charts['chart-equipe'] = new Chart(document.getElementById('chart-equipe'), {
+    type:'bar',
+    data:{ labels:eqLabels, datasets:[{ data:porEquipe, backgroundColor:cores, borderRadius:6 }] },
+    options:{ plugins:{legend:{display:false}}, scales:{ y:{beginAtZero:true,ticks:{stepSize:1}} }, responsive:true }
+  });
+
+  _charts['chart-zona'] = new Chart(document.getElementById('chart-zona'), {
+    type:'doughnut',
+    data:{ labels:zonas, datasets:[{ data:porZona, backgroundColor:coresZona, borderWidth:2, borderColor:'#fff' }] },
+    options:{ plugins:{legend:{position:'bottom',labels:{font:{size:11},boxWidth:12}}}, responsive:true }
+  });
+
+  _charts['chart-abertas'] = new Chart(document.getElementById('chart-abertas'), {
+    type:'bar',
+    data:{ labels:eqLabels, datasets:[{ label:'Em aberto', data:abertasEq, backgroundColor:'#a8bce0', borderRadius:6 }] },
+    options:{ plugins:{legend:{display:false}}, scales:{ y:{beginAtZero:true,ticks:{stepSize:1}} }, responsive:true }
+  });
+
+  // Histórico de todos os meses
+  const histEl = document.getElementById('hist-meses');
+  const todosSalvos = [...(window._estatisticas||[])].sort((a,b)=>b.mesISO?.localeCompare(a.mesISO));
+  if (!todosSalvos.length) {
+    histEl.innerHTML = '<div class="sem-dados">Nenhum mês anterior salvo ainda.<br>Os dados são salvos automaticamente ao apagar demandas concluídas.</div>';
+  } else {
+    histEl.innerHTML = todosSalvos.map(m=>`
+      <div class="mes-row">
+        <span class="mes-row-nome">${m.nomeMes||m.mesISO}</span>
+        <span class="mes-row-num">${m.total||0} concluídas</span>
+      </div>`).join('');
+  }
+};
+
 // ── PDF ───────────────────────────────
 function gerarRelatorio() {
   const conc = window._demandas.filter(d => d.status==='concluído');
@@ -801,8 +1002,7 @@ function gerarRelatorio() {
       <strong>${i+1}. ${d.descricao}</strong><br>
       Solicitante: ${d.solicitante}<br>Endereço: ${d.endereco}<br>
       Zona: ${d.zona||'—'}<br>Abertura: ${d.data} ${d.hora}<br>
-      Conclusão: ${d.dataConclusao||'—'}<br>Equipe: ${d.equipe||'—'}
-      ${d.prioridade==='urgente'?' ⚡ URGENTE':''}
+      Conclusão: ${d.dataConclusao||'—'}<br>Equipe: ${d.equipe||'—'}${d.prioridade==='urgente'?' ⚡':''}
     </div>`).join('');
   document.getElementById('modal-relatorio').style.display='flex';
 }
