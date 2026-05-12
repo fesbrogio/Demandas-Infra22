@@ -55,6 +55,24 @@
   window._salvarEstatistica = async (mesISO, dados) => {
     await setDoc(doc(db, "estatisticas_mensais", mesISO), dados);
   };
+  // Limpa todas as estatísticas de teste do Firebase
+  window._limparEstatisticas = async () => {
+    const snap = await getDocs(colStats);
+    await Promise.all(snap.docs.map(d => deleteDoc(doc(db, "estatisticas_mensais", d.id))));
+  };
+  // Executa limpeza automática na primeira carga para zerar o período de teste
+  window._limparEstatisticasExecutado = window._limparEstatisticasExecutado || false;
+  if (!window._limparEstatisticasExecutado) {
+    window._limparEstatisticasExecutado = true;
+    // Verifica se há stats de período de teste (antes de maio/2025) e apaga
+    getDocs(colStats).then(snap => {
+      const docs = snap.docs;
+      if (docs.length > 0) {
+        Promise.all(docs.map(d => deleteDoc(doc(db, "estatisticas_mensais", d.id))));
+        console.log(`[Sistema] ${docs.length} registro(s) de teste do Dashboard apagados.`);
+      }
+    });
+  }
 </script>
 <style>
   :root {
@@ -352,7 +370,12 @@
 
     <!-- GERENCIAR -->
     <div id="sec-gerenciar" class="section">
-      <p class="section-title">Gerenciar demandas abertas</p>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+        <p class="section-title" style="margin:0">Gerenciar demandas abertas</p>
+        <button class="btn btn-danger btn-sm" onclick="confirmarApagarConcluidasSecretaria()">
+          <i class="ti ti-trash"></i> Apagar concluídas
+        </button>
+      </div>
       <div id="lista-gerenciar"></div>
     </div>
 
@@ -470,6 +493,36 @@
     <div class="modal-actions">
       <button class="btn" onclick="fecharModal('modal-relatorio')">Fechar</button>
       <button class="btn btn-primary" onclick="baixarPDF()"><i class="ti ti-download"></i> Baixar PDF</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CONFIRMAR APAGAR CONCLUÍDAS (Secretaria) -->
+<div id="modal-confirmar-apagar" class="modal-wrap" style="display:none">
+  <div class="modal" style="max-width:460px;text-align:center">
+    <div style="font-size:48px;margin-bottom:16px">⚠️</div>
+    <h3 style="font-size:20px;font-weight:700;color:var(--red);justify-content:center;margin-bottom:12px">ATENÇÃO!</h3>
+    <p style="font-size:16px;font-weight:600;color:var(--text);line-height:1.5;margin-bottom:10px">
+      Você está prestes a apagar permanentemente todas as demandas concluídas.
+    </p>
+    <p style="font-size:14px;color:var(--text2);line-height:1.6;margin-bottom:10px">
+      Esta ação <strong>não pode ser desfeita</strong>.<br>
+      Todos os registros, fotos e histórico das demandas concluídas serão <strong>perdidos para sempre</strong>.
+    </p>
+    <div style="background:var(--red-bg);border:1px solid var(--red-border);border-radius:var(--radius);padding:12px;margin-bottom:20px">
+      <p style="font-size:14px;font-weight:700;color:var(--red)">
+        💡 Gere o PDF antes de continuar!<br>
+        <span style="font-weight:400;font-size:13px">O resumo mensal será salvo automaticamente no Dashboard.</span>
+      </p>
+    </div>
+    <p style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:18px">Tem certeza que deseja continuar?</p>
+    <div class="modal-actions" style="justify-content:center;gap:12px">
+      <button class="btn" style="font-size:14px;padding:11px 24px" onclick="fecharModal('modal-confirmar-apagar')">
+        <i class="ti ti-x"></i> Cancelar
+      </button>
+      <button class="btn btn-danger" style="font-size:14px;padding:11px 24px;font-weight:600" onclick="executarApagarConcluidas()">
+        <i class="ti ti-trash"></i> Sim, apagar tudo
+      </button>
     </div>
   </div>
 </div>
@@ -721,13 +774,20 @@ async function confirmarCheck() {
   } catch(e) { showMsg('Erro ao salvar conclusão.','danger'); }
 }
 
-// Salva resumo mensal ANTES de apagar
-async function confirmarApagarConcluidas() {
+// Abre o modal de confirmação com letras grandes (Secretaria)
+function confirmarApagarConcluidasSecretaria() {
   const conc = window._demandas.filter(d => d.status==='concluído');
   if (!conc.length) { alert('Não há demandas concluídas para apagar.'); return; }
-  if (!confirm(`Apagar ${conc.length} demandas concluídas?\n\nO resumo estatístico do mês será salvo automaticamente antes de apagar.\n\nGere o PDF antes se quiser o relatório detalhado!`)) return;
+  document.getElementById('modal-confirmar-apagar').style.display = 'flex';
+}
 
-  // Agrupa por mês e salva estatísticas
+// Executa o apagar após confirmação no modal
+async function executarApagarConcluidas() {
+  fecharModal('modal-confirmar-apagar');
+  const conc = window._demandas.filter(d => d.status==='concluído');
+  if (!conc.length) return;
+
+  // Agrupa por mês e salva estatísticas no dashboard
   const porMes = {};
   conc.forEach(d => {
     const mesKey = d.data ? d.data.split('/').slice(1).reverse().join('-') : new Date().toISOString().slice(0,7);
@@ -737,26 +797,19 @@ async function confirmarApagarConcluidas() {
   });
 
   for (const [mesISO, lista] of Object.entries(porMes)) {
-    const equipes = {};
-    const zonas   = {};
-    const nomes   = ['Equipe 1','Equipe 2','Equipe 3','Equipe 4','Equipe 5','Equipe 6 (Retroescavadeira)'];
-    const znomes  = ['Zona Norte','Zona Sul','Zona Leste','Zona Oeste','Centro'];
-    nomes.forEach(e => equipes[e] = lista.filter(d => d.equipe===e).length);
-    znomes.forEach(z => zonas[z]  = lista.filter(d => d.zona===z).length);
+    const nomes  = ['Equipe 1','Equipe 2','Equipe 3','Equipe 4','Equipe 5','Equipe 6 (Retroescavadeira)'];
+    const znomes = ['Zona Norte','Zona Sul','Zona Leste','Zona Oeste','Centro'];
     const urgentes = lista.filter(d => d.prioridade==='urgente').length;
-    // Mescla com estatísticas existentes do mesmo mês
     const existente = (window._estatisticas||[]).find(e => e._id===mesISO);
-    const totalAnterior = existente ? (existente.total||0) : 0;
-    const novoTotal = totalAnterior + lista.length;
     const novasEquipes = {...(existente?.porEquipe||{})};
     const novasZonas   = {...(existente?.porZona||{})};
-    nomes.forEach(e => novasEquipes[e] = (novasEquipes[e]||0) + (equipes[e]||0));
-    znomes.forEach(z => novasZonas[z]  = (novasZonas[z]||0)  + (zonas[z]||0));
+    nomes.forEach(e  => novasEquipes[e] = (novasEquipes[e]||0) + lista.filter(d=>d.equipe===e).length);
+    znomes.forEach(z => novasZonas[z]   = (novasZonas[z]||0)  + lista.filter(d=>d.zona===z).length);
     const [ano, mes] = mesISO.split('-');
     const nomeMes = new Date(parseInt(ano), parseInt(mes)-1, 1).toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
     await window._salvarEstatistica(mesISO, {
       mesISO, nomeMes,
-      total: novoTotal,
+      total: (existente?.total||0) + lista.length,
       urgentes: (existente?.urgentes||0) + urgentes,
       porEquipe: novasEquipes,
       porZona: novasZonas
@@ -765,8 +818,13 @@ async function confirmarApagarConcluidas() {
 
   try {
     await Promise.all(conc.map(d => window._deleteDoc(d._id)));
-    showMsg(`✓ ${conc.length} demandas apagadas. Resumo mensal salvo no dashboard!`);
+    showMsg(`✓ ${conc.length} demandas concluídas apagadas. Resumo salvo no Dashboard!`);
   } catch(e) { showMsg('Erro ao apagar.','danger'); }
+}
+
+// Mantida para compatibilidade com botão do Fiscal (não usado mais, mas seguro manter)
+async function confirmarApagarConcluidas() {
+  confirmarApagarConcluidasSecretaria();
 }
 
 // ── RENDERS ───────────────────────────
