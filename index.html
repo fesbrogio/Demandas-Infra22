@@ -411,7 +411,7 @@
 
     <!-- EQUIPE -->
     <div id="sec-equipe" class="section">
-      <div class="filter-row">
+      <div class="filter-row" style="align-items:center">
         <select id="filtro-zona-equipe" onchange="renderEquipe()">
           <option value="">Todas as zonas</option>
           <option value="Zona Norte">Zona Norte</option>
@@ -420,6 +420,7 @@
           <option value="Zona Oeste">Zona Oeste</option>
           <option value="Centro">Centro</option>
         </select>
+        <div id="contador-equipe" style="flex-shrink:0;font-size:13px;font-weight:600;font-family:var(--font-mono);background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:7px 14px;white-space:nowrap;color:var(--text2)"></div>
       </div>
       <div id="lista-equipe"></div>
     </div>
@@ -862,6 +863,16 @@ function renderEquipe() {
   const fz = document.getElementById('filtro-zona-equipe').value;
   let lista = window._demandas.filter(d => d.equipe===equipeAtual && d.status!=='concluído');
   if (fz) lista = lista.filter(d => d.zona === fz);
+
+  // Contador acompanha o filtro
+  const contador = document.getElementById('contador-equipe');
+  if (contador) {
+    const total = lista.length;
+    const urgentes_c = lista.filter(d => d.prioridade==='urgente').length;
+    const label = fz ? `${fz}` : 'Total';
+    contador.innerHTML = `${label}: <span style="color:var(--text)">${total}</span> demanda${total!==1?'s':''}${urgentes_c>0?` · <span style="color:var(--red)">⚡ ${urgentes_c} urgente${urgentes_c>1?'s':''}</span>`:''}`;
+  }
+
   const el = document.getElementById('lista-equipe');
   if (!lista.length) { el.innerHTML=`<div class="empty"><i class="ti ti-check"></i>Nenhuma demanda${fz?' na '+fz:''} para ${equipeAtual}</div>`; return; }
   const urgentes  = lista.filter(d => d.prioridade==='urgente');
