@@ -910,7 +910,7 @@ function renderPainel() {
   if (urgentes.length)  html += `<div class="alerta-topo alerta-urgente"><i class="ti ti-alert-triangle"></i> ${urgentes.length} demanda${urgentes.length>1?'s':''} urgente${urgentes.length>1?'s':''} em aberto</div>`;
   if (atrasadas.length) html += `<div class="alerta-topo alerta-atrasada"><i class="ti ti-clock"></i> ${atrasadas.length} demanda${atrasadas.length>1?'s':''} com mais de 7 dias em aberto</div>`;
   html += lista.map(d => demandaCardHtml(d,{
-    mostrarAlocar: d.status !== 'concluído',
+    mostrarAlocar: false,
     mostrarApagar: false,
     mostrarConcluido: d.status === 'concluído'
   })).join('');
