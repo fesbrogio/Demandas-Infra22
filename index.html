@@ -55,24 +55,6 @@
   window._salvarEstatistica = async (mesISO, dados) => {
     await setDoc(doc(db, "estatisticas_mensais", mesISO), dados);
   };
-  // Limpa todas as estatísticas de teste do Firebase
-  window._limparEstatisticas = async () => {
-    const snap = await getDocs(colStats);
-    await Promise.all(snap.docs.map(d => deleteDoc(doc(db, "estatisticas_mensais", d.id))));
-  };
-  // Executa limpeza automática na primeira carga para zerar o período de teste
-  window._limparEstatisticasExecutado = window._limparEstatisticasExecutado || false;
-  if (!window._limparEstatisticasExecutado) {
-    window._limparEstatisticasExecutado = true;
-    // Verifica se há stats de período de teste (antes de maio/2025) e apaga
-    getDocs(colStats).then(snap => {
-      const docs = snap.docs;
-      if (docs.length > 0) {
-        Promise.all(docs.map(d => deleteDoc(doc(db, "estatisticas_mensais", d.id))));
-        console.log(`[Sistema] ${docs.length} registro(s) de teste do Dashboard apagados.`);
-      }
-    });
-  }
 </script>
 <style>
   :root {
