@@ -527,12 +527,25 @@
 
 <!-- MODAL REVISÃO (Secretaria corrige endereço) -->
 <div id="modal-revisao" class="modal-wrap" style="display:none">
-  <div class="modal" style="max-width:460px">
-    <h3><i class="ti ti-map-pin-off" style="color:var(--red)"></i> Corrigir endereço</h3>
-    <p style="font-size:13px;color:var(--text2);margin-bottom:14px">A equipe não encontrou o local. Corrija o endereço e reenvie para a mesma equipe.</p>
+  <div class="modal" style="max-width:480px;max-height:90vh;overflow-y:auto">
+    <h3><i class="ti ti-map-pin-off" style="color:var(--red)"></i> Corrigir demanda</h3>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:16px">A equipe não encontrou o local. Corrija os dados necessários e reenvie para a mesma equipe.</p>
     <div class="field">
-      <label>Novo endereço</label>
+      <label>Quem está solicitando</label>
+      <input type="text" id="revisao-solicitante" placeholder="Nome e setor">
+    </div>
+    <div class="field">
+      <label>Endereço correto</label>
       <input type="text" id="revisao-endereco" placeholder="Digite o endereço correto">
+    </div>
+    <div class="field">
+      <label>Descrição do serviço</label>
+      <textarea id="revisao-descricao" placeholder="Descrição do serviço" style="min-height:70px"></textarea>
+    </div>
+    <div class="field">
+      <label>Foto do local (opcional — substitui a anterior)</label>
+      <input type="file" id="revisao-foto" accept="image/*" onchange="previewFoto(this,'revisao-foto-prev')">
+      <img id="revisao-foto-prev" style="display:none" class="photo-preview" alt="Nova foto">
     </div>
     <div class="modal-actions">
       <button class="btn" onclick="fecharModal('modal-revisao')">Cancelar</button>
@@ -932,15 +945,47 @@ async function confirmarNaoEncontrado(){
 function abrirRevisao(id){
   revisaoId=id;
   const d=window._demandas.find(x=>x._id===id);
-  if(d) document.getElementById('revisao-endereco').value=d.endereco;
+  if(d){
+    document.getElementById('revisao-solicitante').value=d.solicitante||'';
+    document.getElementById('revisao-endereco').value=d.endereco||'';
+    document.getElementById('revisao-descricao').value=d.descricao||'';
+    // Mostra foto atual se existir
+    const prev=document.getElementById('revisao-foto-prev');
+    if(d.foto){prev.src=d.foto;prev.style.display='block';}
+    else{prev.src='';prev.style.display='none';}
+    document.getElementById('revisao-foto').value='';
+  }
   document.getElementById('modal-revisao').style.display='flex';
   setTimeout(()=>document.getElementById('revisao-endereco').focus(),150);
 }
+
 async function reenviarDemanda(){
+  const novoSol=document.getElementById('revisao-solicitante').value.trim();
   const novoEnd=document.getElementById('revisao-endereco').value.trim();
+  const novoDesc=document.getElementById('revisao-descricao').value.trim();
+  const prev=document.getElementById('revisao-foto-prev');
   if(!novoEnd){alert('Digite o endereço correto.');return;}
+  if(!novoSol){alert('Preencha quem está solicitando.');return;}
+  if(!novoDesc){alert('Preencha a descrição do serviço.');return;}
+
+  // Comprime nova foto se foi selecionada uma nova
+  let novaFoto = null;
+  const fotoInput = document.getElementById('revisao-foto');
+  if(fotoInput.files&&fotoInput.files[0]&&prev.style.display!=='none'&&prev.src){
+    novaFoto = await comprimirImagem(prev.src,400,0.6);
+  }
+
+  const dados={
+    solicitante:novoSol,
+    endereco:novoEnd,
+    descricao:novoDesc,
+    status:'em andamento',
+    naoEncontrado:false
+  };
+  if(novaFoto) dados.foto=novaFoto;
+
   try{
-    await window._updateDoc(revisaoId,{endereco:novoEnd,status:'em andamento',naoEncontrado:false});
+    await window._updateDoc(revisaoId,dados);
     fecharModal('modal-revisao');
     showMsg('Demanda corrigida e reenviada para a equipe!');
   }catch(e){showMsg('Erro ao reenviar.','danger');}
