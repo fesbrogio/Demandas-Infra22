@@ -13,7 +13,7 @@
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
   import {
     getFirestore, collection, addDoc, onSnapshot, doc,
-    updateDoc, deleteDoc, query, orderBy, serverTimestamp, setDoc, getDocs
+    updateDoc, deleteDoc, query, orderBy, serverTimestamp, setDoc
   } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
   const firebaseConfig = {
@@ -30,7 +30,6 @@
   const col = collection(db, "demandas");
   const colStats = collection(db, "estatisticas_mensais");
 
-  // Escuta demandas em tempo real
   onSnapshot(query(col, orderBy("criadoEm","desc")), (snap) => {
     const docs = snap.docs.map(d => ({ _id: d.id, ...d.data() }));
     docs.sort((a,b) => {
@@ -42,7 +41,6 @@
     window._renderAtual && window._renderAtual();
   });
 
-  // Escuta estatísticas mensais em tempo real
   onSnapshot(query(colStats, orderBy("mesISO","asc")), (snap) => {
     window._estatisticas = snap.docs.map(d => ({ _id: d.id, ...d.data() }));
     if (window._secaoAtual === 'dashboard') window.renderDashboard && window.renderDashboard();
@@ -117,6 +115,7 @@
   .tab{padding:10px 13px;font-size:13px;cursor:pointer;border:none;background:none;color:var(--text2);border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap;font-family:var(--font);display:flex;align-items:center;gap:6px;transition:color .15s;flex-shrink:0}
   .tab:hover{color:var(--text)}
   .tab.active{color:var(--text);border-bottom-color:var(--text);font-weight:500}
+  .tab-badge{background:var(--red);color:#fff;border-radius:20px;font-size:10px;padding:1px 6px;font-family:var(--font-mono);font-weight:600}
 
   .section{display:none}
   .section.active{display:block;animation:fadeIn .15s ease}
@@ -146,6 +145,8 @@
   .btn-danger:hover{background:var(--red-bg)}
   .btn-info{border-color:var(--blue-border);color:var(--blue)}
   .btn-info:hover{background:var(--blue-bg)}
+  .btn-warning{border-color:var(--orange-border);color:var(--orange)}
+  .btn-warning:hover{background:var(--orange-bg)}
   .btn-sm{padding:7px 13px;font-size:12px}
   .btn-full{width:100%;justify-content:center;margin-top:4px}
 
@@ -156,10 +157,12 @@
   .badge-urgente{background:var(--red-bg);color:var(--red);border:1px solid var(--red-border);font-weight:700}
   .badge-zona{background:var(--purple-bg);color:var(--purple);border:1px solid var(--purple-border)}
   .badge-atrasada{background:var(--orange-bg);color:var(--orange);border:1px solid var(--orange-border);font-weight:600}
+  .badge-revisao{background:#fdeaea;color:#8b1a1a;border:1px solid #f0a8a8;font-weight:600}
 
   .demand-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px;margin-bottom:10px}
   .demand-card.urgente{border-left:4px solid #e05555;background:#fffafa}
   .demand-card.atrasada{border-left:4px solid #d97706}
+  .demand-card.revisao{border-left:4px solid #e05555;background:#fff8f8}
   .demand-card.urgente .demand-title::before{content:'⚡ '}
   .demand-header{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:8px}
   .demand-title{font-size:14px;font-weight:600;flex:1;line-height:1.4}
@@ -181,6 +184,8 @@
   .btn-done:hover{background:#cde8d8}
   .btn-del{font-size:12px;padding:9px 14px;border-radius:var(--radius);cursor:pointer;border:1px solid var(--red-border);background:transparent;color:var(--red);display:inline-flex;align-items:center;gap:5px;font-family:var(--font);transition:background .15s}
   .btn-del:hover{background:var(--red-bg)}
+  .btn-nao-encontrado{font-size:12px;padding:9px 14px;border-radius:var(--radius);cursor:pointer;border:1px solid var(--orange-border);background:transparent;color:var(--orange);display:inline-flex;align-items:center;gap:5px;font-family:var(--font);transition:background .15s}
+  .btn-nao-encontrado:hover{background:var(--orange-bg)}
 
   .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px}
   .stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px 8px;text-align:center}
@@ -192,11 +197,11 @@
 
   .photo-preview{max-width:100%;max-height:180px;border-radius:var(--radius);margin-top:8px;display:block;object-fit:cover;border:1px solid var(--border);cursor:zoom-in;transition:opacity .15s}
   .photo-preview:hover{opacity:.88}
-  /* LIGHTBOX */
   .lightbox{position:fixed;inset:0;background:rgba(0,0,0,.92);display:flex;align-items:center;justify-content:center;z-index:500;padding:16px;cursor:zoom-out;animation:fadeIn .15s ease}
   .lightbox img{max-width:100%;max-height:92vh;border-radius:var(--radius);object-fit:contain;box-shadow:0 8px 40px rgba(0,0,0,.6)}
   .lightbox-close{position:fixed;top:16px;right:16px;background:rgba(255,255,255,.15);border:none;color:#fff;width:40px;height:40px;border-radius:50%;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s}
   .lightbox-close:hover{background:rgba(255,255,255,.28)}
+
   .msg{padding:10px 14px;border-radius:var(--radius);font-size:13px;margin-bottom:14px;display:flex;align-items:center;gap:8px}
   .msg-success{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)}
   .msg-danger{background:var(--red-bg);color:var(--red);border:1px solid var(--red-border)}
@@ -212,8 +217,14 @@
   .alerta-topo{border-radius:var(--radius);padding:10px 14px;font-size:13px;font-weight:600;margin-bottom:10px;display:flex;align-items:center;gap:8px}
   .alerta-urgente{background:var(--red-bg);border:1px solid var(--red-border);color:var(--red)}
   .alerta-atrasada{background:var(--orange-bg);border:1px solid var(--orange-border);color:var(--orange)}
+  .alerta-revisao{background:#fff0f0;border:1px solid var(--red-border);color:var(--red)}
 
-  /* ── DASHBOARD ── */
+  /* REVISAO BOX */
+  .revisao-box{background:#fff8f8;border:2px solid var(--red-border);border-radius:var(--radius);padding:13px;margin-top:12px}
+  .revisao-label{font-size:12px;font-weight:600;color:var(--red);margin-bottom:8px;display:flex;align-items:center;gap:6px}
+  .revisao-motivo{font-size:13px;color:var(--red);margin-bottom:10px;font-style:italic}
+
+  /* DASHBOARD */
   .dash-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
   .dash-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px}
   .dash-card h4{font-size:13px;font-weight:600;color:var(--text2);margin-bottom:12px;display:flex;align-items:center;gap:6px}
@@ -232,6 +243,11 @@
   .mes-row-nome{font-weight:500}
   .mes-row-num{font-family:var(--font-mono);font-weight:600;color:var(--green)}
 
+  /* MÊS FILTER (PDF/Apagar) */
+  .mes-filter-box{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:16px}
+  .mes-filter-box label{font-size:12px;font-weight:600;color:var(--text2);margin-bottom:8px;display:flex;align-items:center;gap:5px}
+  .mes-filter-box select{width:100%;padding:9px 30px 9px 12px;border:1px solid var(--border);border-radius:var(--radius);font-size:14px;font-family:var(--font);background:var(--surface);color:var(--text);-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b6860' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;cursor:pointer}
+
   @media(max-width:500px){
     .perfil-grid{grid-template-columns:1fr 1fr}
     .equipe-grid{grid-template-columns:1fr 1fr}
@@ -242,7 +258,7 @@
     .demand-badges{flex-direction:row}
     .brand-text{font-size:12px}
     #header-user-label{display:none}
-    .btn-done,.btn-del{flex:1;justify-content:center}
+    .btn-done,.btn-del,.btn-nao-encontrado{flex:1;justify-content:center}
     .card{padding:14px}
   }
 
@@ -276,7 +292,7 @@
   <div id="tela-perfil">
     <p class="perfil-title">Gestão de limpeza urbana</p>
     <p class="perfil-sub">Selecione seu perfil para acessar o sistema.</p>
-    <p class="perfil-section-label">Secretaria / Fiscal</p>
+    <p class="perfil-section-label">Secretaria / Relatório</p>
     <div class="perfil-grid">
       <button class="perfil-btn" onclick="tentarSecretaria()">
         <i class="ti ti-building picon"></i>
@@ -361,7 +377,13 @@
       <div id="lista-gerenciar"></div>
     </div>
 
-    <!-- PAINEL FISCAL -->
+    <!-- REVISÃO -->
+    <div id="sec-revisao" class="section">
+      <p class="section-title">⚠️ Endereços para revisão</p>
+      <div id="lista-revisao"></div>
+    </div>
+
+    <!-- PAINEL -->
     <div id="sec-painel" class="section">
       <div class="stats" id="stats-box"></div>
       <div class="filter-row">
@@ -398,7 +420,6 @@
       <div class="mes-selector">
         <label><i class="ti ti-calendar"></i> Visualizar mês:</label>
         <select id="sel-mes-dash" onchange="renderDashboard()"></select>
-        <span style="font-size:12px;color:var(--text3)">Os dados históricos são preservados mesmo após apagar demandas.</span>
       </div>
       <div id="dash-conteudo"></div>
     </div>
@@ -407,9 +428,14 @@
     <div id="sec-historico" class="section">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
         <p class="section-title" style="margin:0">Demandas concluídas</p>
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button class="btn btn-info btn-sm" onclick="gerarRelatorio()"><i class="ti ti-file-type-pdf"></i> Gerar PDF</button>
-        </div>
+        <button class="btn btn-info btn-sm" onclick="gerarRelatorio()"><i class="ti ti-file-type-pdf"></i> Gerar PDF</button>
+      </div>
+      <!-- FILTRO POR MÊS -->
+      <div class="mes-filter-box">
+        <label><i class="ti ti-calendar"></i> Filtrar por mês</label>
+        <select id="filtro-mes-historico" onchange="renderHistorico()">
+          <option value="">Todos os meses</option>
+        </select>
       </div>
       <div id="lista-historico"></div>
     </div>
@@ -428,6 +454,21 @@
         <div id="contador-equipe" style="flex-shrink:0;font-size:13px;font-weight:600;font-family:var(--font-mono);background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:7px 14px;white-space:nowrap;color:var(--text2)"></div>
       </div>
       <div id="lista-equipe"></div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL ENDEREÇO DUPLICADO -->
+<div id="modal-duplicado" class="modal-wrap" style="display:none">
+  <div class="modal" style="max-width:480px">
+    <div style="font-size:40px;margin-bottom:12px;text-align:center">⚠️</div>
+    <h3 style="font-size:17px;font-weight:700;color:var(--amber);justify-content:center;margin-bottom:12px">Endereço similar encontrado!</h3>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:12px">Encontramos demandas recentes em endereços próximos a este:</p>
+    <div id="duplicado-lista" style="background:var(--amber-bg);border:1px solid var(--amber-border);border-radius:var(--radius);padding:12px;margin-bottom:14px;font-size:13px;line-height:1.8"></div>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:4px">Deseja cadastrar mesmo assim?</p>
+    <div class="modal-actions">
+      <button class="btn" onclick="fecharModal('modal-duplicado')"><i class="ti ti-x"></i> Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarDemandaMesmoAssim()"><i class="ti ti-send"></i> Cadastrar mesmo assim</button>
     </div>
   </div>
 </div>
@@ -466,6 +507,66 @@
   </div>
 </div>
 
+<!-- MODAL NÃO ENCONTRADO -->
+<div id="modal-nao-encontrado" class="modal-wrap" style="display:none">
+  <div class="modal" style="max-width:460px;text-align:center">
+    <div style="font-size:44px;margin-bottom:12px">📍</div>
+    <h3 style="font-size:18px;font-weight:700;color:var(--orange);justify-content:center;margin-bottom:10px">Local não encontrado?</h3>
+    <p style="font-size:14px;color:var(--text);line-height:1.6;margin-bottom:8px">
+      Confirme que a equipe não conseguiu localizar o endereço desta demanda.
+    </p>
+    <p style="font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:20px">
+      A demanda será <strong>devolvida para a Secretaria</strong> revisar o endereço e reenviar.
+    </p>
+    <div class="modal-actions" style="justify-content:center;gap:12px">
+      <button class="btn" style="font-size:14px" onclick="fecharModal('modal-nao-encontrado')"><i class="ti ti-x"></i> Cancelar</button>
+      <button class="btn btn-warning" style="font-size:14px;font-weight:600" onclick="confirmarNaoEncontrado()"><i class="ti ti-map-pin-off"></i> Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL REVISÃO (Secretaria corrige endereço) -->
+<div id="modal-revisao" class="modal-wrap" style="display:none">
+  <div class="modal" style="max-width:460px">
+    <h3><i class="ti ti-map-pin-off" style="color:var(--red)"></i> Corrigir endereço</h3>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:14px">A equipe não encontrou o local. Corrija o endereço e reenvie para a mesma equipe.</p>
+    <div class="field">
+      <label>Novo endereço</label>
+      <input type="text" id="revisao-endereco" placeholder="Digite o endereço correto">
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="fecharModal('modal-revisao')">Cancelar</button>
+      <button class="btn btn-danger btn-sm" onclick="apagarDemandaRevisao()"><i class="ti ti-trash"></i> Apagar</button>
+      <button class="btn btn-primary" onclick="reenviarDemanda()"><i class="ti ti-send"></i> Corrigir e reenviar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CONFIRMAR APAGAR CONCLUÍDAS -->
+<div id="modal-confirmar-apagar" class="modal-wrap" style="display:none">
+  <div class="modal" style="max-width:460px;text-align:center">
+    <div style="font-size:48px;margin-bottom:16px">⚠️</div>
+    <h3 style="font-size:20px;font-weight:700;color:var(--red);justify-content:center;margin-bottom:12px">ATENÇÃO!</h3>
+    <p style="font-size:16px;font-weight:600;color:var(--text);line-height:1.5;margin-bottom:10px">Você está prestes a apagar permanentemente demandas concluídas.</p>
+    <p style="font-size:14px;color:var(--text2);line-height:1.6;margin-bottom:10px">Esta ação <strong>não pode ser desfeita</strong>. Todos os registros e fotos serão <strong>perdidos para sempre</strong>.</p>
+    <!-- FILTRO POR MÊS -->
+    <div class="mes-filter-box" style="text-align:left;margin-bottom:14px">
+      <label><i class="ti ti-calendar"></i> Selecione o mês a apagar</label>
+      <select id="filtro-mes-apagar">
+        <option value="">Todos os meses</option>
+      </select>
+    </div>
+    <div style="background:var(--red-bg);border:1px solid var(--red-border);border-radius:var(--radius);padding:12px;margin-bottom:20px">
+      <p style="font-size:13px;font-weight:700;color:var(--red)">💡 Gere o PDF antes de continuar!<br>
+      <span style="font-weight:400">O resumo mensal será salvo automaticamente no Dashboard.</span></p>
+    </div>
+    <div class="modal-actions" style="justify-content:center;gap:12px">
+      <button class="btn" style="font-size:14px" onclick="fecharModal('modal-confirmar-apagar')"><i class="ti ti-x"></i> Cancelar</button>
+      <button class="btn btn-danger" style="font-size:14px;font-weight:600" onclick="executarApagarConcluidas()"><i class="ti ti-trash"></i> Sim, apagar</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL RELATÓRIO -->
 <div id="modal-relatorio" class="modal-wrap" style="display:none">
   <div class="modal modal-lg">
@@ -479,36 +580,6 @@
   </div>
 </div>
 
-<!-- MODAL CONFIRMAR APAGAR CONCLUÍDAS (Secretaria) -->
-<div id="modal-confirmar-apagar" class="modal-wrap" style="display:none">
-  <div class="modal" style="max-width:460px;text-align:center">
-    <div style="font-size:48px;margin-bottom:16px">⚠️</div>
-    <h3 style="font-size:20px;font-weight:700;color:var(--red);justify-content:center;margin-bottom:12px">ATENÇÃO!</h3>
-    <p style="font-size:16px;font-weight:600;color:var(--text);line-height:1.5;margin-bottom:10px">
-      Você está prestes a apagar permanentemente todas as demandas concluídas.
-    </p>
-    <p style="font-size:14px;color:var(--text2);line-height:1.6;margin-bottom:10px">
-      Esta ação <strong>não pode ser desfeita</strong>.<br>
-      Todos os registros, fotos e histórico das demandas concluídas serão <strong>perdidos para sempre</strong>.
-    </p>
-    <div style="background:var(--red-bg);border:1px solid var(--red-border);border-radius:var(--radius);padding:12px;margin-bottom:20px">
-      <p style="font-size:14px;font-weight:700;color:var(--red)">
-        💡 Gere o PDF antes de continuar!<br>
-        <span style="font-weight:400;font-size:13px">O resumo mensal será salvo automaticamente no Dashboard.</span>
-      </p>
-    </div>
-    <p style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:18px">Tem certeza que deseja continuar?</p>
-    <div class="modal-actions" style="justify-content:center;gap:12px">
-      <button class="btn" style="font-size:14px;padding:11px 24px" onclick="fecharModal('modal-confirmar-apagar')">
-        <i class="ti ti-x"></i> Cancelar
-      </button>
-      <button class="btn btn-danger" style="font-size:14px;padding:11px 24px;font-weight:600" onclick="executarApagarConcluidas()">
-        <i class="ti ti-trash"></i> Sim, apagar tudo
-      </button>
-    </div>
-  </div>
-</div>
-
 <!-- LIGHTBOX -->
 <div id="lightbox" class="lightbox" style="display:none" onclick="fecharLightbox()">
   <button class="lightbox-close" onclick="fecharLightbox()"><i class="ti ti-x"></i></button>
@@ -516,305 +587,432 @@
 </div>
 
 <script>
-// ── CONFIG ────────────────────────────
 const SENHA_SECRETARIA = 'infra22';
-const HORAS_ALERTA = 168; // 7 dias
+const HORAS_ALERTA = 168;
 
-// ── ESTADO ───────────────────────────
-let perfil = '', equipeAtual = '', checkId = null;
+let perfil = '', equipeAtual = '', checkId = null, revisaoId = null;
 window._secaoAtual = '';
 window._demandas = [];
 window._estatisticas = [];
-
-// Gráficos Chart.js ativos
 let _charts = {};
 
 window._renderAtual = () => {
   const s = window._secaoAtual;
-  if (s === 'painel')     renderPainel();
-  if (s === 'historico')  renderHistorico();
-  if (s === 'equipe')     renderEquipe();
-  if (s === 'gerenciar')  renderGerenciar();
-  if (s === 'dashboard')  renderDashboard();
+  if (s==='painel')    renderPainel();
+  if (s==='historico') renderHistorico();
+  if (s==='equipe')    renderEquipe();
+  if (s==='gerenciar') renderGerenciar();
+  if (s==='revisao')   renderRevisao();
+  if (s==='dashboard') renderDashboard && renderDashboard();
+  atualizarBadgeRevisao();
 };
 
-// ── HORAS ABERTAS ─────────────────────
 function horasAbertas(d) {
   if (!d.criadoEm) return 0;
-  const ts = d.criadoEm.seconds ? d.criadoEm.seconds * 1000 : Date.now();
-  return (Date.now() - ts) / 3600000;
+  const ts = d.criadoEm.seconds ? d.criadoEm.seconds*1000 : Date.now();
+  return (Date.now()-ts)/3600000;
 }
-
-function labelTempo(horas) {
-  if (horas < 24) return `${Math.floor(horas)}h aberta`;
-  return `${Math.floor(horas/24)}d aberta`;
-}
+function labelTempo(h) { return h<24?`${Math.floor(h)}h aberta`:`${Math.floor(h/24)}d aberta`; }
 
 // ── SENHA ─────────────────────────────
 function tentarSecretaria() {
-  document.getElementById('input-senha').value = '';
-  document.getElementById('msg-senha-erro').style.display = 'none';
-  document.getElementById('modal-senha').style.display = 'flex';
-  setTimeout(() => document.getElementById('input-senha').focus(), 150);
+  document.getElementById('input-senha').value='';
+  document.getElementById('msg-senha-erro').style.display='none';
+  document.getElementById('modal-senha').style.display='flex';
+  setTimeout(()=>document.getElementById('input-senha').focus(),150);
 }
 function verificarSenha() {
-  if (document.getElementById('input-senha').value === SENHA_SECRETARIA) {
+  if (document.getElementById('input-senha').value===SENHA_SECRETARIA) {
     fecharModal('modal-senha'); entrarComo('secretaria');
   } else {
-    document.getElementById('msg-senha-erro').style.display = 'flex';
-    document.getElementById('input-senha').value = '';
+    document.getElementById('msg-senha-erro').style.display='flex';
+    document.getElementById('input-senha').value='';
     document.getElementById('input-senha').focus();
   }
+}
+
+// ── BADGE REVISÃO ─────────────────────
+function atualizarBadgeRevisao() {
+  const n = window._demandas.filter(d=>d.status==='revisao').length;
+  const badge = document.getElementById('badge-revisao');
+  if (badge) badge.textContent = n > 0 ? n : '';
+  if (badge) badge.style.display = n>0 ? 'inline' : 'none';
 }
 
 // ── NAVEGAÇÃO ─────────────────────────
 function entrarComo(p) {
   perfil = p;
-  document.getElementById('tela-perfil').style.display = 'none';
-  document.getElementById('tela-app').style.display = 'block';
-  document.getElementById('header-right').style.display = 'flex';
+  document.getElementById('tela-perfil').style.display='none';
+  document.getElementById('tela-app').style.display='block';
+  document.getElementById('header-right').style.display='flex';
   const tabs = document.getElementById('tabs-container');
-  let html = '', titulo = '', sec = '';
+  let html='', titulo='', sec='';
 
-  if (p === 'secretaria') {
-    titulo = '🏢 Secretaria';
-    html = `<button class="tab active" onclick="showTab('nova',event)"><i class="ti ti-plus"></i> Nova demanda</button>
-            <button class="tab" onclick="showTab('gerenciar',event)"><i class="ti ti-settings"></i> Gerenciar</button>`;
-    sec = 'nova';
-  } else if (p === 'fiscal') {
-    titulo = '📋 Relatório';
-    html = `<button class="tab active" onclick="showTab('painel',event)"><i class="ti ti-layout-dashboard"></i> Painel</button>
-            <button class="tab" onclick="showTab('dashboard',event)"><i class="ti ti-chart-bar"></i> Dashboard</button>
-            <button class="tab" onclick="showTab('historico',event)"><i class="ti ti-history"></i> Concluídas / PDF</button>`;
-    sec = 'painel';
+  if (p==='secretaria') {
+    titulo='🏢 Secretaria';
+    html=`<button class="tab active" onclick="showTab('nova',event)"><i class="ti ti-plus"></i> Nova demanda</button>
+          <button class="tab" onclick="showTab('gerenciar',event)"><i class="ti ti-settings"></i> Gerenciar</button>
+          <button class="tab" onclick="showTab('revisao',event)"><i class="ti ti-map-pin-off"></i> Revisão <span id="badge-revisao" class="tab-badge" style="display:none"></span></button>`;
+    sec='nova';
+  } else if (p==='fiscal') {
+    titulo='📋 Relatório';
+    html=`<button class="tab active" onclick="showTab('painel',event)"><i class="ti ti-layout-dashboard"></i> Painel</button>
+          <button class="tab" onclick="showTab('dashboard',event)"><i class="ti ti-chart-bar"></i> Dashboard</button>
+          <button class="tab" onclick="showTab('historico',event)"><i class="ti ti-history"></i> Concluídas / PDF</button>`;
+    sec='painel';
   } else {
-    const num = p.replace('equipe','');
-    equipeAtual = num === '6' ? 'Equipe 6 (Retroescavadeira)' : `Equipe ${num}`;
-    titulo = '👷 ' + equipeAtual;
-    html = `<button class="tab active" onclick="showTab('equipe',event)"><i class="ti ti-clipboard-list"></i> Minhas demandas</button>`;
-    sec = 'equipe';
+    const num=p.replace('equipe','');
+    equipeAtual=num==='6'?'Equipe 6 (Retroescavadeira)':`Equipe ${num}`;
+    titulo='👷 '+equipeAtual;
+    html=`<button class="tab active" onclick="showTab('equipe',event)"><i class="ti ti-clipboard-list"></i> Minhas demandas</button>`;
+    sec='equipe';
   }
-  tabs.innerHTML = html;
-  document.getElementById('header-user-label').textContent = titulo;
-  setTimeout(() => { showSection(sec); renderSection(sec); }, 0);
+  tabs.innerHTML=html;
+  document.getElementById('header-user-label').textContent=titulo;
+  setTimeout(()=>{ showSection(sec); renderSection(sec); atualizarBadgeRevisao(); },0);
 }
 
 function voltarPerfil() {
-  perfil = ''; equipeAtual = ''; window._secaoAtual = '';
-  Object.values(_charts).forEach(c => c.destroy());
-  _charts = {};
-  document.getElementById('tela-perfil').style.display = 'block';
-  document.getElementById('tela-app').style.display = 'none';
-  document.getElementById('header-right').style.display = 'none';
+  perfil=''; equipeAtual=''; window._secaoAtual='';
+  Object.values(_charts).forEach(c=>c.destroy()); _charts={};
+  document.getElementById('tela-perfil').style.display='block';
+  document.getElementById('tela-app').style.display='none';
+  document.getElementById('header-right').style.display='none';
 }
 
 function showTab(t, ev) {
-  document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
-  if (ev) ev.target.closest('.tab').classList.add('active');
+  document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+  if(ev) ev.target.closest('.tab').classList.add('active');
   showSection(t); renderSection(t);
 }
 
 function showSection(t) {
-  ['nova','gerenciar','painel','dashboard','historico','equipe'].forEach(s => {
-    const el = document.getElementById('sec-' + s);
-    if (el) el.classList.remove('active');
+  ['nova','gerenciar','revisao','painel','dashboard','historico','equipe'].forEach(s=>{
+    const el=document.getElementById('sec-'+s); if(el) el.classList.remove('active');
   });
-  const el = document.getElementById('sec-' + t);
-  if (el) el.classList.add('active');
-  window._secaoAtual = t;
+  const el=document.getElementById('sec-'+t); if(el) el.classList.add('active');
+  window._secaoAtual=t;
 }
 
 function renderSection(t) {
-  if (t === 'painel')    renderPainel();
-  if (t === 'historico') renderHistorico();
-  if (t === 'equipe')    renderEquipe();
-  if (t === 'gerenciar') renderGerenciar();
-  if (t === 'dashboard') renderDashboard();
+  if(t==='painel')    renderPainel();
+  if(t==='historico') renderHistorico();
+  if(t==='equipe')    renderEquipe();
+  if(t==='gerenciar') renderGerenciar();
+  if(t==='revisao')   renderRevisao();
+  if(t==='dashboard') renderDashboard();
 }
 
-function fecharModal(id) { document.getElementById(id).style.display = 'none'; }
+function fecharModal(id) { document.getElementById(id).style.display='none'; }
 
 function abrirLightbox(src) {
-  document.getElementById('lightbox-img').src = src;
-  document.getElementById('lightbox').style.display = 'flex';
-  document.body.style.overflow = 'hidden';
+  document.getElementById('lightbox-img').src=src;
+  document.getElementById('lightbox').style.display='flex';
+  document.body.style.overflow='hidden';
 }
 function fecharLightbox() {
-  document.getElementById('lightbox').style.display = 'none';
-  document.getElementById('lightbox-img').src = '';
-  document.body.style.overflow = '';
+  document.getElementById('lightbox').style.display='none';
+  document.getElementById('lightbox-img').src='';
+  document.body.style.overflow='';
 }
-// Fecha lightbox com ESC
-document.addEventListener('keydown', e => { if (e.key === 'Escape') fecharLightbox(); });
+document.addEventListener('keydown',e=>{if(e.key==='Escape')fecharLightbox();});
 
 // ── UTILS ─────────────────────────────
-function mapsUrl(e) { return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(e + ', Ribeirão Preto, SP'); }
-function cardMaps(e) {
-  return `<a href="${mapsUrl(e)}" target="_blank" class="maps-link"><i class="ti ti-map-pin"></i>${e}<i class="ti ti-external-link" style="font-size:11px;flex-shrink:0"></i></a>`;
+function mapsUrl(e){return'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(e+', Ribeirão Preto, SP');}
+function cardMaps(e){return`<a href="${mapsUrl(e)}" target="_blank" class="maps-link"><i class="ti ti-map-pin"></i>${e}<i class="ti ti-external-link" style="font-size:11px;flex-shrink:0"></i></a>`;}
+function badgeHtml(s){
+  const c=s==='pendente'?'badge-pending':s==='em andamento'?'badge-doing':s==='revisao'?'badge-revisao':'badge-done';
+  const label=s==='revisao'?'⚠️ revisão':s;
+  return`<span class="badge ${c}">${label}</span>`;
 }
-function badgeHtml(s) {
-  const c = s==='pendente'?'badge-pending':s==='em andamento'?'badge-doing':'badge-done';
-  return `<span class="badge ${c}">${s}</span>`;
+function showMsg(txt,tipo='success'){
+  const el=document.getElementById('msg-global');
+  el.innerHTML=`<i class="ti ti-${tipo==='success'?'circle-check':'alert-circle'}"></i> ${txt}`;
+  el.className='msg msg-'+tipo; el.style.display='flex';
+  setTimeout(()=>el.style.display='none',3500);
 }
-function showMsg(txt, tipo='success') {
-  const el = document.getElementById('msg-global');
-  el.innerHTML = `<i class="ti ti-${tipo==='success'?'circle-check':'alert-circle'}"></i> ${txt}`;
-  el.className = 'msg msg-' + tipo; el.style.display = 'flex';
-  setTimeout(() => el.style.display = 'none', 3500);
+function previewFoto(input,prevId){
+  const prev=document.getElementById(prevId);
+  if(input.files&&input.files[0]){const r=new FileReader();r.onload=e=>{prev.src=e.target.result;prev.style.display='block';};r.readAsDataURL(input.files[0]);}
 }
-function previewFoto(input, prevId) {
-  const prev = document.getElementById(prevId);
-  if (input.files && input.files[0]) {
-    const r = new FileReader();
-    r.onload = e => { prev.src = e.target.result; prev.style.display = 'block'; };
-    r.readAsDataURL(input.files[0]);
-  }
-}
-function realtimeBadge() {
-  return `<div class="realtime-badge"><span class="realtime-dot"></span> Atualização em tempo real</div>`;
-}
-function comprimirImagem(src, maxPx, quality) {
-  return new Promise(resolve => {
-    const img = new Image();
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      let w = img.width, h = img.height;
-      if (w > maxPx || h > maxPx) {
-        if (w > h) { h = Math.round(h * maxPx / w); w = maxPx; }
-        else { w = Math.round(w * maxPx / h); h = maxPx; }
-      }
-      canvas.width = w; canvas.height = h;
-      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-      resolve(canvas.toDataURL('image/jpeg', quality));
-    };
-    img.src = src;
+function realtimeBadge(){return`<div class="realtime-badge"><span class="realtime-dot"></span> Atualização em tempo real</div>`;}
+function comprimirImagem(src,maxPx,quality){
+  return new Promise(resolve=>{
+    const img=new Image();
+    img.onload=()=>{
+      const canvas=document.createElement('canvas');
+      let w=img.width,h=img.height;
+      if(w>maxPx||h>maxPx){if(w>h){h=Math.round(h*maxPx/w);w=maxPx;}else{w=Math.round(w*maxPx/h);h=maxPx;}}
+      canvas.width=w;canvas.height=h;
+      canvas.getContext('2d').drawImage(img,0,0,w,h);
+      resolve(canvas.toDataURL('image/jpeg',quality));
+    };img.src=src;
   });
 }
 
+// ── MESES DISPONÍVEIS ─────────────────
+function mesesDisponiveis(lista) {
+  const meses = new Set();
+  lista.forEach(d => {
+    if (d.data) {
+      const p=d.data.split('/');
+      if(p.length===3) meses.add(`${p[2]}-${p[1]}`);
+    }
+  });
+  return [...meses].sort().reverse();
+}
+
+function popularSelectMes(selectId, lista) {
+  const sel=document.getElementById(selectId);
+  if(!sel) return;
+  const atual=sel.value;
+  const meses=mesesDisponiveis(lista);
+  sel.innerHTML='<option value="">Todos os meses</option>'+meses.map(m=>{
+    const [ano,mes]=m.split('-');
+    const nome=new Date(parseInt(ano),parseInt(mes)-1,1).toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+    return`<option value="${m}">${nome.charAt(0).toUpperCase()+nome.slice(1)}</option>`;
+  }).join('');
+  if(atual&&[...sel.options].some(o=>o.value===atual)) sel.value=atual;
+}
+
 // ── DEMANDAS ──────────────────────────
+// Dados temporários para salvar caso o usuário confirme mesmo assim
+let _dadosPendentes = null;
+
+function extrairRuaNumero(endereco) {
+  // Ex: "Rua Patrocínio, 1020 - Jardim..." → { rua: "rua patrocínio", numero: 1020 }
+  const partes = endereco.toLowerCase().split(',');
+  const rua = partes[0].trim();
+  const numeroMatch = endereco.match(/,\s*(\d+)/);
+  const numero = numeroMatch ? parseInt(numeroMatch[1]) : null;
+  return { rua, numero };
+}
+
+function diasAtras(dataStr) {
+  // dataStr = "12/05/2026"
+  if (!dataStr) return 999;
+  const [d, m, a] = dataStr.split('/');
+  const data = new Date(parseInt(a), parseInt(m)-1, parseInt(d));
+  return Math.floor((Date.now() - data.getTime()) / 86400000);
+}
+
+function verificarDuplicados(endereco) {
+  const { rua, numero } = extrairRuaNumero(endereco);
+  const LIMITE_DIAS = 30;
+  const LIMITE_METROS = 20; // diferença de ~20 números = ~20 metros
+
+  return window._demandas.filter(d => {
+    if (d.status === 'concluído' || d.status === 'revisao') return false;
+    const dias = diasAtras(d.data);
+    if (dias > LIMITE_DIAS) return false;
+    const { rua: ruaD, numero: numD } = extrairRuaNumero(d.endereco || '');
+    if (ruaD !== rua) return false;
+    if (numero && numD && Math.abs(numero - numD) > LIMITE_METROS) return false;
+    return true;
+  });
+}
+
 async function enviarDemanda() {
-  const sol    = document.getElementById('solicitante').value.trim();
-  const end    = document.getElementById('endereco').value.trim();
-  const desc   = document.getElementById('descricao').value.trim();
-  const prio   = document.getElementById('prioridade').value;
-  const zona   = document.getElementById('zona-nova').value;
-  const equipe = document.getElementById('equipe-nova').value;
-  const prev   = document.getElementById('foto-preview');
-  if (!sol||!end||!desc) { alert('Preencha solicitante, endereço e descrição.'); return; }
-  if (!zona)   { alert('Selecione a zona da cidade.'); return; }
-  if (!equipe) { alert('Selecione a equipe responsável.'); return; }
-  let fotoBase64 = null;
-  if (prev.style.display !== 'none' && prev.src) fotoBase64 = await comprimirImagem(prev.src, 400, 0.6);
+  const sol=document.getElementById('solicitante').value.trim();
+  const end=document.getElementById('endereco').value.trim();
+  const desc=document.getElementById('descricao').value.trim();
+  const prio=document.getElementById('prioridade').value;
+  const zona=document.getElementById('zona-nova').value;
+  const equipe=document.getElementById('equipe-nova').value;
+  const prev=document.getElementById('foto-preview');
+  if(!sol||!end||!desc){alert('Preencha solicitante, endereço e descrição.');return;}
+  if(!zona){alert('Selecione a zona da cidade.');return;}
+  if(!equipe){alert('Selecione a equipe responsável.');return;}
+  let fotoBase64=null;
+  if(prev.style.display!=='none'&&prev.src) fotoBase64=await comprimirImagem(prev.src,400,0.6);
+
+  // Guarda dados para usar caso o usuário confirme mesmo assim
+  _dadosPendentes = {
+    solicitante:sol, endereco:end, descricao:desc, prioridade:prio,
+    zona, foto:fotoBase64, status:'em andamento', equipe,
+    data:new Date().toLocaleDateString('pt-BR'),
+    hora:new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),
+    dataConclusao:null, fotoConclusao:null, naoEncontrado:false
+  };
+
+  // Verifica duplicatas
+  const similares = verificarDuplicados(end);
+  if (similares.length > 0) {
+    const lista = similares.map(d => {
+      const dias = diasAtras(d.data);
+      return `<div style="padding:6px 0;border-bottom:1px solid var(--amber-border)">
+        <strong>${d.descricao}</strong><br>
+        📍 ${d.endereco}<br>
+        <span style="color:var(--text2)">
+          ${d.equipe||'—'} &nbsp;·&nbsp; há ${dias} dia${dias!==1?'s':''}
+          ${d.status==='concluído'?'&nbsp;·&nbsp; ✅ concluído':''}
+        </span>
+      </div>`;
+    }).join('');
+    document.getElementById('duplicado-lista').innerHTML = lista;
+    document.getElementById('modal-duplicado').style.display = 'flex';
+    return;
+  }
+
+  await _salvarDemanda();
+}
+
+async function salvarDemandaMesmoAssim() {
+  fecharModal('modal-duplicado');
+  await _salvarDemanda();
+}
+
+async function _salvarDemanda() {
+  if (!_dadosPendentes) return;
   try {
-    await window._addDoc({
-      solicitante:sol, endereco:end, descricao:desc, prioridade:prio,
-      zona, foto:fotoBase64, status:'em andamento', equipe,
-      data: new Date().toLocaleDateString('pt-BR'),
-      hora: new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),
-      dataConclusao:null, fotoConclusao:null
-    });
-    ['solicitante','endereco','descricao'].forEach(id => document.getElementById(id).value='');
+    await window._addDoc(_dadosPendentes);
+    ['solicitante','endereco','descricao'].forEach(id=>document.getElementById(id).value='');
     document.getElementById('prioridade').value='normal';
     document.getElementById('zona-nova').value='';
     document.getElementById('equipe-nova').value='';
-    prev.style.display='none'; prev.src=''; document.getElementById('foto').value='';
-    showMsg(`✓ Demanda registrada para ${equipe} – ${zona}!`);
-  } catch(e) { showMsg('Erro ao salvar. Verifique a conexão.','danger'); }
+    const prev=document.getElementById('foto-preview');
+    prev.style.display='none';prev.src='';document.getElementById('foto').value='';
+    showMsg(`✓ Demanda registrada para ${_dadosPendentes.equipe} – ${_dadosPendentes.zona}!`);
+    _dadosPendentes = null;
+  } catch(e){showMsg('Erro ao salvar. Verifique a conexão.','danger');}
 }
 
-async function atribuir(id, equipe) {
-  try { await window._updateDoc(id, { equipe, status: equipe ? 'em andamento' : 'pendente' }); }
-  catch(e) { showMsg('Erro ao atribuir equipe.','danger'); }
+
+async function atribuir(id,equipe){
+  try{await window._updateDoc(id,{equipe,status:equipe?'em andamento':'pendente'});}
+  catch(e){showMsg('Erro ao atribuir equipe.','danger');}
 }
 
-async function deletarDemanda(id) {
-  if (!confirm('Tem certeza que deseja apagar esta demanda?')) return;
-  try { await window._deleteDoc(id); } catch(e) { showMsg('Erro ao apagar.','danger'); }
+async function deletarDemanda(id){
+  if(!confirm('Tem certeza que deseja apagar esta demanda?'))return;
+  try{await window._deleteDoc(id);}catch(e){showMsg('Erro ao apagar.','danger');}
 }
 
-function abrirCheck(id) {
-  checkId = id;
-  document.getElementById('check-data').value = new Date().toISOString().split('T')[0];
+function abrirCheck(id){
+  checkId=id;
+  document.getElementById('check-data').value=new Date().toISOString().split('T')[0];
   document.getElementById('check-foto-prev').style.display='none';
   document.getElementById('check-foto').value='';
   document.getElementById('modal-check').style.display='flex';
 }
 
-async function confirmarCheck() {
-  const data = document.getElementById('check-data').value;
-  const prev = document.getElementById('check-foto-prev');
-  if (!data) { alert('Informe a data de conclusão.'); return; }
-  if (prev.style.display==='none'||!prev.src) { alert('Adicione a foto do serviço concluído.'); return; }
-  const fotoComp = await comprimirImagem(prev.src, 500, 0.65);
-  try {
-    await window._updateDoc(checkId, {
+async function confirmarCheck(){
+  const data=document.getElementById('check-data').value;
+  const prev=document.getElementById('check-foto-prev');
+  if(!data){alert('Informe a data de conclusão.');return;}
+  if(prev.style.display==='none'||!prev.src){alert('Adicione a foto do serviço concluído.');return;}
+  const fotoComp=await comprimirImagem(prev.src,500,0.65);
+  try{
+    await window._updateDoc(checkId,{
       status:'concluído',
-      dataConclusao: new Date(data+'T12:00:00').toLocaleDateString('pt-BR'),
-      fotoConclusao: fotoComp
+      dataConclusao:new Date(data+'T12:00:00').toLocaleDateString('pt-BR'),
+      fotoConclusao:fotoComp
     });
-    fecharModal('modal-check'); showMsg('Demanda marcada como concluída!');
-  } catch(e) { showMsg('Erro ao salvar conclusão.','danger'); }
+    fecharModal('modal-check');showMsg('Demanda marcada como concluída!');
+  }catch(e){showMsg('Erro ao salvar conclusão.','danger');}
 }
 
-// Abre o modal de confirmação com letras grandes (Secretaria)
-function confirmarApagarConcluidasSecretaria() {
-  const conc = window._demandas.filter(d => d.status==='concluído');
-  if (!conc.length) { alert('Não há demandas concluídas para apagar.'); return; }
-  document.getElementById('modal-confirmar-apagar').style.display = 'flex';
+// ── LOCAL NÃO ENCONTRADO ──────────────
+let _naoEncontradoId = null;
+function abrirNaoEncontrado(id){
+  _naoEncontradoId=id;
+  document.getElementById('modal-nao-encontrado').style.display='flex';
+}
+async function confirmarNaoEncontrado(){
+  if(!_naoEncontradoId) return;
+  try{
+    await window._updateDoc(_naoEncontradoId,{status:'revisao',naoEncontrado:true});
+    fecharModal('modal-nao-encontrado');
+    showMsg('Demanda devolvida para a Secretaria revisar o endereço.');
+    renderEquipe();
+  }catch(e){showMsg('Erro ao enviar para revisão.','danger');}
 }
 
-// Executa o apagar após confirmação no modal
-async function executarApagarConcluidas() {
+// ── REVISÃO (Secretaria) ──────────────
+function abrirRevisao(id){
+  revisaoId=id;
+  const d=window._demandas.find(x=>x._id===id);
+  if(d) document.getElementById('revisao-endereco').value=d.endereco;
+  document.getElementById('modal-revisao').style.display='flex';
+  setTimeout(()=>document.getElementById('revisao-endereco').focus(),150);
+}
+async function reenviarDemanda(){
+  const novoEnd=document.getElementById('revisao-endereco').value.trim();
+  if(!novoEnd){alert('Digite o endereço correto.');return;}
+  try{
+    await window._updateDoc(revisaoId,{endereco:novoEnd,status:'em andamento',naoEncontrado:false});
+    fecharModal('modal-revisao');
+    showMsg('Demanda corrigida e reenviada para a equipe!');
+  }catch(e){showMsg('Erro ao reenviar.','danger');}
+}
+async function apagarDemandaRevisao(){
+  if(!confirm('Apagar esta demanda permanentemente?'))return;
+  try{
+    await window._deleteDoc(revisaoId);
+    fecharModal('modal-revisao');
+    showMsg('Demanda apagada.');
+  }catch(e){showMsg('Erro ao apagar.','danger');}
+}
+
+// ── APAGAR CONCLUÍDAS ─────────────────
+function confirmarApagarConcluidasSecretaria(){
+  const conc=window._demandas.filter(d=>d.status==='concluído');
+  if(!conc.length){alert('Não há demandas concluídas para apagar.');return;}
+  popularSelectMes('filtro-mes-apagar',conc);
+  document.getElementById('modal-confirmar-apagar').style.display='flex';
+}
+
+async function executarApagarConcluidas(){
   fecharModal('modal-confirmar-apagar');
-  const conc = window._demandas.filter(d => d.status==='concluído');
-  if (!conc.length) return;
+  const mesSel=document.getElementById('filtro-mes-apagar').value;
+  let conc=window._demandas.filter(d=>d.status==='concluído');
+  if(mesSel){
+    conc=conc.filter(d=>{
+      if(!d.data) return false;
+      const p=d.data.split('/');
+      return p.length===3 && `${p[2]}-${p[1]}`===mesSel;
+    });
+  }
+  if(!conc.length){showMsg('Nenhuma demanda encontrada para o período selecionado.','danger');return;}
 
-  // Agrupa por mês e salva estatísticas no dashboard
-  const porMes = {};
-  conc.forEach(d => {
-    const mesKey = d.data ? d.data.split('/').slice(1).reverse().join('-') : new Date().toISOString().slice(0,7);
-    const mesISO = mesKey.length === 7 ? mesKey : new Date().toISOString().slice(0,7);
-    if (!porMes[mesISO]) porMes[mesISO] = [];
+  const porMes={};
+  conc.forEach(d=>{
+    const p=d.data?d.data.split('/'):null;
+    const mesISO=p&&p.length===3?`${p[2]}-${p[1]}`:new Date().toISOString().slice(0,7);
+    if(!porMes[mesISO]) porMes[mesISO]=[];
     porMes[mesISO].push(d);
   });
 
-  for (const [mesISO, lista] of Object.entries(porMes)) {
-    const nomes  = ['Equipe 1','Equipe 2','Equipe 3','Equipe 4','Equipe 5','Equipe 6 (Retroescavadeira)'];
-    const znomes = ['Zona Norte','Zona Sul','Zona Leste','Zona Oeste','Centro'];
-    const urgentes = lista.filter(d => d.prioridade==='urgente').length;
-    const existente = (window._estatisticas||[]).find(e => e._id===mesISO);
-    const novasEquipes = {...(existente?.porEquipe||{})};
-    const novasZonas   = {...(existente?.porZona||{})};
-    nomes.forEach(e  => novasEquipes[e] = (novasEquipes[e]||0) + lista.filter(d=>d.equipe===e).length);
-    znomes.forEach(z => novasZonas[z]   = (novasZonas[z]||0)  + lista.filter(d=>d.zona===z).length);
-    const [ano, mes] = mesISO.split('-');
-    const nomeMes = new Date(parseInt(ano), parseInt(mes)-1, 1).toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
-    await window._salvarEstatistica(mesISO, {
-      mesISO, nomeMes,
-      total: (existente?.total||0) + lista.length,
-      urgentes: (existente?.urgentes||0) + urgentes,
-      porEquipe: novasEquipes,
-      porZona: novasZonas
+  for(const[mesISO,lista] of Object.entries(porMes)){
+    const nomes=['Equipe 1','Equipe 2','Equipe 3','Equipe 4','Equipe 5','Equipe 6 (Retroescavadeira)'];
+    const znomes=['Zona Norte','Zona Sul','Zona Leste','Zona Oeste','Centro'];
+    const urgentes=lista.filter(d=>d.prioridade==='urgente').length;
+    const existente=(window._estatisticas||[]).find(e=>e._id===mesISO);
+    const novasEquipes={...(existente?.porEquipe||{})};
+    const novasZonas={...(existente?.porZona||{})};
+    nomes.forEach(e=>novasEquipes[e]=(novasEquipes[e]||0)+lista.filter(d=>d.equipe===e).length);
+    znomes.forEach(z=>novasZonas[z]=(novasZonas[z]||0)+lista.filter(d=>d.zona===z).length);
+    const[ano,mes]=mesISO.split('-');
+    const nomeMes=new Date(parseInt(ano),parseInt(mes)-1,1).toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+    await window._salvarEstatistica(mesISO,{
+      mesISO,nomeMes,
+      total:(existente?.total||0)+lista.length,
+      urgentes:(existente?.urgentes||0)+urgentes,
+      porEquipe:novasEquipes,porZona:novasZonas
     });
   }
-
-  try {
-    await Promise.all(conc.map(d => window._deleteDoc(d._id)));
-    showMsg(`✓ ${conc.length} demandas concluídas apagadas. Resumo salvo no Dashboard!`);
-  } catch(e) { showMsg('Erro ao apagar.','danger'); }
-}
-
-// Mantida para compatibilidade com botão do Fiscal (não usado mais, mas seguro manter)
-async function confirmarApagarConcluidas() {
-  confirmarApagarConcluidasSecretaria();
+  try{
+    await Promise.all(conc.map(d=>window._deleteDoc(d._id)));
+    showMsg(`✓ ${conc.length} demandas apagadas. Resumo salvo no Dashboard!`);
+  }catch(e){showMsg('Erro ao apagar.','danger');}
 }
 
 // ── RENDERS ───────────────────────────
-function renderStats() {
-  const d = window._demandas;
-  const pend = d.filter(x=>x.status==='pendente').length;
-  const and  = d.filter(x=>x.status==='em andamento').length;
-  const conc = d.filter(x=>x.status==='concluído').length;
+function renderStats(){
+  const d=window._demandas;
+  const pend=d.filter(x=>x.status==='pendente').length;
+  const and=d.filter(x=>x.status==='em andamento').length;
+  const conc=d.filter(x=>x.status==='concluído').length;
   document.getElementById('stats-box').innerHTML=`
     <div class="stat"><div class="stat-num">${d.length}</div><div class="stat-label">Total</div></div>
     <div class="stat"><div class="stat-num" style="color:var(--amber)">${pend}</div><div class="stat-label">Pendentes</div></div>
@@ -822,10 +1020,10 @@ function renderStats() {
     <div class="stat"><div class="stat-num" style="color:var(--green)">${conc}</div><div class="stat-label">Concluídas</div></div>`;
 }
 
-function alocarHtml(d) {
-  const equipes = ['Equipe 1','Equipe 2','Equipe 3','Equipe 4','Equipe 5','Equipe 6 (Retroescavadeira)'];
-  const eqs = equipes.map(e=>`<option value="${e}" ${d.equipe===e?'selected':''}>${e}</option>`).join('');
-  return `<div class="alocar-box">
+function alocarHtml(d){
+  const equipes=['Equipe 1','Equipe 2','Equipe 3','Equipe 4','Equipe 5','Equipe 6 (Retroescavadeira)'];
+  const eqs=equipes.map(e=>`<option value="${e}" ${d.equipe===e?'selected':''}>${e}</option>`).join('');
+  return`<div class="alocar-box">
     <div class="alocar-label"><i class="ti ti-users"></i> Equipe responsável</div>
     <select class="alocar-select" onchange="atribuir('${d._id}',this.value)">
       <option value="">— Selecione a equipe —</option>${eqs}
@@ -834,12 +1032,12 @@ function alocarHtml(d) {
   </div>`;
 }
 
-function demandaCardHtml(d, opts={}) {
-  const { mostrarAlocar=false, mostrarApagar=false, mostrarCheck=false, mostrarConcluido=false } = opts;
-  const horas = horasAbertas(d);
-  const atrasada = d.status !== 'concluído' && horas >= HORAS_ALERTA;
-  const classeCard = d.prioridade==='urgente' ? 'urgente' : atrasada ? 'atrasada' : '';
-  return `
+function demandaCardHtml(d,opts={}){
+  const{mostrarAlocar=false,mostrarApagar=false,mostrarCheck=false,mostrarConcluido=false,mostrarNaoEncontrado=false,mostrarRevisao=false}=opts;
+  const horas=horasAbertas(d);
+  const atrasada=d.status!=='concluído'&&d.status!=='revisao'&&horas>=HORAS_ALERTA;
+  const classeCard=d.status==='revisao'?'revisao':d.prioridade==='urgente'?'urgente':atrasada?'atrasada':'';
+  return`
     <div class="demand-card ${classeCard}">
       <div class="demand-header">
         <span class="demand-title">${d.descricao}</span>
@@ -859,78 +1057,90 @@ function demandaCardHtml(d, opts={}) {
       ${cardMaps(d.endereco)}
       ${d.foto?`<img src="${d.foto}" class="photo-preview" alt="Foto" style="margin-bottom:10px" onclick="abrirLightbox(this.src)" title="Clique para ampliar">`:''}
       ${mostrarConcluido&&d.fotoConclusao?`<img src="${d.fotoConclusao}" class="photo-preview" alt="Foto conclusão" style="margin-bottom:10px" onclick="abrirLightbox(this.src)" title="Clique para ampliar">`:''}
+      ${mostrarRevisao?`<div class="revisao-box"><div class="revisao-label"><i class="ti ti-map-pin-off"></i> Endereço não encontrado pela equipe</div><div class="revisao-motivo">A ${d.equipe} não localizou este endereço. Corrija e reenvie.</div></div>`:''}
       ${mostrarAlocar?alocarHtml(d):''}
       <div class="demand-actions">
         ${mostrarCheck?`<button class="btn-done" onclick="abrirCheck('${d._id}')"><i class="ti ti-camera"></i> Concluir com foto e data</button>`:''}
+        ${mostrarNaoEncontrado?`<button class="btn-nao-encontrado" onclick="abrirNaoEncontrado('${d._id}')"><i class="ti ti-map-pin-off"></i> Local não encontrado</button>`:''}
+        ${mostrarRevisao?`<button class="btn btn-sm btn-primary" onclick="abrirRevisao('${d._id}')"><i class="ti ti-edit"></i> Corrigir endereço</button>`:''}
         ${mostrarApagar?`<button class="btn-del" onclick="deletarDemanda('${d._id}')"><i class="ti ti-trash"></i> Apagar</button>`:''}
       </div>
     </div>`;
 }
 
-function renderGerenciar() {
-  const lista = window._demandas.filter(d => d.status !== 'concluído');
-  const el = document.getElementById('lista-gerenciar');
-  if (!lista.length) { el.innerHTML='<div class="empty"><i class="ti ti-check"></i>Nenhuma demanda aberta</div>'; return; }
-  el.innerHTML = realtimeBadge() + lista.map(d => demandaCardHtml(d,{mostrarAlocar:true,mostrarApagar:true})).join('');
+function renderGerenciar(){
+  const lista=window._demandas.filter(d=>d.status!=='concluído'&&d.status!=='revisao');
+  const el=document.getElementById('lista-gerenciar');
+  if(!lista.length){el.innerHTML='<div class="empty"><i class="ti ti-check"></i>Nenhuma demanda aberta</div>';return;}
+  el.innerHTML=realtimeBadge()+lista.map(d=>demandaCardHtml(d,{mostrarAlocar:true,mostrarApagar:true})).join('');
 }
 
-function renderPainel() {
+function renderRevisao(){
+  const lista=window._demandas.filter(d=>d.status==='revisao');
+  const el=document.getElementById('lista-revisao');
+  if(!lista.length){el.innerHTML='<div class="empty"><i class="ti ti-circle-check"></i>Nenhuma demanda aguardando revisão</div>';return;}
+  el.innerHTML=realtimeBadge()+lista.map(d=>demandaCardHtml(d,{mostrarRevisao:true,mostrarApagar:true})).join('');
+}
+
+function renderPainel(){
   renderStats();
-  const fs = document.getElementById('filtro-status').value;
-  const fe = document.getElementById('filtro-equipe-painel').value;
-  const fz = document.getElementById('filtro-zona-painel').value;
-  let lista = [...window._demandas];
-  if (fs) lista = lista.filter(d => d.status === fs);
-  if (fe) lista = lista.filter(d => d.equipe === fe);
-  if (fz) lista = lista.filter(d => d.zona === fz);
-  const el = document.getElementById('lista-painel');
-  if (!lista.length) { el.innerHTML='<div class="empty"><i class="ti ti-check"></i>Nenhuma demanda encontrada</div>'; return; }
-
-  const urgentes  = lista.filter(d => d.prioridade==='urgente' && d.status!=='concluído');
-  const atrasadas = lista.filter(d => d.status!=='concluído' && horasAbertas(d) >= HORAS_ALERTA && d.prioridade!=='urgente');
-  let html = realtimeBadge();
-  if (urgentes.length)  html += `<div class="alerta-topo alerta-urgente"><i class="ti ti-alert-triangle"></i> ${urgentes.length} demanda${urgentes.length>1?'s':''} urgente${urgentes.length>1?'s':''} em aberto</div>`;
-  if (atrasadas.length) html += `<div class="alerta-topo alerta-atrasada"><i class="ti ti-clock"></i> ${atrasadas.length} demanda${atrasadas.length>1?'s':''} com mais de 7 dias em aberto</div>`;
-  html += lista.map(d => demandaCardHtml(d,{
-    mostrarAlocar: false,
-    mostrarApagar: false,
-    mostrarConcluido: d.status === 'concluído'
-  })).join('');
-  el.innerHTML = html;
+  const fs=document.getElementById('filtro-status').value;
+  const fe=document.getElementById('filtro-equipe-painel').value;
+  const fz=document.getElementById('filtro-zona-painel').value;
+  let lista=[...window._demandas];
+  if(fs) lista=lista.filter(d=>d.status===fs);
+  if(fe) lista=lista.filter(d=>d.equipe===fe);
+  if(fz) lista=lista.filter(d=>d.zona===fz);
+  const el=document.getElementById('lista-painel');
+  if(!lista.length){el.innerHTML='<div class="empty"><i class="ti ti-check"></i>Nenhuma demanda encontrada</div>';return;}
+  const urgentes=lista.filter(d=>d.prioridade==='urgente'&&d.status!=='concluído');
+  const atrasadas=lista.filter(d=>d.status!=='concluído'&&d.status!=='revisao'&&horasAbertas(d)>=HORAS_ALERTA&&d.prioridade!=='urgente');
+  const revisao=lista.filter(d=>d.status==='revisao');
+  let html=realtimeBadge();
+  if(urgentes.length) html+=`<div class="alerta-topo alerta-urgente"><i class="ti ti-alert-triangle"></i> ${urgentes.length} demanda${urgentes.length>1?'s':''} urgente${urgentes.length>1?'s':''} em aberto</div>`;
+  if(atrasadas.length) html+=`<div class="alerta-topo alerta-atrasada"><i class="ti ti-clock"></i> ${atrasadas.length} demanda${atrasadas.length>1?'s':''} com mais de 7 dias em aberto</div>`;
+  if(revisao.length) html+=`<div class="alerta-topo alerta-revisao"><i class="ti ti-map-pin-off"></i> ${revisao.length} demanda${revisao.length>1?'s':''} com endereço não encontrado</div>`;
+  html+=lista.map(d=>demandaCardHtml(d,{mostrarAlocar:false,mostrarApagar:false,mostrarConcluido:d.status==='concluído'})).join('');
+  el.innerHTML=html;
 }
 
-function renderEquipe() {
-  const fz = document.getElementById('filtro-zona-equipe').value;
-  let lista = window._demandas.filter(d => d.equipe===equipeAtual && d.status!=='concluído');
-  if (fz) lista = lista.filter(d => d.zona === fz);
-
-  // Contador acompanha o filtro
-  const contador = document.getElementById('contador-equipe');
-  if (contador) {
-    const total = lista.length;
-    const urgentes_c = lista.filter(d => d.prioridade==='urgente').length;
-    const label = fz ? `${fz}` : 'Total';
-    contador.innerHTML = `${label}: <span style="color:var(--text)">${total}</span> demanda${total!==1?'s':''}${urgentes_c>0?` · <span style="color:var(--red)">⚡ ${urgentes_c} urgente${urgentes_c>1?'s':''}</span>`:''}`;
+function renderEquipe(){
+  const fz=document.getElementById('filtro-zona-equipe').value;
+  let lista=window._demandas.filter(d=>d.equipe===equipeAtual&&d.status!=='concluído'&&d.status!=='revisao');
+  if(fz) lista=lista.filter(d=>d.zona===fz);
+  const contador=document.getElementById('contador-equipe');
+  if(contador){
+    const total=lista.length;
+    const urg=lista.filter(d=>d.prioridade==='urgente').length;
+    const label=fz?`${fz}`:'Total';
+    contador.innerHTML=`${label}: <span style="color:var(--text)">${total}</span> demanda${total!==1?'s':''}${urg>0?` · <span style="color:var(--red)">⚡ ${urg} urgente${urg>1?'s':''}</span>`:''}`;
   }
-
-  const el = document.getElementById('lista-equipe');
-  if (!lista.length) { el.innerHTML=`<div class="empty"><i class="ti ti-check"></i>Nenhuma demanda${fz?' na '+fz:''} para ${equipeAtual}</div>`; return; }
-  const urgentes  = lista.filter(d => d.prioridade==='urgente');
-  const atrasadas = lista.filter(d => horasAbertas(d) >= HORAS_ALERTA && d.prioridade!=='urgente');
-  let html = realtimeBadge();
-  if (urgentes.length)  html += `<div class="alerta-topo alerta-urgente"><i class="ti ti-alert-triangle"></i> ${urgentes.length} demanda${urgentes.length>1?'s':''} urgente${urgentes.length>1?'s':''} — execute primeiro!</div>`;
-  if (atrasadas.length) html += `<div class="alerta-topo alerta-atrasada"><i class="ti ti-clock"></i> ${atrasadas.length} demanda${atrasadas.length>1?'s':''} com mais de 7 dias em aberto</div>`;
-  html += lista.map(d => demandaCardHtml(d,{mostrarCheck:true})).join('');
-  el.innerHTML = html;
+  const el=document.getElementById('lista-equipe');
+  if(!lista.length){el.innerHTML=`<div class="empty"><i class="ti ti-check"></i>Nenhuma demanda${fz?' na '+fz:''} para ${equipeAtual}</div>`;return;}
+  const urgentes=lista.filter(d=>d.prioridade==='urgente');
+  const atrasadas=lista.filter(d=>horasAbertas(d)>=HORAS_ALERTA&&d.prioridade!=='urgente');
+  let html=realtimeBadge();
+  if(urgentes.length) html+=`<div class="alerta-topo alerta-urgente"><i class="ti ti-alert-triangle"></i> ${urgentes.length} demanda${urgentes.length>1?'s':''} urgente${urgentes.length>1?'s':''} — execute primeiro!</div>`;
+  if(atrasadas.length) html+=`<div class="alerta-topo alerta-atrasada"><i class="ti ti-clock"></i> ${atrasadas.length} demanda${atrasadas.length>1?'s':''} com mais de 7 dias em aberto</div>`;
+  html+=lista.map(d=>demandaCardHtml(d,{mostrarCheck:true,mostrarNaoEncontrado:true})).join('');
+  el.innerHTML=html;
 }
 
-function renderHistorico() {
-  const conc = window._demandas.filter(d => d.status==='concluído');
-  const el = document.getElementById('lista-historico');
-  const btn = document.getElementById('btn-apagar-conc');
-  if (btn) btn.style.display = conc.length ? 'inline-flex' : 'none';
-  if (!conc.length) { el.innerHTML='<div class="empty"><i class="ti ti-history"></i>Nenhum serviço concluído ainda</div>'; return; }
-  el.innerHTML = realtimeBadge() + `<div class="card">${conc.map(d=>`
+function renderHistorico(){
+  const conc=window._demandas.filter(d=>d.status==='concluído');
+  popularSelectMes('filtro-mes-historico',conc);
+  const mesSel=document.getElementById('filtro-mes-historico').value;
+  let lista=conc;
+  if(mesSel){
+    lista=conc.filter(d=>{
+      if(!d.data) return false;
+      const p=d.data.split('/');
+      return p.length===3&&`${p[2]}-${p[1]}`===mesSel;
+    });
+  }
+  const el=document.getElementById('lista-historico');
+  if(!lista.length){el.innerHTML='<div class="empty"><i class="ti ti-history"></i>Nenhum serviço concluído ainda</div>';return;}
+  el.innerHTML=realtimeBadge()+`<div class="card">${lista.map(d=>`
     <div class="hist-row">
       <div style="font-size:14px;font-weight:600;margin-bottom:6px">${d.descricao}</div>
       ${cardMaps(d.endereco)}
@@ -945,134 +1155,83 @@ function renderHistorico() {
 }
 
 // ── DASHBOARD ─────────────────────────
-function popularSelectMeses() {
-  const sel = document.getElementById('sel-mes-dash');
-  if (!sel) return;
-  const meses = window._estatisticas || [];
-  // Também inclui meses com demandas abertas agora
-  const mesesAtivos = new Set();
-  window._demandas.forEach(d => {
-    if (d.data) {
-      const partes = d.data.split('/');
-      if (partes.length === 3) mesesAtivos.add(`${partes[2]}-${partes[1]}`);
-    }
-  });
-  const todosMeses = [...new Set([...meses.map(m=>m._id||m.mesISO), ...mesesAtivos])].sort().reverse();
-  const valorAtual = sel.value;
-  sel.innerHTML = todosMeses.length
-    ? todosMeses.map(m => {
-        const [ano,mes] = m.split('-');
-        const nome = new Date(parseInt(ano),parseInt(mes)-1,1).toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
-        return `<option value="${m}">${nome.charAt(0).toUpperCase()+nome.slice(1)}</option>`;
-      }).join('')
-    : '<option value="">Sem dados ainda</option>';
-  if (valorAtual && [...sel.options].some(o=>o.value===valorAtual)) sel.value = valorAtual;
+function popularSelectMeses(){
+  const sel=document.getElementById('sel-mes-dash');
+  if(!sel) return;
+  const meses=new Set();
+  window._demandas.forEach(d=>{if(d.data){const p=d.data.split('/');if(p.length===3)meses.add(`${p[2]}-${p[1]}`); }});
+  (window._estatisticas||[]).forEach(e=>meses.add(e._id||e.mesISO));
+  const todos=[...meses].sort().reverse();
+  const atual=sel.value;
+  sel.innerHTML=todos.length?todos.map(m=>{
+    const[ano,mes]=m.split('-');
+    const nome=new Date(parseInt(ano),parseInt(mes)-1,1).toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+    return`<option value="${m}">${nome.charAt(0).toUpperCase()+nome.slice(1)}</option>`;
+  }).join(''):'<option value="">Sem dados ainda</option>';
+  if(atual&&[...sel.options].some(o=>o.value===atual)) sel.value=atual;
 }
 
-window.renderDashboard = function() {
+window.renderDashboard=function(){
   popularSelectMeses();
-  const sel = document.getElementById('sel-mes-dash');
-  const mesISO = sel?.value;
-  const conteudo = document.getElementById('dash-conteudo');
-  if (!mesISO || !conteudo) return;
+  const sel=document.getElementById('sel-mes-dash');
+  const mesISO=sel?.value;
+  const conteudo=document.getElementById('dash-conteudo');
+  if(!mesISO||!conteudo) return;
+  const stat=(window._estatisticas||[]).find(e=>e._id===mesISO||e.mesISO===mesISO);
+  const[ano,mes]=mesISO.split('-');
+  const demMes=window._demandas.filter(d=>{if(!d.data)return false;const p=d.data.split('/');return p.length===3&&p[2]===ano&&p[1]===mes;});
+  const concMes=demMes.filter(d=>d.status==='concluído');
+  const aberMes=demMes.filter(d=>d.status!=='concluído');
+  const urgMes=demMes.filter(d=>d.prioridade==='urgente');
+  const totalConc=concMes.length+(stat?.total||0);
+  const totalUrg=urgMes.length+(stat?.urgentes||0);
+  const equipes=['Equipe 1','Equipe 2','Equipe 3','Equipe 4','Equipe 5','Equipe 6 (Retroescavadeira)'];
+  const zonas=['Zona Norte','Zona Sul','Zona Leste','Zona Oeste','Centro'];
+  const eqLabels=['Eq.1','Eq.2','Eq.3','Eq.4','Eq.5','Eq.6'];
+  const porEquipe=equipes.map(e=>concMes.filter(d=>d.equipe===e).length+(stat?.porEquipe?.[e]||0));
+  const porZona=zonas.map(z=>concMes.filter(d=>d.zona===z).length+(stat?.porZona?.[z]||0));
+  const abertasEq=equipes.map(e=>aberMes.filter(d=>d.equipe===e).length);
 
-  // Dados salvos (histórico)
-  const stat = (window._estatisticas||[]).find(e => e._id===mesISO || e.mesISO===mesISO);
-  // Dados ao vivo do mês atual
-  const [ano, mes] = mesISO.split('-');
-  const demMes = window._demandas.filter(d => {
-    if (!d.data) return false;
-    const p = d.data.split('/');
-    return p.length===3 && p[2]===ano && p[1]===mes;
-  });
-  const concMes   = demMes.filter(d=>d.status==='concluído');
-  const aberMes   = demMes.filter(d=>d.status!=='concluído');
-  const urgMes    = demMes.filter(d=>d.prioridade==='urgente');
-
-  // Totais: combina ao vivo + histórico salvo
-  const totalConc = concMes.length + (stat?.total||0);
-  const totalUrg  = urgMes.length + (stat?.urgentes||0);
-
-  const equipes = ['Equipe 1','Equipe 2','Equipe 3','Equipe 4','Equipe 5','Equipe 6 (Retroescavadeira)'];
-  const zonas   = ['Zona Norte','Zona Sul','Zona Leste','Zona Oeste','Centro'];
-  const eqLabels = ['Eq.1','Eq.2','Eq.3','Eq.4','Eq.5','Eq.6'];
-
-  const porEquipe = equipes.map(e => (concMes.filter(d=>d.equipe===e).length) + (stat?.porEquipe?.[e]||0));
-  const porZona   = zonas.map(z   => (concMes.filter(d=>d.zona===z).length)   + (stat?.porZona?.[z]||0));
-  const abertasEq = equipes.map(e => aberMes.filter(d=>d.equipe===e).length);
-
-  conteudo.innerHTML = `
+  conteudo.innerHTML=`
     <div class="dash-stat-row">
       <div class="dash-stat"><div class="dash-stat-num" style="color:var(--green)">${totalConc}</div><div class="dash-stat-label">Concluídas</div></div>
       <div class="dash-stat"><div class="dash-stat-num" style="color:var(--blue)">${aberMes.length}</div><div class="dash-stat-label">Em aberto</div></div>
       <div class="dash-stat"><div class="dash-stat-num" style="color:var(--red)">${totalUrg}</div><div class="dash-stat-label">Urgentes</div></div>
     </div>
     <div class="dash-grid">
-      <div class="dash-card">
-        <h4><i class="ti ti-chart-bar"></i> Concluídas por equipe</h4>
-        <canvas id="chart-equipe"></canvas>
-      </div>
-      <div class="dash-card">
-        <h4><i class="ti ti-chart-pie"></i> Concluídas por zona</h4>
-        <canvas id="chart-zona"></canvas>
-      </div>
-      <div class="dash-card dash-card-full">
-        <h4><i class="ti ti-users"></i> Demandas em aberto por equipe</h4>
-        <canvas id="chart-abertas"></canvas>
-      </div>
+      <div class="dash-card"><h4><i class="ti ti-chart-bar"></i> Concluídas por equipe</h4><canvas id="chart-equipe"></canvas></div>
+      <div class="dash-card"><h4><i class="ti ti-chart-pie"></i> Concluídas por zona</h4><canvas id="chart-zona"></canvas></div>
+      <div class="dash-card dash-card-full"><h4><i class="ti ti-users"></i> Em aberto por equipe</h4><canvas id="chart-abertas"></canvas></div>
     </div>
-    <div class="dash-card">
-      <h4><i class="ti ti-history"></i> Histórico de meses anteriores</h4>
-      <div class="historico-meses" id="hist-meses"></div>
-    </div>`;
+    <div class="dash-card"><h4><i class="ti ti-history"></i> Histórico de meses anteriores</h4><div class="historico-meses" id="hist-meses"></div></div>`;
 
-  // Destrói gráficos anteriores
-  ['chart-equipe','chart-zona','chart-abertas'].forEach(id => {
-    if (_charts[id]) { _charts[id].destroy(); delete _charts[id]; }
-  });
+  ['chart-equipe','chart-zona','chart-abertas'].forEach(id=>{if(_charts[id]){_charts[id].destroy();delete _charts[id];}});
+  const cores=['#1a6640','#1a3f7a','#7a4f00','#4a1a7a','#7a3a00','#2a5f5a'];
+  _charts['chart-equipe']=new Chart(document.getElementById('chart-equipe'),{type:'bar',data:{labels:eqLabels,datasets:[{data:porEquipe,backgroundColor:cores,borderRadius:6}]},options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:1}}},responsive:true}});
+  _charts['chart-zona']=new Chart(document.getElementById('chart-zona'),{type:'doughnut',data:{labels:zonas,datasets:[{data:porZona,backgroundColor:cores.slice(0,5),borderWidth:2,borderColor:'#fff'}]},options:{plugins:{legend:{position:'bottom',labels:{font:{size:11},boxWidth:12}}},responsive:true}});
+  _charts['chart-abertas']=new Chart(document.getElementById('chart-abertas'),{type:'bar',data:{labels:eqLabels,datasets:[{label:'Em aberto',data:abertasEq,backgroundColor:'#a8bce0',borderRadius:6}]},options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:1}}},responsive:true}});
 
-  const cores = ['#1a6640','#1a3f7a','#7a4f00','#4a1a7a','#7a3a00','#2a5f5a'];
-  const coresZona = ['#1a6640','#1a3f7a','#7a4f00','#4a1a7a','#7a3a00'];
-
-  _charts['chart-equipe'] = new Chart(document.getElementById('chart-equipe'), {
-    type:'bar',
-    data:{ labels:eqLabels, datasets:[{ data:porEquipe, backgroundColor:cores, borderRadius:6 }] },
-    options:{ plugins:{legend:{display:false}}, scales:{ y:{beginAtZero:true,ticks:{stepSize:1}} }, responsive:true }
-  });
-
-  _charts['chart-zona'] = new Chart(document.getElementById('chart-zona'), {
-    type:'doughnut',
-    data:{ labels:zonas, datasets:[{ data:porZona, backgroundColor:coresZona, borderWidth:2, borderColor:'#fff' }] },
-    options:{ plugins:{legend:{position:'bottom',labels:{font:{size:11},boxWidth:12}}}, responsive:true }
-  });
-
-  _charts['chart-abertas'] = new Chart(document.getElementById('chart-abertas'), {
-    type:'bar',
-    data:{ labels:eqLabels, datasets:[{ label:'Em aberto', data:abertasEq, backgroundColor:'#a8bce0', borderRadius:6 }] },
-    options:{ plugins:{legend:{display:false}}, scales:{ y:{beginAtZero:true,ticks:{stepSize:1}} }, responsive:true }
-  });
-
-  // Histórico de todos os meses
-  const histEl = document.getElementById('hist-meses');
-  const todosSalvos = [...(window._estatisticas||[])].sort((a,b)=>b.mesISO?.localeCompare(a.mesISO));
-  if (!todosSalvos.length) {
-    histEl.innerHTML = '<div class="sem-dados">Nenhum mês anterior salvo ainda.<br>Os dados são salvos automaticamente ao apagar demandas concluídas.</div>';
-  } else {
-    histEl.innerHTML = todosSalvos.map(m=>`
-      <div class="mes-row">
-        <span class="mes-row-nome">${m.nomeMes||m.mesISO}</span>
-        <span class="mes-row-num">${m.total||0} concluídas</span>
-      </div>`).join('');
-  }
+  const histEl=document.getElementById('hist-meses');
+  const salvos=[...(window._estatisticas||[])].sort((a,b)=>b.mesISO?.localeCompare(a.mesISO));
+  histEl.innerHTML=salvos.length?salvos.map(m=>`<div class="mes-row"><span class="mes-row-nome">${m.nomeMes||m.mesISO}</span><span class="mes-row-num">${m.total||0} concluídas</span></div>`).join(''):'<div class="sem-dados">Nenhum mês anterior salvo ainda.</div>';
 };
 
 // ── PDF ───────────────────────────────
-function gerarRelatorio() {
-  const conc = window._demandas.filter(d => d.status==='concluído');
-  if (!conc.length) { alert('Não há demandas concluídas para gerar relatório.'); return; }
-  const hoje = new Date().toLocaleDateString('pt-BR');
-  document.getElementById('rel-conteudo').innerHTML =
-    `<strong>Total: ${conc.length} demandas concluídas</strong><br>Gerado em: ${hoje}<br><br>` +
+function gerarRelatorio(){
+  const mesSel=document.getElementById('filtro-mes-historico').value;
+  let conc=window._demandas.filter(d=>d.status==='concluído');
+  if(mesSel){
+    conc=conc.filter(d=>{
+      if(!d.data) return false;
+      const p=d.data.split('/');
+      return p.length===3&&`${p[2]}-${p[1]}`===mesSel;
+    });
+  }
+  if(!conc.length){alert('Não há demandas concluídas para gerar relatório.');return;}
+  const hoje=new Date().toLocaleDateString('pt-BR');
+  const tituloMes=mesSel?`– ${document.getElementById('filtro-mes-historico').options[document.getElementById('filtro-mes-historico').selectedIndex].text}`:'';
+  document.getElementById('rel-conteudo').innerHTML=
+    `<strong>Total: ${conc.length} demandas concluídas ${tituloMes}</strong><br>Gerado em: ${hoje}<br><br>`+
     conc.map((d,i)=>`<div style="margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--border)">
       <strong>${i+1}. ${d.descricao}</strong><br>
       Solicitante: ${d.solicitante}<br>Endereço: ${d.endereco}<br>
@@ -1082,13 +1241,21 @@ function gerarRelatorio() {
   document.getElementById('modal-relatorio').style.display='flex';
 }
 
-function baixarPDF() {
-  const conc = window._demandas.filter(d => d.status==='concluído');
-  if (!conc.length) return;
-  const {jsPDF}=window.jspdf;
+function baixarPDF(){
+  const mesSel=document.getElementById('filtro-mes-historico').value;
+  let conc=window._demandas.filter(d=>d.status==='concluído');
+  if(mesSel){
+    conc=conc.filter(d=>{
+      if(!d.data) return false;
+      const p=d.data.split('/');
+      return p.length===3&&`${p[2]}-${p[1]}`===mesSel;
+    });
+  }
+  if(!conc.length) return;
+  const{jsPDF}=window.jspdf;
   const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
   const hoje=new Date().toLocaleDateString('pt-BR');
-  const W=210,M=15,lH=6; let y=M;
+  const W=210,M=15,lH=6;let y=M;
   function chk(n=10){if(y+n>284){doc.addPage();y=M;}}
 
   doc.setFillColor(26,25,23);doc.rect(0,0,W,26,'F');
@@ -1097,8 +1264,9 @@ function baixarPDF() {
   doc.setFontSize(9);doc.setFont('helvetica','normal');
   doc.text('Gestão de Limpeza Urbana',M,17);doc.text(`Gerado em: ${hoje}`,W-M,17,{align:'right'});
   y=34;
-  doc.setTextColor(26,25,23);doc.setFontSize(16);doc.setFont('helvetica','bold');
-  doc.text('Relatório de Demandas Concluídas',M,y);y+=7;
+  const tituloMes=mesSel?` – ${document.getElementById('filtro-mes-historico').options[document.getElementById('filtro-mes-historico').selectedIndex].text}`:'';
+  doc.setTextColor(26,25,23);doc.setFontSize(14);doc.setFont('helvetica','bold');
+  doc.text(`Relatório de Demandas Concluídas${tituloMes}`,M,y);y+=7;
   doc.setFontSize(10);doc.setFont('helvetica','normal');doc.setTextColor(100,100,100);
   doc.text(`Total: ${conc.length} demanda${conc.length>1?'s':''} concluída${conc.length>1?'s':''}`,M,y);y+=4;
   doc.setDrawColor(210,210,210);doc.line(M,y,W-M,y);y+=8;
@@ -1126,7 +1294,8 @@ function baixarPDF() {
   });
   chk(10);doc.setFontSize(8);doc.setTextColor(160,160,160);doc.setFont('helvetica','italic');
   doc.text('Documento gerado automaticamente – Sistema de Gestão de Limpeza Urbana / Secretaria da Infraestrutura de Ribeirão Preto',M,y,{maxWidth:W-M*2});
-  doc.save(`relatorio_demandas_${hoje.replace(/\//g,'-')}.pdf`);
+  const sufixo=mesSel?`_${mesSel}`:'';
+  doc.save(`relatorio_demandas${sufixo}_${hoje.replace(/\//g,'-')}.pdf`);
 }
 </script>
 </body>
