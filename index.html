@@ -527,23 +527,23 @@
 
 <!-- MODAL REVISÃO (Secretaria corrige endereço) -->
 <div id="modal-revisao" class="modal-wrap" style="display:none">
-  <div class="modal" style="max-width:480px;max-height:90vh;overflow-y:auto">
+  <div class="modal" style="max-width:480px;max-height:92vh;overflow-y:auto;-webkit-overflow-scrolling:touch">
     <h3><i class="ti ti-map-pin-off" style="color:var(--red)"></i> Corrigir demanda</h3>
-    <p style="font-size:13px;color:var(--text2);margin-bottom:16px">A equipe não encontrou o local. Corrija os dados necessários e reenvie para a mesma equipe.</p>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:16px">A equipe não encontrou o local. Corrija os dados necessários e reenvie.</p>
     <div class="field">
       <label>Quem está solicitando</label>
-      <input type="text" id="revisao-solicitante" placeholder="Nome e setor">
+      <input type="text" id="revisao-solicitante" placeholder="Nome e setor" autocomplete="off" style="background:#fff">
     </div>
     <div class="field">
       <label>Endereço correto</label>
-      <input type="text" id="revisao-endereco" placeholder="Digite o endereço correto">
+      <input type="text" id="revisao-endereco" placeholder="Digite o endereço correto" autocomplete="off" style="background:#fff">
     </div>
     <div class="field">
       <label>Descrição do serviço</label>
-      <textarea id="revisao-descricao" placeholder="Descrição do serviço" style="min-height:70px"></textarea>
+      <textarea id="revisao-descricao" placeholder="Descrição do serviço" style="min-height:70px;background:#fff"></textarea>
     </div>
     <div class="field">
-      <label>Foto do local (opcional — substitui a anterior)</label>
+      <label>Nova foto do local (opcional)</label>
       <input type="file" id="revisao-foto" accept="image/*" onchange="previewFoto(this,'revisao-foto-prev')">
       <img id="revisao-foto-prev" style="display:none" class="photo-preview" alt="Nova foto">
     </div>
@@ -949,11 +949,11 @@ function abrirRevisao(id){
     document.getElementById('revisao-solicitante').value=d.solicitante||'';
     document.getElementById('revisao-endereco').value=d.endereco||'';
     document.getElementById('revisao-descricao').value=d.descricao||'';
-    // Mostra foto atual se existir
-    const prev=document.getElementById('revisao-foto-prev');
-    if(d.foto){prev.src=d.foto;prev.style.display='block';}
-    else{prev.src='';prev.style.display='none';}
+    // Limpa o campo de upload sempre
     document.getElementById('revisao-foto').value='';
+    // Mostra foto atual apenas como referência visual, não no campo de upload
+    const prev=document.getElementById('revisao-foto-prev');
+    prev.src=''; prev.style.display='none';
   }
   document.getElementById('modal-revisao').style.display='flex';
   setTimeout(()=>document.getElementById('revisao-endereco').focus(),150);
