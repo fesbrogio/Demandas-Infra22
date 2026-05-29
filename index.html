@@ -837,7 +837,7 @@ async function enviarDemanda() {
   if(!zona){alert('Selecione a zona da cidade.');return;}
   if(!equipe){alert('Selecione a equipe responsável.');return;}
   let fotoBase64=null;
-  if(prev.style.display!=='none'&&prev.src) fotoBase64=await comprimirImagem(prev.src,400,0.6);
+  if(prev.style.display!=='none'&&prev.src) fotoBase64=await comprimirImagem(prev.src,1200,0.85);
 
   // Guarda dados para usar caso o usuário confirme mesmo assim
   _dadosPendentes = {
@@ -914,7 +914,7 @@ async function confirmarCheck(){
   const prev=document.getElementById('check-foto-prev');
   if(!data){alert('Informe a data de conclusão.');return;}
   if(prev.style.display==='none'||!prev.src){alert('Adicione a foto do serviço concluído.');return;}
-  const fotoComp=await comprimirImagem(prev.src,500,0.65);
+  const fotoComp=await comprimirImagem(prev.src,1200,0.85);
   try{
     await window._updateDoc(checkId,{
       status:'concluído',
@@ -972,7 +972,7 @@ async function reenviarDemanda(){
   let novaFoto = null;
   const fotoInput = document.getElementById('revisao-foto');
   if(fotoInput.files&&fotoInput.files[0]&&prev.style.display!=='none'&&prev.src){
-    novaFoto = await comprimirImagem(prev.src,400,0.6);
+    novaFoto = await comprimirImagem(prev.src,1200,0.85);
   }
 
   const dados={
