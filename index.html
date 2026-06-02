@@ -767,8 +767,10 @@ function comprimirImagem(src,maxPx,quality){
 function mesesDisponiveis(lista) {
   const meses = new Set();
   lista.forEach(d => {
-    if (d.data) {
-      const p=d.data.split('/');
+    // Usa dataConclusao para demandas concluídas, data para as demais
+    const dataRef = d.dataConclusao || d.data;
+    if (dataRef) {
+      const p=dataRef.split('/');
       if(p.length===3) meses.add(`${p[2]}-${p[1]}`);
     }
   });
@@ -1013,8 +1015,8 @@ async function executarApagarConcluidas(){
   let conc=window._demandas.filter(d=>d.status==='concluído');
   if(mesSel){
     conc=conc.filter(d=>{
-      if(!d.data) return false;
-      const p=d.data.split('/');
+      if(!d.dataConclusao) return false;
+      const p=d.dataConclusao.split('/');
       return p.length===3 && `${p[2]}-${p[1]}`===mesSel;
     });
   }
@@ -1022,7 +1024,8 @@ async function executarApagarConcluidas(){
 
   const porMes={};
   conc.forEach(d=>{
-    const p=d.data?d.data.split('/'):null;
+    const dataRef=d.dataConclusao||d.data;
+    const p=dataRef?dataRef.split('/'):null;
     const mesISO=p&&p.length===3?`${p[2]}-${p[1]}`:new Date().toISOString().slice(0,7);
     if(!porMes[mesISO]) porMes[mesISO]=[];
     porMes[mesISO].push(d);
@@ -1178,8 +1181,8 @@ function renderHistorico(){
   let lista=conc;
   if(mesSel){
     lista=conc.filter(d=>{
-      if(!d.data) return false;
-      const p=d.data.split('/');
+      if(!d.dataConclusao) return false;
+      const p=d.dataConclusao.split('/');
       return p.length===3&&`${p[2]}-${p[1]}`===mesSel;
     });
   }
@@ -1267,8 +1270,8 @@ function gerarRelatorio(){
   let conc=window._demandas.filter(d=>d.status==='concluído');
   if(mesSel){
     conc=conc.filter(d=>{
-      if(!d.data) return false;
-      const p=d.data.split('/');
+      if(!d.dataConclusao) return false;
+      const p=d.dataConclusao.split('/');
       return p.length===3&&`${p[2]}-${p[1]}`===mesSel;
     });
   }
@@ -1291,8 +1294,8 @@ function baixarPDF(){
   let conc=window._demandas.filter(d=>d.status==='concluído');
   if(mesSel){
     conc=conc.filter(d=>{
-      if(!d.data) return false;
-      const p=d.data.split('/');
+      if(!d.dataConclusao) return false;
+      const p=d.dataConclusao.split('/');
       return p.length===3&&`${p[2]}-${p[1]}`===mesSel;
     });
   }
