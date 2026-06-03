@@ -9,8 +9,6 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
   import {
@@ -457,16 +455,6 @@
       </div>
       <div id="lista-equipe"></div>
     </div>
-
-    <!-- MAPA EQUIPE -->
-    <div id="sec-mapa" class="section">
-      <p style="font-size:13px;color:var(--text2);margin-bottom:12px">
-        <span style="display:inline-flex;align-items:center;gap:5px;margin-right:12px"><span style="width:12px;height:12px;background:#e05555;border-radius:50%;display:inline-block"></span> Urgente</span>
-        <span style="display:inline-flex;align-items:center;gap:5px"><span style="width:12px;height:12px;background:#1a3f7a;border-radius:50%;display:inline-block"></span> Normal</span>
-      </p>
-      <div id="mapa-container" style="height:480px;border-radius:var(--radius-lg);overflow:hidden;border:1px solid var(--border)"></div>
-      <p style="font-size:12px;color:var(--text3);margin-top:8px;text-align:center">Clique em um ponto para ver os detalhes da demanda</p>
-    </div>
   </div>
 </div>
 
@@ -504,17 +492,13 @@
 
 <!-- MODAL CHECK -->
 <div id="modal-check" class="modal-wrap" style="display:none">
-  <div class="modal" style="max-height:92vh;overflow-y:auto">
+  <div class="modal">
     <h3><i class="ti ti-circle-check" style="color:var(--green)"></i> Confirmar conclusão</h3>
     <div class="field"><label>Data de conclusão</label><input type="date" id="check-data"></div>
     <div class="field">
       <label>Foto do serviço concluído (obrigatória)</label>
       <input type="file" id="check-foto" accept="image/*" onchange="previewFoto(this,'check-foto-prev')">
       <img id="check-foto-prev" style="display:none" class="photo-preview" alt="Foto conclusão">
-    </div>
-    <div class="field">
-      <label>Observação (opcional)</label>
-      <textarea id="check-observacao" placeholder="Ex: Local precisa de atenção adicional, material descartado incorretamente, etc…" style="min-height:80px"></textarea>
     </div>
     <div class="modal-actions">
       <button class="btn" onclick="fecharModal('modal-check')">Cancelar</button>
@@ -624,8 +608,6 @@ window._secaoAtual = '';
 window._demandas = [];
 window._estatisticas = [];
 let _charts = {};
-let _mapaInstance = null;
-let _mapaMarkers = [];
 
 window._renderAtual = () => {
   const s = window._secaoAtual;
@@ -635,7 +617,6 @@ window._renderAtual = () => {
   if (s==='gerenciar') renderGerenciar();
   if (s==='revisao')   renderRevisao();
   if (s==='dashboard') renderDashboard && renderDashboard();
-  if (s==='mapa')      renderMapa();
   atualizarBadgeRevisao();
 };
 
@@ -696,8 +677,7 @@ function entrarComo(p) {
     const num=p.replace('equipe','');
     equipeAtual=num==='6'?'Equipe 6 (Retroescavadeira)':`Equipe ${num}`;
     titulo='👷 '+equipeAtual;
-    html=`<button class="tab active" onclick="showTab('equipe',event)"><i class="ti ti-clipboard-list"></i> Minhas demandas</button>
-          <button class="tab" onclick="showTab('mapa',event)"><i class="ti ti-map"></i> Mapa</button>`;
+    html=`<button class="tab active" onclick="showTab('equipe',event)"><i class="ti ti-clipboard-list"></i> Minhas demandas</button>`;
     sec='equipe';
   }
   tabs.innerHTML=html;
@@ -708,7 +688,6 @@ function entrarComo(p) {
 function voltarPerfil() {
   perfil=''; equipeAtual=''; window._secaoAtual='';
   Object.values(_charts).forEach(c=>c.destroy()); _charts={};
-  if(_mapaInstance){_mapaInstance.remove();_mapaInstance=null;_mapaMarkers=[];}
   document.getElementById('tela-perfil').style.display='block';
   document.getElementById('tela-app').style.display='none';
   document.getElementById('header-right').style.display='none';
@@ -721,7 +700,7 @@ function showTab(t, ev) {
 }
 
 function showSection(t) {
-  ['nova','gerenciar','revisao','painel','dashboard','historico','equipe','mapa'].forEach(s=>{
+  ['nova','gerenciar','revisao','painel','dashboard','historico','equipe'].forEach(s=>{
     const el=document.getElementById('sec-'+s); if(el) el.classList.remove('active');
   });
   const el=document.getElementById('sec-'+t); if(el) el.classList.add('active');
@@ -735,7 +714,6 @@ function renderSection(t) {
   if(t==='gerenciar') renderGerenciar();
   if(t==='revisao')   renderRevisao();
   if(t==='dashboard') renderDashboard();
-  if(t==='mapa')      renderMapa();
 }
 
 function fecharModal(id) { document.getElementById(id).style.display='none'; }
@@ -930,14 +908,12 @@ function abrirCheck(id){
   document.getElementById('check-data').value=new Date().toISOString().split('T')[0];
   document.getElementById('check-foto-prev').style.display='none';
   document.getElementById('check-foto').value='';
-  document.getElementById('check-observacao').value='';
   document.getElementById('modal-check').style.display='flex';
 }
 
 async function confirmarCheck(){
   const data=document.getElementById('check-data').value;
   const prev=document.getElementById('check-foto-prev');
-  const obs=document.getElementById('check-observacao').value.trim();
   if(!data){alert('Informe a data de conclusão.');return;}
   if(prev.style.display==='none'||!prev.src){alert('Adicione a foto do serviço concluído.');return;}
   const fotoComp=await comprimirImagem(prev.src,800,0.75);
@@ -945,8 +921,7 @@ async function confirmarCheck(){
     await window._updateDoc(checkId,{
       status:'concluído',
       dataConclusao:new Date(data+'T12:00:00').toLocaleDateString('pt-BR'),
-      fotoConclusao:fotoComp,
-      observacao: obs || null
+      fotoConclusao:fotoComp
     });
     fecharModal('modal-check');showMsg('Demanda marcada como concluída!');
   }catch(e){showMsg('Erro ao salvar conclusão.','danger');}
@@ -1223,11 +1198,7 @@ function renderHistorico(){
         ${d.zona?`<span class="tag-zona">${d.zona}</span>`:''}
         <span>✅ <strong>${d.dataConclusao||'—'}</strong></span>
       </div>
-      ${d.observacao?`<div style="margin-top:8px;background:var(--amber-bg);border:1px solid var(--amber-border);border-radius:var(--radius);padding:8px 10px;font-size:13px"><i class="ti ti-message" style="font-size:13px;vertical-align:-1px"></i> <strong>Observação da equipe:</strong> ${d.observacao}</div>`:''}
-      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
-        ${d.foto?`<div style="flex:1;min-width:120px"><div style="font-size:11px;color:var(--text3);margin-bottom:4px;font-weight:600">ANTES</div><img src="${d.foto}" class="photo-preview" alt="Foto antes" style="margin-top:0;max-height:140px;width:100%" onclick="abrirLightbox(this.src)" title="Clique para ampliar"></div>`:''}
-        ${d.fotoConclusao?`<div style="flex:1;min-width:120px"><div style="font-size:11px;color:var(--text3);margin-bottom:4px;font-weight:600">DEPOIS</div><img src="${d.fotoConclusao}" class="photo-preview" alt="Foto depois" style="margin-top:0;max-height:140px;width:100%" onclick="abrirLightbox(this.src)" title="Clique para ampliar"></div>`:''}
-      </div>
+      ${d.fotoConclusao?`<img src="${d.fotoConclusao}" class="photo-preview" alt="Foto conclusão" style="margin-top:10px" onclick="abrirLightbox(this.src)" title="Clique para ampliar">`:''}
     </div>`).join('')}</div>`;
 }
 
@@ -1362,35 +1333,11 @@ function baixarPDF(){
       doc.text(l+':',M+3,y);doc.setFont('helvetica','normal');doc.setTextColor(26,25,23);
       const lines=doc.splitTextToSize(String(v),W-M*2-36);doc.text(lines,M+36,y);y+=lH*lines.length;
     });
-    if(d.observacao){
-      chk(12);
+    if(d.fotoConclusao){chk(52);try{
       doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(90,90,90);
-      doc.text('Observação da equipe:',M+3,y);y+=4;
-      doc.setFont('helvetica','normal');doc.setTextColor(26,25,23);
-      const obsLines=doc.splitTextToSize(d.observacao,W-M*2-6);
-      doc.text(obsLines,M+3,y);y+=lH*obsLines.length+2;
-    }
-    // Fotos antes e depois lado a lado
-    const temAntes=!!d.foto;
-    const temDepois=!!d.fotoConclusao;
-    if(temAntes||temDepois){
-      chk(58);
-      doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(90,90,90);
-      if(temAntes&&temDepois){
-        doc.text('ANTES',M+3,y);
-        doc.text('DEPOIS',M+93,y);
-        y+=4;
-        try{doc.addImage(d.foto,'JPEG',M+3,y,82,55);}catch(e){}
-        try{doc.addImage(d.fotoConclusao,'JPEG',M+93,y,82,55);}catch(e){}
-        y+=58;
-      } else if(temDepois){
-        doc.text('Foto do serviço concluído:',M+3,y);y+=4;
-        try{doc.addImage(d.fotoConclusao,'JPEG',M+3,y,70,50);y+=53;}catch(e){}
-      } else if(temAntes){
-        doc.text('Foto do local:',M+3,y);y+=4;
-        try{doc.addImage(d.foto,'JPEG',M+3,y,70,50);y+=53;}catch(e){}
-      }
-    }
+      doc.text('Foto do serviço concluído:',M+3,y);y+=4;
+      doc.addImage(d.fotoConclusao,'JPEG',M+3,y,70,50);y+=53;
+    }catch(e){}}
     chk(6);doc.setDrawColor(220,220,220);doc.line(M,y,W-M,y);y+=7;
   });
   chk(10);doc.setFontSize(8);doc.setTextColor(160,160,160);doc.setFont('helvetica','italic');
@@ -1398,102 +1345,6 @@ function baixarPDF(){
   const sufixo=mesSel?`_${mesSel}`:'';
   doc.save(`relatorio_demandas${sufixo}_${hoje.replace(/\//g,'-')}.pdf`);
 }
-
-// ── MAPA ──────────────────────────────
-function renderMapa(){
-  const lista = window._demandas.filter(d =>
-    d.equipe === equipeAtual &&
-    d.status !== 'concluído' &&
-    d.status !== 'revisao'
-  );
-
-  // Inicializa mapa se ainda não existe
-  if(!_mapaInstance){
-    _mapaInstance = L.map('mapa-container').setView([-21.1775, -47.8103], 13);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
-      attribution:'© OpenStreetMap',maxZoom:19
-    }).addTo(_mapaInstance);
-  } else {
-    _mapaMarkers.forEach(m=>m.remove());
-    _mapaMarkers=[];
-  }
-
-  if(!lista.length){
-    // Mensagem sobreposta
-    const el=document.getElementById('mapa-container');
-    el.style.position='relative';
-    let aviso=document.getElementById('mapa-aviso');
-    if(!aviso){aviso=document.createElement('div');aviso.id='mapa-aviso';aviso.style.cssText='position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(255,255,255,.9);padding:16px 24px;border-radius:8px;font-size:14px;color:#6b6860;z-index:1000;text-align:center';document.getElementById('mapa-container').appendChild(aviso);}
-    aviso.textContent='Nenhuma demanda em aberto para '+equipeAtual;
-    return;
-  }
-  const aviso=document.getElementById('mapa-aviso');
-  if(aviso) aviso.textContent='';
-
-  const bounds=[];
-  lista.forEach(d=>{
-    // Geocode via Nominatim (OpenStreetMap gratuito)
-    const endQuery=encodeURIComponent(d.endereco+', Ribeirão Preto, SP, Brasil');
-    fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${endQuery}&limit=1`)
-      .then(r=>r.json())
-      .then(data=>{
-        if(!data||!data[0]) return;
-        const lat=parseFloat(data[0].lat);
-        const lng=parseFloat(data[0].lon);
-        const cor=d.prioridade==='urgente'?'#e05555':'#1a3f7a';
-        const icone=L.divIcon({
-          html:`<div style="width:16px;height:16px;background:${cor};border-radius:50%;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4)"></div>`,
-          className:'',iconSize:[16,16],iconAnchor:[8,8]
-        });
-        const marker=L.marker([lat,lng],{icon:icone}).addTo(_mapaInstance);
-        marker.bindPopup(`
-          <div style="font-family:sans-serif;font-size:13px;min-width:180px">
-            <strong>${d.prioridade==='urgente'?'⚡ ':''} ${d.descricao}</strong><br>
-            <span style="color:#666;font-size:12px">${d.endereco}</span><br>
-            <span style="color:#666;font-size:12px">${d.zona||''} &nbsp;·&nbsp; ${d.data}</span>
-            ${d.prioridade==='urgente'?'<br><span style="color:#e05555;font-weight:600;font-size:12px">⚡ URGENTE</span>':''}
-          </div>`);
-        _mapaMarkers.push(marker);
-        bounds.push([lat,lng]);
-        if(bounds.length>1) _mapaInstance.fitBounds(bounds,{padding:[30,30]});
-        else _mapaInstance.setView([lat,lng],16);
-      }).catch(()=>{});
-  });
-
-  // Força re-render do mapa (resolve bug de tiles não carregarem na aba)
-  setTimeout(()=>_mapaInstance.invalidateSize(),100);
-}
-
-// ── EXPÕE FUNÇÕES AO ESCOPO GLOBAL (necessário com módulos ES6) ──
-window.entrarComo            = entrarComo;
-window.voltarPerfil          = voltarPerfil;
-window.tentarSecretaria      = tentarSecretaria;
-window.verificarSenha        = verificarSenha;
-window.showTab               = showTab;
-window.fecharModal           = fecharModal;
-window.abrirLightbox         = abrirLightbox;
-window.fecharLightbox        = fecharLightbox;
-window.previewFoto           = previewFoto;
-window.enviarDemanda         = enviarDemanda;
-window.salvarDemandaMesmoAssim = salvarDemandaMesmoAssim;
-window.atribuir              = atribuir;
-window.deletarDemanda        = deletarDemanda;
-window.abrirCheck            = abrirCheck;
-window.confirmarCheck        = confirmarCheck;
-window.abrirNaoEncontrado    = abrirNaoEncontrado;
-window.confirmarNaoEncontrado= confirmarNaoEncontrado;
-window.abrirRevisao          = abrirRevisao;
-window.reenviarDemanda       = reenviarDemanda;
-window.apagarDemandaRevisao  = apagarDemandaRevisao;
-window.confirmarApagarConcluidasSecretaria = confirmarApagarConcluidasSecretaria;
-window.executarApagarConcluidas = executarApagarConcluidas;
-window.gerarRelatorio        = gerarRelatorio;
-window.baixarPDF             = baixarPDF;
-window.renderPainel          = renderPainel;
-window.renderHistorico       = renderHistorico;
-window.renderEquipe          = renderEquipe;
-window.renderMapa            = renderMapa;
-window.renderDashboard       = renderDashboard;
-
+</script>
 </body>
 </html>
