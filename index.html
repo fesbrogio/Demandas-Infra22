@@ -624,6 +624,8 @@ window._secaoAtual = '';
 window._demandas = [];
 window._estatisticas = [];
 let _charts = {};
+let _mapaInstance = null;
+let _mapaMarkers = [];
 
 window._renderAtual = () => {
   const s = window._secaoAtual;
@@ -633,6 +635,7 @@ window._renderAtual = () => {
   if (s==='gerenciar') renderGerenciar();
   if (s==='revisao')   renderRevisao();
   if (s==='dashboard') renderDashboard && renderDashboard();
+  if (s==='mapa')      renderMapa();
   atualizarBadgeRevisao();
 };
 
@@ -1397,9 +1400,6 @@ function baixarPDF(){
 }
 
 // ── MAPA ──────────────────────────────
-let _mapaInstance = null;
-let _mapaMarkers = [];
-
 function renderMapa(){
   const lista = window._demandas.filter(d =>
     d.equipe === equipeAtual &&
@@ -1463,6 +1463,37 @@ function renderMapa(){
   // Força re-render do mapa (resolve bug de tiles não carregarem na aba)
   setTimeout(()=>_mapaInstance.invalidateSize(),100);
 }
+
+// ── EXPÕE FUNÇÕES AO ESCOPO GLOBAL (necessário com módulos ES6) ──
+window.entrarComo            = entrarComo;
+window.voltarPerfil          = voltarPerfil;
+window.tentarSecretaria      = tentarSecretaria;
+window.verificarSenha        = verificarSenha;
+window.showTab               = showTab;
+window.fecharModal           = fecharModal;
+window.abrirLightbox         = abrirLightbox;
+window.fecharLightbox        = fecharLightbox;
+window.previewFoto           = previewFoto;
+window.enviarDemanda         = enviarDemanda;
+window.salvarDemandaMesmoAssim = salvarDemandaMesmoAssim;
+window.atribuir              = atribuir;
+window.deletarDemanda        = deletarDemanda;
+window.abrirCheck            = abrirCheck;
+window.confirmarCheck        = confirmarCheck;
+window.abrirNaoEncontrado    = abrirNaoEncontrado;
+window.confirmarNaoEncontrado= confirmarNaoEncontrado;
+window.abrirRevisao          = abrirRevisao;
+window.reenviarDemanda       = reenviarDemanda;
+window.apagarDemandaRevisao  = apagarDemandaRevisao;
+window.confirmarApagarConcluidasSecretaria = confirmarApagarConcluidasSecretaria;
+window.executarApagarConcluidas = executarApagarConcluidas;
+window.gerarRelatorio        = gerarRelatorio;
+window.baixarPDF             = baixarPDF;
+window.renderPainel          = renderPainel;
+window.renderHistorico       = renderHistorico;
+window.renderEquipe          = renderEquipe;
+window.renderMapa            = renderMapa;
+window.renderDashboard       = renderDashboard;
 
 </body>
 </html>
