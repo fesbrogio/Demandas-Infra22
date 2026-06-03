@@ -7,70 +7,14 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import {
-    getFirestore, collection, addDoc, onSnapshot, doc,
-    updateDoc, deleteDoc, query, orderBy, serverTimestamp, setDoc
-  } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-
-  const firebaseConfig = {
-    apiKey: "AIzaSyAOeJwqEKzVQNtKdQgFmgo7F4w1Xl2gno8",
-    authDomain: "demandas-limp-rp.firebaseapp.com",
-    projectId: "demandas-limp-rp",
-    storageBucket: "demandas-limp-rp.firebasestorage.app",
-    messagingSenderId: "327199319082",
-    appId: "1:327199319082:web:d04f07df17d532b7c04f53"
-  };
-
-  const app = initializeApp(firebaseConfig);
-  const db  = getFirestore(app);
-  const col = collection(db, "demandas");
-  const colStats = collection(db, "estatisticas_mensais");
-
-  onSnapshot(query(col, orderBy("criadoEm","desc")), (snap) => {
-    const docs = snap.docs.map(d => ({ _id: d.id, ...d.data() }));
-    docs.sort((a,b) => {
-      if (a.prioridade==='urgente' && b.prioridade!=='urgente') return -1;
-      if (a.prioridade!=='urgente' && b.prioridade==='urgente') return 1;
-      return 0;
-    });
-    window._demandas = docs;
-    window._renderAtual && window._renderAtual();
-  });
-
-  onSnapshot(query(colStats, orderBy("mesISO","asc")), (snap) => {
-    window._estatisticas = snap.docs.map(d => ({ _id: d.id, ...d.data() }));
-    if (window._secaoAtual === 'dashboard') window.renderDashboard && window.renderDashboard();
-  });
-
-  window._db = db;
-  window._addDoc     = (data)     => addDoc(col, { ...data, criadoEm: serverTimestamp() });
-  window._updateDoc  = (id, data) => updateDoc(doc(db, "demandas", id), data);
-  window._deleteDoc  = (id)       => deleteDoc(doc(db, "demandas", id));
-  window._salvarEstatistica = async (mesISO, dados) => {
-    await setDoc(doc(db, "estatisticas_mensais", mesISO), dados);
-  };
-</script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
-  :root {
-    --bg:#f4f3ef;--surface:#fff;--surface2:#eeecea;--border:#d8d6d0;--border2:#c8c5be;
-    --text:#1a1917;--text2:#6b6860;--text3:#9e9b94;
-    --green:#1a6640;--green-bg:#e6f2eb;--green-border:#a8d4b8;
-    --amber:#7a4f00;--amber-bg:#fef3db;--amber-border:#f5cc7a;
-    --red:#8b1a1a;--red-bg:#fdeaea;--red-border:#f0a8a8;
-    --blue:#1a3f7a;--blue-bg:#e8eef8;--blue-border:#a8bce0;
-    --purple:#4a1a7a;--purple-bg:#f0e8f8;--purple-border:#c8a8e0;
-    --orange:#7a3a00;--orange-bg:#fff0e0;--orange-border:#f5b87a;
-    --radius:8px;--radius-lg:12px;
-    --font:'IBM Plex Sans',sans-serif;--font-mono:'IBM Plex Mono',monospace;
-    --shadow:0 1px 3px rgba(0,0,0,.08);
-  }
+  :root{--bg:#f4f3ef;--surface:#fff;--surface2:#eeecea;--border:#d8d6d0;--border2:#c8c5be;--text:#1a1917;--text2:#6b6860;--text3:#9e9b94;--green:#1a6640;--green-bg:#e6f2eb;--green-border:#a8d4b8;--amber:#7a4f00;--amber-bg:#fef3db;--amber-border:#f5cc7a;--red:#8b1a1a;--red-bg:#fdeaea;--red-border:#f0a8a8;--blue:#1a3f7a;--blue-bg:#e8eef8;--blue-border:#a8bce0;--purple:#4a1a7a;--purple-bg:#f0e8f8;--purple-border:#c8a8e0;--orange:#7a3a00;--orange-bg:#fff0e0;--orange-border:#f5b87a;--radius:8px;--radius-lg:12px;--font:'IBM Plex Sans',sans-serif;--font-mono:'IBM Plex Mono',monospace;--shadow:0 1px 3px rgba(0,0,0,.08)}
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:15px;min-height:100vh}
-
   .header{background:var(--text);color:#fff;padding:0 16px;height:54px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;gap:10px}
   .header-brand{display:flex;align-items:center;gap:10px;min-width:0}
   .header-logo{width:32px;height:32px;flex-shrink:0;background:#fff;border-radius:8px;display:flex;align-items:center;justify-content:center}
@@ -81,9 +25,7 @@
   #header-user-label{font-size:12px;opacity:.7;font-family:var(--font-mono);white-space:nowrap}
   .btn-header{background:rgba(255,255,255,.14);border:none;color:#fff;padding:7px 13px;border-radius:7px;font-size:13px;cursor:pointer;font-family:var(--font);display:flex;align-items:center;gap:5px;transition:background .15s}
   .btn-header:hover{background:rgba(255,255,255,.24)}
-
   .main{max-width:720px;margin:0 auto;padding:22px 14px 80px}
-
   #tela-perfil{animation:fadeIn .2s ease}
   .perfil-title{font-size:21px;font-weight:600;margin:8px 0 4px}
   .perfil-sub{font-size:14px;color:var(--text2);margin-bottom:24px}
@@ -98,28 +40,23 @@
   .equipe-btn{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:13px 10px;cursor:pointer;font-family:var(--font);font-size:13px;font-weight:500;display:flex;align-items:center;justify-content:center;gap:7px;color:var(--text);transition:border-color .15s,background .15s}
   .equipe-btn:hover{border-color:var(--border2);background:var(--surface2)}
   .equipe-btn i{font-size:15px;color:var(--text2)}
-
   .modal-wrap{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:200;padding:16px}
   .modal{background:var(--surface);border-radius:var(--radius-lg);padding:24px;max-width:400px;width:100%;border:1px solid var(--border);animation:slideUp .2s ease}
   .modal-lg{max-width:520px;max-height:90vh;overflow-y:auto}
   .modal h3{font-size:16px;font-weight:600;margin-bottom:14px;display:flex;align-items:center;gap:8px}
   .modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:18px;flex-wrap:wrap}
   .modal-erro{font-size:12px;color:var(--red);margin-top:6px;display:none;align-items:center;gap:5px}
-
   #tela-app{display:none;animation:fadeIn .2s ease}
   .btn-voltar{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--text2);cursor:pointer;border:none;background:none;font-family:var(--font);padding:0;margin-bottom:16px;transition:color .15s}
   .btn-voltar:hover{color:var(--text)}
-
   .tabs{display:flex;gap:2px;border-bottom:1px solid var(--border);margin-bottom:18px;overflow-x:auto;-webkit-overflow-scrolling:touch}
   .tabs::-webkit-scrollbar{display:none}
   .tab{padding:10px 13px;font-size:13px;cursor:pointer;border:none;background:none;color:var(--text2);border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap;font-family:var(--font);display:flex;align-items:center;gap:6px;transition:color .15s;flex-shrink:0}
   .tab:hover{color:var(--text)}
   .tab.active{color:var(--text);border-bottom-color:var(--text);font-weight:500}
   .tab-badge{background:var(--red);color:#fff;border-radius:20px;font-size:10px;padding:1px 6px;font-family:var(--font-mono);font-weight:600}
-
   .section{display:none}
   .section.active{display:block;animation:fadeIn .15s ease}
-
   .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:18px 20px;margin-bottom:12px}
   .section-title{font-size:15px;font-weight:600;margin-bottom:16px}
   .field{margin-bottom:14px}
@@ -129,13 +66,11 @@
   .field input:focus,.field textarea:focus,.field select:focus{outline:none;border-color:var(--text);box-shadow:0 0 0 3px rgba(26,25,23,.08)}
   .field textarea{resize:vertical;min-height:80px;line-height:1.5}
   .divider{height:1px;background:var(--border);margin:16px 0}
-
   .field-destaque{margin-bottom:14px}
-  .field-destaque label{display:block;font-size:12px;font-weight:600;color:var(--amber);margin-bottom:6px;display:flex;align-items:center;gap:5px}
+  .field-destaque label{display:flex;font-size:12px;font-weight:600;color:var(--amber);margin-bottom:6px;align-items:center;gap:5px}
   .field-destaque select{width:100%;padding:11px 32px 11px 12px;border:2px solid var(--amber-border);border-radius:var(--radius);font-size:14px;font-family:var(--font);background:var(--amber-bg);color:var(--text);-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%237a4f00' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;font-weight:500;cursor:pointer}
   .field-destaque select:focus{outline:none;border-color:var(--amber);box-shadow:0 0 0 3px rgba(122,79,0,.12)}
   .field-destaque .hint{font-size:11px;color:var(--amber);margin-top:5px;display:flex;align-items:center;gap:4px}
-
   .btn{padding:10px 18px;border-radius:var(--radius);font-size:13px;font-weight:500;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--text);font-family:var(--font);display:inline-flex;align-items:center;gap:7px;transition:background .15s;white-space:nowrap;-webkit-tap-highlight-color:transparent}
   .btn:hover{background:var(--surface2)}
   .btn:active{transform:scale(.98)}
@@ -149,7 +84,6 @@
   .btn-warning:hover{background:var(--orange-bg)}
   .btn-sm{padding:7px 13px;font-size:12px}
   .btn-full{width:100%;justify-content:center;margin-top:4px}
-
   .badge{display:inline-block;font-size:11px;padding:3px 9px;border-radius:20px;font-weight:500;font-family:var(--font-mono)}
   .badge-pending{background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-border)}
   .badge-doing{background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-border)}
@@ -157,8 +91,7 @@
   .badge-urgente{background:var(--red-bg);color:var(--red);border:1px solid var(--red-border);font-weight:700}
   .badge-zona{background:var(--purple-bg);color:var(--purple);border:1px solid var(--purple-border)}
   .badge-atrasada{background:var(--orange-bg);color:var(--orange);border:1px solid var(--orange-border);font-weight:600}
-  .badge-revisao{background:#fdeaea;color:#8b1a1a;border:1px solid #f0a8a8;font-weight:600}
-
+  .badge-revisao{background:var(--red-bg);color:var(--red);border:1px solid var(--red-border);font-weight:600}
   .demand-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px;margin-bottom:10px}
   .demand-card.urgente{border-left:4px solid #e05555;background:#fffafa}
   .demand-card.atrasada{border-left:4px solid #d97706}
@@ -172,13 +105,11 @@
   .maps-link{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--blue);text-decoration:none;padding:7px 11px;border:1px solid var(--blue-border);border-radius:var(--radius);margin-bottom:10px;background:var(--blue-bg);font-family:var(--font-mono);transition:background .15s;word-break:break-all;line-height:1.4}
   .maps-link:hover{background:#d4e0f4}
   .maps-link i{flex-shrink:0}
-
   .alocar-box{background:var(--amber-bg);border:2px solid var(--amber-border);border-radius:var(--radius);padding:13px;margin-top:12px}
   .alocar-label{font-size:12px;font-weight:600;color:var(--amber);margin-bottom:8px;display:flex;align-items:center;gap:6px}
   .alocar-select{width:100%;padding:10px 30px 10px 12px;border:1px solid var(--amber-border);border-radius:var(--radius);font-size:14px;font-family:var(--font);background:#fff;color:var(--text);cursor:pointer;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%237a4f00' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;font-weight:500}
   .alocar-select:focus{outline:none;border-color:var(--amber)}
   .alocar-alocada{font-size:13px;font-weight:500;margin-top:8px;display:flex;align-items:center;gap:6px;color:var(--green)}
-
   .demand-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)}
   .btn-done{font-size:12px;padding:9px 16px;border-radius:var(--radius);cursor:pointer;border:1px solid var(--green-border);background:var(--green-bg);color:var(--green);display:inline-flex;align-items:center;gap:5px;font-family:var(--font);font-weight:500;transition:background .15s}
   .btn-done:hover{background:#cde8d8}
@@ -186,22 +117,18 @@
   .btn-del:hover{background:var(--red-bg)}
   .btn-nao-encontrado{font-size:12px;padding:9px 14px;border-radius:var(--radius);cursor:pointer;border:1px solid var(--orange-border);background:transparent;color:var(--orange);display:inline-flex;align-items:center;gap:5px;font-family:var(--font);transition:background .15s}
   .btn-nao-encontrado:hover{background:var(--orange-bg)}
-
   .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px}
   .stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px 8px;text-align:center}
   .stat-num{font-size:22px;font-weight:600;font-family:var(--font-mono)}
   .stat-label{font-size:11px;color:var(--text3);margin-top:2px}
-
   .filter-row{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
   .filter-row select{font-size:12px;padding:8px 28px 8px 10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);color:var(--text);font-family:var(--font);cursor:pointer;flex:1;min-width:120px;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b6860' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center}
-
   .photo-preview{max-width:100%;max-height:180px;border-radius:var(--radius);margin-top:8px;display:block;object-fit:cover;border:1px solid var(--border);cursor:zoom-in;transition:opacity .15s}
   .photo-preview:hover{opacity:.88}
   .lightbox{position:fixed;inset:0;background:rgba(0,0,0,.92);display:flex;align-items:center;justify-content:center;z-index:500;padding:16px;cursor:zoom-out;animation:fadeIn .15s ease}
   .lightbox img{max-width:100%;max-height:92vh;border-radius:var(--radius);object-fit:contain;box-shadow:0 8px 40px rgba(0,0,0,.6)}
   .lightbox-close{position:fixed;top:16px;right:16px;background:rgba(255,255,255,.15);border:none;color:#fff;width:40px;height:40px;border-radius:50%;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s}
   .lightbox-close:hover{background:rgba(255,255,255,.28)}
-
   .msg{padding:10px 14px;border-radius:var(--radius);font-size:13px;margin-bottom:14px;display:flex;align-items:center;gap:8px}
   .msg-success{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)}
   .msg-danger{background:var(--red-bg);color:var(--red);border:1px solid var(--red-border)}
@@ -218,13 +145,8 @@
   .alerta-urgente{background:var(--red-bg);border:1px solid var(--red-border);color:var(--red)}
   .alerta-atrasada{background:var(--orange-bg);border:1px solid var(--orange-border);color:var(--orange)}
   .alerta-revisao{background:#fff0f0;border:1px solid var(--red-border);color:var(--red)}
-
-  /* REVISAO BOX */
   .revisao-box{background:#fff8f8;border:2px solid var(--red-border);border-radius:var(--radius);padding:13px;margin-top:12px}
   .revisao-label{font-size:12px;font-weight:600;color:var(--red);margin-bottom:8px;display:flex;align-items:center;gap:6px}
-  .revisao-motivo{font-size:13px;color:var(--red);margin-bottom:10px;font-style:italic}
-
-  /* DASHBOARD */
   .dash-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
   .dash-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px}
   .dash-card h4{font-size:13px;font-weight:600;color:var(--text2);margin-bottom:12px;display:flex;align-items:center;gap:6px}
@@ -242,32 +164,14 @@
   .mes-row{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--bg);border-radius:var(--radius);font-size:13px}
   .mes-row-nome{font-weight:500}
   .mes-row-num{font-family:var(--font-mono);font-weight:600;color:var(--green)}
-
-  /* MÊS FILTER (PDF/Apagar) */
   .mes-filter-box{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:16px}
   .mes-filter-box label{font-size:12px;font-weight:600;color:var(--text2);margin-bottom:8px;display:flex;align-items:center;gap:5px}
   .mes-filter-box select{width:100%;padding:9px 30px 9px 12px;border:1px solid var(--border);border-radius:var(--radius);font-size:14px;font-family:var(--font);background:var(--surface);color:var(--text);-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b6860' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;cursor:pointer}
-
-  @media(max-width:500px){
-    .perfil-grid{grid-template-columns:1fr 1fr}
-    .equipe-grid{grid-template-columns:1fr 1fr}
-    .stats{grid-template-columns:repeat(2,1fr)}
-    .dash-grid{grid-template-columns:1fr}
-    .dash-card-full{grid-column:1}
-    .demand-header{flex-direction:column;gap:6px}
-    .demand-badges{flex-direction:row}
-    .brand-text{font-size:12px}
-    #header-user-label{display:none}
-    .btn-done,.btn-del,.btn-nao-encontrado{flex:1;justify-content:center}
-    .card{padding:14px}
-  }
-
+  @media(max-width:500px){.perfil-grid{grid-template-columns:1fr 1fr}.equipe-grid{grid-template-columns:1fr 1fr}.stats{grid-template-columns:repeat(2,1fr)}.dash-grid{grid-template-columns:1fr}.dash-card-full{grid-column:1}.demand-header{flex-direction:column;gap:6px}.demand-badges{flex-direction:row}.brand-text{font-size:12px}#header-user-label{display:none}.btn-done,.btn-del,.btn-nao-encontrado{flex:1;justify-content:center}.card{padding:14px}}
   @keyframes fadeIn{from{opacity:0}to{opacity:1}}
   @keyframes slideUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
   @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
-  ::-webkit-scrollbar{width:5px;height:5px}
-  ::-webkit-scrollbar-track{background:transparent}
-  ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+  ::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
 </style>
 </head>
 <body>
@@ -275,185 +179,107 @@
 <div class="header">
   <div class="header-brand">
     <div class="header-logo"><i class="ti ti-building-community"></i></div>
-    <div>
-      <div class="brand-text">Secretaria da Infraestrutura</div>
-      <div class="brand-sub">Ribeirão Preto – SP</div>
-    </div>
+    <div><div class="brand-text">Secretaria da Infraestrutura</div><div class="brand-sub">Ribeirão Preto – SP</div></div>
   </div>
   <div class="header-right" id="header-right" style="display:none">
     <span id="header-user-label"></span>
-    <button class="btn-header" onclick="voltarPerfil()"><i class="ti ti-chevron-left"></i> Voltar</button>
+    <button class="btn-header" id="btn-voltar-header"><i class="ti ti-chevron-left"></i> Voltar</button>
   </div>
 </div>
 
 <div class="main">
-
-  <!-- PERFIL -->
   <div id="tela-perfil">
     <p class="perfil-title">Gestão de limpeza urbana</p>
     <p class="perfil-sub">Selecione seu perfil para acessar o sistema.</p>
     <p class="perfil-section-label">Secretaria / Relatório</p>
     <div class="perfil-grid">
-      <button class="perfil-btn" onclick="tentarSecretaria()">
-        <i class="ti ti-building picon"></i>
-        <div class="pname">Secretaria</div>
-        <div class="pdesc">Registrar e alocar demandas por equipe</div>
-      </button>
-      <button class="perfil-btn" onclick="entrarComo('fiscal')">
-        <i class="ti ti-eye picon"></i>
-        <div class="pname">Relatório</div>
-        <div class="pdesc">Painel completo, dashboard e relatórios</div>
-      </button>
+      <button class="perfil-btn" id="btn-secretaria"><i class="ti ti-building picon"></i><div class="pname">Secretaria</div><div class="pdesc">Registrar e alocar demandas por equipe</div></button>
+      <button class="perfil-btn" id="btn-fiscal"><i class="ti ti-eye picon"></i><div class="pname">Relatório</div><div class="pdesc">Painel completo, dashboard e relatórios</div></button>
     </div>
     <p class="perfil-section-label">Encarregado de equipe</p>
     <div class="equipe-grid">
-      <button class="equipe-btn" onclick="entrarComo('equipe1')"><i class="ti ti-users"></i> Equipe 1</button>
-      <button class="equipe-btn" onclick="entrarComo('equipe2')"><i class="ti ti-users"></i> Equipe 2</button>
-      <button class="equipe-btn" onclick="entrarComo('equipe3')"><i class="ti ti-users"></i> Equipe 3</button>
-      <button class="equipe-btn" onclick="entrarComo('equipe4')"><i class="ti ti-users"></i> Equipe 4</button>
-      <button class="equipe-btn" onclick="entrarComo('equipe5')"><i class="ti ti-users"></i> Equipe 5</button>
-      <button class="equipe-btn" onclick="entrarComo('equipe6')"><i class="ti ti-bulldozer"></i> Equipe 6 (Retroescavadeira)</button>
+      <button class="perfil-btn equipe-btn" data-equipe="1"><i class="ti ti-users"></i> Equipe 1</button>
+      <button class="perfil-btn equipe-btn" data-equipe="2"><i class="ti ti-users"></i> Equipe 2</button>
+      <button class="perfil-btn equipe-btn" data-equipe="3"><i class="ti ti-users"></i> Equipe 3</button>
+      <button class="perfil-btn equipe-btn" data-equipe="4"><i class="ti ti-users"></i> Equipe 4</button>
+      <button class="perfil-btn equipe-btn" data-equipe="5"><i class="ti ti-users"></i> Equipe 5</button>
+      <button class="perfil-btn equipe-btn" data-equipe="6"><i class="ti ti-bulldozer"></i> Equipe 6 (Retroescavadeira)</button>
     </div>
   </div>
 
-  <!-- APP -->
   <div id="tela-app">
-    <button class="btn-voltar" onclick="voltarPerfil()"><i class="ti ti-arrow-left"></i> Voltar à seleção de perfil</button>
+    <button class="btn-voltar" id="btn-voltar-app"><i class="ti ti-arrow-left"></i> Voltar à seleção de perfil</button>
     <div class="tabs" id="tabs-container"></div>
     <div id="msg-global" style="display:none" class="msg"></div>
 
-    <!-- NOVA DEMANDA -->
     <div id="sec-nova" class="section">
       <div class="card">
         <p class="section-title">Registrar nova demanda</p>
         <div class="field"><label>Quem está solicitando</label><input id="solicitante" type="text" placeholder="Nome e setor" autocomplete="off"></div>
         <div class="field"><label>Endereço completo</label><input id="endereco" type="text" placeholder="Ex: Rua das Flores, 120 – Jardim Paulista"></div>
         <div class="field"><label>Descrição do serviço</label><textarea id="descricao" placeholder="Descreva o que precisa ser feito…"></textarea></div>
-        <div class="field"><label>Prioridade</label>
-          <select id="prioridade"><option value="normal">Normal</option><option value="urgente">⚡ Urgente</option></select>
-        </div>
+        <div class="field"><label>Prioridade</label><select id="prioridade"><option value="normal">Normal</option><option value="urgente">⚡ Urgente</option></select></div>
         <div class="divider"></div>
-        <div class="field-destaque">
-          <label><i class="ti ti-map"></i> Zona da cidade</label>
-          <select id="zona-nova">
-            <option value="">— Selecione a zona —</option>
-            <option value="Zona Norte">Zona Norte</option>
-            <option value="Zona Sul">Zona Sul</option>
-            <option value="Zona Leste">Zona Leste</option>
-            <option value="Zona Oeste">Zona Oeste</option>
-            <option value="Centro">Centro</option>
-          </select>
-          <div class="hint"><i class="ti ti-info-circle"></i> Região onde o serviço será executado</div>
-        </div>
-        <div class="field-destaque">
-          <label><i class="ti ti-users"></i> Equipe responsável</label>
-          <select id="equipe-nova">
-            <option value="">— Selecione a equipe —</option>
-            <option value="Equipe 1">Equipe 1</option>
-            <option value="Equipe 2">Equipe 2</option>
-            <option value="Equipe 3">Equipe 3</option>
-            <option value="Equipe 4">Equipe 4</option>
-            <option value="Equipe 5">Equipe 5</option>
-            <option value="Equipe 6 (Retroescavadeira)">Equipe 6 (Retroescavadeira)</option>
-          </select>
-          <div class="hint"><i class="ti ti-info-circle"></i> Equipe que vai executar o serviço</div>
-        </div>
-        <div class="field"><label>Foto do local (opcional)</label>
-          <input type="file" id="foto" accept="image/*" onchange="previewFoto(this,'foto-preview')">
-          <img id="foto-preview" style="display:none" class="photo-preview" alt="Prévia">
-        </div>
-        <button class="btn btn-primary btn-full" onclick="enviarDemanda()"><i class="ti ti-send"></i> Enviar demanda</button>
+        <div class="field-destaque"><label><i class="ti ti-map"></i> Zona da cidade</label><select id="zona-nova"><option value="">— Selecione a zona —</option><option value="Zona Norte">Zona Norte</option><option value="Zona Sul">Zona Sul</option><option value="Zona Leste">Zona Leste</option><option value="Zona Oeste">Zona Oeste</option><option value="Centro">Centro</option></select><div class="hint"><i class="ti ti-info-circle"></i> Região onde o serviço será executado</div></div>
+        <div class="field-destaque"><label><i class="ti ti-users"></i> Equipe responsável</label><select id="equipe-nova"><option value="">— Selecione a equipe —</option><option value="Equipe 1">Equipe 1</option><option value="Equipe 2">Equipe 2</option><option value="Equipe 3">Equipe 3</option><option value="Equipe 4">Equipe 4</option><option value="Equipe 5">Equipe 5</option><option value="Equipe 6 (Retroescavadeira)">Equipe 6 (Retroescavadeira)</option></select><div class="hint"><i class="ti ti-info-circle"></i> Equipe que vai executar o serviço</div></div>
+        <div class="field"><label>Foto do local (opcional)</label><input type="file" id="foto" accept="image/*"><img id="foto-preview" style="display:none" class="photo-preview" alt="Prévia"></div>
+        <button class="btn btn-primary btn-full" id="btn-enviar-demanda"><i class="ti ti-send"></i> Enviar demanda</button>
       </div>
     </div>
 
-    <!-- GERENCIAR -->
     <div id="sec-gerenciar" class="section">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
         <p class="section-title" style="margin:0">Gerenciar demandas abertas</p>
-        <button class="btn btn-danger btn-sm" onclick="confirmarApagarConcluidasSecretaria()">
-          <i class="ti ti-trash"></i> Apagar concluídas
-        </button>
+        <button class="btn btn-danger btn-sm" id="btn-apagar-concluidas"><i class="ti ti-trash"></i> Apagar concluídas</button>
       </div>
       <div id="lista-gerenciar"></div>
     </div>
 
-    <!-- REVISÃO -->
     <div id="sec-revisao" class="section">
       <p class="section-title">⚠️ Endereços para revisão</p>
       <div id="lista-revisao"></div>
     </div>
 
-    <!-- PAINEL -->
     <div id="sec-painel" class="section">
       <div class="stats" id="stats-box"></div>
       <div class="filter-row">
-        <select id="filtro-status" onchange="renderPainel()">
-          <option value="">Todos os status</option>
-          <option value="pendente">Pendente</option>
-          <option value="em andamento">Em andamento</option>
-          <option value="concluído">Concluído</option>
-        </select>
-        <select id="filtro-equipe-painel" onchange="renderPainel()">
-          <option value="">Todas as equipes</option>
-          <option value="Equipe 1">Equipe 1</option>
-          <option value="Equipe 2">Equipe 2</option>
-          <option value="Equipe 3">Equipe 3</option>
-          <option value="Equipe 4">Equipe 4</option>
-          <option value="Equipe 5">Equipe 5</option>
-          <option value="Equipe 6 (Retroescavadeira)">Equipe 6</option>
-        </select>
-        <select id="filtro-zona-painel" onchange="renderPainel()">
-          <option value="">Todas as zonas</option>
-          <option value="Zona Norte">Zona Norte</option>
-          <option value="Zona Sul">Zona Sul</option>
-          <option value="Zona Leste">Zona Leste</option>
-          <option value="Zona Oeste">Zona Oeste</option>
-          <option value="Centro">Centro</option>
-        </select>
+        <select id="filtro-status"><option value="">Todos os status</option><option value="pendente">Pendente</option><option value="em andamento">Em andamento</option><option value="concluído">Concluído</option></select>
+        <select id="filtro-equipe-painel"><option value="">Todas as equipes</option><option value="Equipe 1">Equipe 1</option><option value="Equipe 2">Equipe 2</option><option value="Equipe 3">Equipe 3</option><option value="Equipe 4">Equipe 4</option><option value="Equipe 5">Equipe 5</option><option value="Equipe 6 (Retroescavadeira)">Equipe 6</option></select>
+        <select id="filtro-zona-painel"><option value="">Todas as zonas</option><option value="Zona Norte">Zona Norte</option><option value="Zona Sul">Zona Sul</option><option value="Zona Leste">Zona Leste</option><option value="Zona Oeste">Zona Oeste</option><option value="Centro">Centro</option></select>
       </div>
       <div id="lista-painel"></div>
     </div>
 
-    <!-- DASHBOARD -->
     <div id="sec-dashboard" class="section">
       <p class="section-title">Dashboard — Histórico mensal</p>
-      <div class="mes-selector">
-        <label><i class="ti ti-calendar"></i> Visualizar mês:</label>
-        <select id="sel-mes-dash" onchange="renderDashboard()"></select>
-      </div>
+      <div class="mes-selector"><label><i class="ti ti-calendar"></i> Visualizar mês:</label><select id="sel-mes-dash"></select></div>
       <div id="dash-conteudo"></div>
     </div>
 
-    <!-- CONCLUÍDAS / PDF -->
     <div id="sec-historico" class="section">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
         <p class="section-title" style="margin:0">Demandas concluídas</p>
-        <button class="btn btn-info btn-sm" onclick="gerarRelatorio()"><i class="ti ti-file-type-pdf"></i> Gerar PDF</button>
+        <button class="btn btn-info btn-sm" id="btn-gerar-relatorio"><i class="ti ti-file-type-pdf"></i> Gerar PDF</button>
       </div>
-      <!-- FILTRO POR MÊS -->
-      <div class="mes-filter-box">
-        <label><i class="ti ti-calendar"></i> Filtrar por mês</label>
-        <select id="filtro-mes-historico" onchange="renderHistorico()">
-          <option value="">Todos os meses</option>
-        </select>
-      </div>
+      <div class="mes-filter-box"><label><i class="ti ti-calendar"></i> Filtrar por mês</label><select id="filtro-mes-historico"><option value="">Todos os meses</option></select></div>
       <div id="lista-historico"></div>
     </div>
 
-    <!-- EQUIPE -->
     <div id="sec-equipe" class="section">
       <div class="filter-row" style="align-items:center">
-        <select id="filtro-zona-equipe" onchange="renderEquipe()">
-          <option value="">Todas as zonas</option>
-          <option value="Zona Norte">Zona Norte</option>
-          <option value="Zona Sul">Zona Sul</option>
-          <option value="Zona Leste">Zona Leste</option>
-          <option value="Zona Oeste">Zona Oeste</option>
-          <option value="Centro">Centro</option>
-        </select>
+        <select id="filtro-zona-equipe"><option value="">Todas as zonas</option><option value="Zona Norte">Zona Norte</option><option value="Zona Sul">Zona Sul</option><option value="Zona Leste">Zona Leste</option><option value="Zona Oeste">Zona Oeste</option><option value="Centro">Centro</option></select>
         <div id="contador-equipe" style="flex-shrink:0;font-size:13px;font-weight:600;font-family:var(--font-mono);background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:7px 14px;white-space:nowrap;color:var(--text2)"></div>
       </div>
       <div id="lista-equipe"></div>
+    </div>
+
+    <div id="sec-mapa" class="section">
+      <p style="font-size:13px;color:var(--text2);margin-bottom:12px">
+        <span style="display:inline-flex;align-items:center;gap:5px;margin-right:12px"><span style="width:12px;height:12px;background:#e05555;border-radius:50%;display:inline-block"></span> Urgente</span>
+        <span style="display:inline-flex;align-items:center;gap:5px"><span style="width:12px;height:12px;background:#1a3f7a;border-radius:50%;display:inline-block"></span> Normal</span>
+      </p>
+      <div id="mapa-container" style="height:480px;border-radius:var(--radius-lg);overflow:hidden;border:1px solid var(--border)"></div>
+      <p style="font-size:12px;color:var(--text3);margin-top:8px;text-align:center">Clique em um ponto para ver os detalhes da demanda</p>
     </div>
   </div>
 </div>
@@ -462,13 +288,12 @@
 <div id="modal-duplicado" class="modal-wrap" style="display:none">
   <div class="modal" style="max-width:480px">
     <div style="font-size:40px;margin-bottom:12px;text-align:center">⚠️</div>
-    <h3 style="font-size:17px;font-weight:700;color:var(--amber);justify-content:center;margin-bottom:12px">Endereço similar encontrado!</h3>
+    <h3 style="font-size:17px;font-weight:700;color:var(--amber);justify-content:center;margin-bottom:10px">Endereço similar encontrado!</h3>
     <p style="font-size:13px;color:var(--text2);margin-bottom:12px">Encontramos demandas recentes em endereços próximos a este:</p>
     <div id="duplicado-lista" style="background:var(--amber-bg);border:1px solid var(--amber-border);border-radius:var(--radius);padding:12px;margin-bottom:14px;font-size:13px;line-height:1.8"></div>
-    <p style="font-size:13px;color:var(--text2);margin-bottom:4px">Deseja cadastrar mesmo assim?</p>
     <div class="modal-actions">
-      <button class="btn" onclick="fecharModal('modal-duplicado')"><i class="ti ti-x"></i> Cancelar</button>
-      <button class="btn btn-primary" onclick="salvarDemandaMesmoAssim()"><i class="ti ti-send"></i> Cadastrar mesmo assim</button>
+      <button class="btn" id="btn-cancelar-duplicado"><i class="ti ti-x"></i> Cancelar</button>
+      <button class="btn btn-primary" id="btn-confirmar-duplicado"><i class="ti ti-send"></i> Cadastrar mesmo assim</button>
     </div>
   </div>
 </div>
@@ -478,31 +303,25 @@
   <div class="modal">
     <h3><i class="ti ti-lock" style="color:var(--amber)"></i> Acesso restrito – Secretaria</h3>
     <p style="font-size:13px;color:var(--text2);margin-bottom:16px">Esta área é exclusiva para servidores autorizados.</p>
-    <div class="field">
-      <label>Senha de acesso</label>
-      <input type="password" id="input-senha" placeholder="••••••••" onkeydown="if(event.key==='Enter')verificarSenha()">
-      <div class="modal-erro" id="msg-senha-erro"><i class="ti ti-alert-circle"></i> Senha incorreta.</div>
-    </div>
+    <div class="field"><label>Senha de acesso</label><input type="password" id="input-senha" placeholder="••••••••"></div>
+    <div class="modal-erro" id="msg-senha-erro"><i class="ti ti-alert-circle"></i> Senha incorreta.</div>
     <div class="modal-actions">
-      <button class="btn" onclick="fecharModal('modal-senha')">Cancelar</button>
-      <button class="btn btn-primary" onclick="verificarSenha()"><i class="ti ti-login"></i> Entrar</button>
+      <button class="btn" id="btn-cancelar-senha">Cancelar</button>
+      <button class="btn btn-primary" id="btn-confirmar-senha"><i class="ti ti-login"></i> Entrar</button>
     </div>
   </div>
 </div>
 
 <!-- MODAL CHECK -->
 <div id="modal-check" class="modal-wrap" style="display:none">
-  <div class="modal">
+  <div class="modal" style="max-height:92vh;overflow-y:auto">
     <h3><i class="ti ti-circle-check" style="color:var(--green)"></i> Confirmar conclusão</h3>
     <div class="field"><label>Data de conclusão</label><input type="date" id="check-data"></div>
-    <div class="field">
-      <label>Foto do serviço concluído (obrigatória)</label>
-      <input type="file" id="check-foto" accept="image/*" onchange="previewFoto(this,'check-foto-prev')">
-      <img id="check-foto-prev" style="display:none" class="photo-preview" alt="Foto conclusão">
-    </div>
+    <div class="field"><label>Foto do serviço concluído (obrigatória)</label><input type="file" id="check-foto" accept="image/*"><img id="check-foto-prev" style="display:none" class="photo-preview" alt="Foto conclusão"></div>
+    <div class="field"><label>Observação (opcional)</label><textarea id="check-observacao" placeholder="Ex: Local precisa de atenção adicional…" style="min-height:80px"></textarea></div>
     <div class="modal-actions">
-      <button class="btn" onclick="fecharModal('modal-check')">Cancelar</button>
-      <button class="btn btn-primary" onclick="confirmarCheck()"><i class="ti ti-check"></i> Confirmar</button>
+      <button class="btn" id="btn-cancelar-check">Cancelar</button>
+      <button class="btn btn-primary" id="btn-confirmar-check"><i class="ti ti-check"></i> Confirmar</button>
     </div>
   </div>
 </div>
@@ -512,70 +331,43 @@
   <div class="modal" style="max-width:460px;text-align:center">
     <div style="font-size:44px;margin-bottom:12px">📍</div>
     <h3 style="font-size:18px;font-weight:700;color:var(--orange);justify-content:center;margin-bottom:10px">Local não encontrado?</h3>
-    <p style="font-size:14px;color:var(--text);line-height:1.6;margin-bottom:8px">
-      Confirme que a equipe não conseguiu localizar o endereço desta demanda.
-    </p>
-    <p style="font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:20px">
-      A demanda será <strong>devolvida para a Secretaria</strong> revisar o endereço e reenviar.
-    </p>
+    <p style="font-size:14px;color:var(--text);line-height:1.6;margin-bottom:20px">A demanda será <strong>devolvida para a Secretaria</strong> revisar o endereço e reenviar.</p>
     <div class="modal-actions" style="justify-content:center;gap:12px">
-      <button class="btn" style="font-size:14px" onclick="fecharModal('modal-nao-encontrado')"><i class="ti ti-x"></i> Cancelar</button>
-      <button class="btn btn-warning" style="font-size:14px;font-weight:600" onclick="confirmarNaoEncontrado()"><i class="ti ti-map-pin-off"></i> Confirmar</button>
+      <button class="btn" id="btn-cancelar-nao-encontrado"><i class="ti ti-x"></i> Cancelar</button>
+      <button class="btn btn-warning" id="btn-confirmar-nao-encontrado" style="font-weight:600"><i class="ti ti-map-pin-off"></i> Confirmar</button>
     </div>
   </div>
 </div>
 
-<!-- MODAL REVISÃO (Secretaria corrige endereço) -->
+<!-- MODAL REVISÃO -->
 <div id="modal-revisao" class="modal-wrap" style="display:none">
   <div class="modal" style="max-width:480px;max-height:92vh;overflow-y:auto;-webkit-overflow-scrolling:touch">
     <h3><i class="ti ti-map-pin-off" style="color:var(--red)"></i> Corrigir demanda</h3>
-    <p style="font-size:13px;color:var(--text2);margin-bottom:16px">A equipe não encontrou o local. Corrija os dados necessários e reenvie.</p>
-    <div class="field">
-      <label>Quem está solicitando</label>
-      <input type="text" id="revisao-solicitante" placeholder="Nome e setor" autocomplete="off" style="background:#fff">
-    </div>
-    <div class="field">
-      <label>Endereço correto</label>
-      <input type="text" id="revisao-endereco" placeholder="Digite o endereço correto" autocomplete="off" style="background:#fff">
-    </div>
-    <div class="field">
-      <label>Descrição do serviço</label>
-      <textarea id="revisao-descricao" placeholder="Descrição do serviço" style="min-height:70px;background:#fff"></textarea>
-    </div>
-    <div class="field">
-      <label>Nova foto do local (opcional)</label>
-      <input type="file" id="revisao-foto" accept="image/*" onchange="previewFoto(this,'revisao-foto-prev')">
-      <img id="revisao-foto-prev" style="display:none" class="photo-preview" alt="Nova foto">
-    </div>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:16px">Corrija os dados necessários e reenvie para a mesma equipe.</p>
+    <div class="field"><label>Quem está solicitando</label><input type="text" id="revisao-solicitante" placeholder="Nome e setor" autocomplete="off" style="background:#fff"></div>
+    <div class="field"><label>Endereço correto</label><input type="text" id="revisao-endereco" placeholder="Digite o endereço correto" autocomplete="off" style="background:#fff"></div>
+    <div class="field"><label>Descrição do serviço</label><textarea id="revisao-descricao" style="min-height:70px;background:#fff"></textarea></div>
+    <div class="field"><label>Nova foto do local (opcional)</label><input type="file" id="revisao-foto" accept="image/*"><img id="revisao-foto-prev" style="display:none" class="photo-preview" alt="Nova foto"></div>
     <div class="modal-actions">
-      <button class="btn" onclick="fecharModal('modal-revisao')">Cancelar</button>
-      <button class="btn btn-danger btn-sm" onclick="apagarDemandaRevisao()"><i class="ti ti-trash"></i> Apagar</button>
-      <button class="btn btn-primary" onclick="reenviarDemanda()"><i class="ti ti-send"></i> Corrigir e reenviar</button>
+      <button class="btn" id="btn-cancelar-revisao">Cancelar</button>
+      <button class="btn btn-danger btn-sm" id="btn-apagar-revisao"><i class="ti ti-trash"></i> Apagar</button>
+      <button class="btn btn-primary" id="btn-reenviar-revisao"><i class="ti ti-send"></i> Corrigir e reenviar</button>
     </div>
   </div>
 </div>
 
-<!-- MODAL CONFIRMAR APAGAR CONCLUÍDAS -->
+<!-- MODAL CONFIRMAR APAGAR -->
 <div id="modal-confirmar-apagar" class="modal-wrap" style="display:none">
   <div class="modal" style="max-width:460px;text-align:center">
     <div style="font-size:48px;margin-bottom:16px">⚠️</div>
     <h3 style="font-size:20px;font-weight:700;color:var(--red);justify-content:center;margin-bottom:12px">ATENÇÃO!</h3>
     <p style="font-size:16px;font-weight:600;color:var(--text);line-height:1.5;margin-bottom:10px">Você está prestes a apagar permanentemente demandas concluídas.</p>
-    <p style="font-size:14px;color:var(--text2);line-height:1.6;margin-bottom:10px">Esta ação <strong>não pode ser desfeita</strong>. Todos os registros e fotos serão <strong>perdidos para sempre</strong>.</p>
-    <!-- FILTRO POR MÊS -->
-    <div class="mes-filter-box" style="text-align:left;margin-bottom:14px">
-      <label><i class="ti ti-calendar"></i> Selecione o mês a apagar</label>
-      <select id="filtro-mes-apagar">
-        <option value="">Todos os meses</option>
-      </select>
-    </div>
-    <div style="background:var(--red-bg);border:1px solid var(--red-border);border-radius:var(--radius);padding:12px;margin-bottom:20px">
-      <p style="font-size:13px;font-weight:700;color:var(--red)">💡 Gere o PDF antes de continuar!<br>
-      <span style="font-weight:400">O resumo mensal será salvo automaticamente no Dashboard.</span></p>
-    </div>
+    <p style="font-size:14px;color:var(--text2);line-height:1.6;margin-bottom:10px">Esta ação <strong>não pode ser desfeita</strong>.</p>
+    <div class="mes-filter-box" style="text-align:left;margin-bottom:14px"><label><i class="ti ti-calendar"></i> Selecione o mês a apagar</label><select id="filtro-mes-apagar"><option value="">Todos os meses</option></select></div>
+    <div style="background:var(--red-bg);border:1px solid var(--red-border);border-radius:var(--radius);padding:12px;margin-bottom:20px"><p style="font-size:13px;font-weight:700;color:var(--red)">💡 Gere o PDF antes!<br><span style="font-weight:400">O resumo mensal será salvo automaticamente no Dashboard.</span></p></div>
     <div class="modal-actions" style="justify-content:center;gap:12px">
-      <button class="btn" style="font-size:14px" onclick="fecharModal('modal-confirmar-apagar')"><i class="ti ti-x"></i> Cancelar</button>
-      <button class="btn btn-danger" style="font-size:14px;font-weight:600" onclick="executarApagarConcluidas()"><i class="ti ti-trash"></i> Sim, apagar</button>
+      <button class="btn" id="btn-cancelar-apagar"><i class="ti ti-x"></i> Cancelar</button>
+      <button class="btn btn-danger" id="btn-executar-apagar" style="font-size:14px;font-weight:600"><i class="ti ti-trash"></i> Sim, apagar</button>
     </div>
   </div>
 </div>
@@ -585,171 +377,91 @@
   <div class="modal modal-lg">
     <h3><i class="ti ti-file-type-pdf" style="color:var(--red)"></i> Relatório — Demandas concluídas</h3>
     <div class="rel-content" id="rel-conteudo"></div>
-    <p style="font-size:12px;color:var(--text2);margin-bottom:4px"><i class="ti ti-info-circle" style="vertical-align:-1px"></i> O PDF inclui todas as demandas e fotos de conclusão.</p>
     <div class="modal-actions">
-      <button class="btn" onclick="fecharModal('modal-relatorio')">Fechar</button>
-      <button class="btn btn-primary" onclick="baixarPDF()"><i class="ti ti-download"></i> Baixar PDF</button>
+      <button class="btn" id="btn-fechar-relatorio">Fechar</button>
+      <button class="btn btn-primary" id="btn-baixar-pdf"><i class="ti ti-download"></i> Baixar PDF</button>
     </div>
   </div>
 </div>
 
-<!-- LIGHTBOX -->
-<div id="lightbox" class="lightbox" style="display:none" onclick="fecharLightbox()">
-  <button class="lightbox-close" onclick="fecharLightbox()"><i class="ti ti-x"></i></button>
+<div id="lightbox" class="lightbox" style="display:none">
+  <button class="lightbox-close" id="btn-fechar-lightbox"><i class="ti ti-x"></i></button>
   <img id="lightbox-img" src="" alt="Foto ampliada">
 </div>
 
-<script>
-const SENHA_SECRETARIA = 'infra22';
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, query, orderBy, serverTimestamp, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+// ══ FIREBASE ══════════════════════════════════════════
+const app = initializeApp({
+  apiKey:"AIzaSyAOeJwqEKzVQNtKdQgFmgo7F4w1Xl2gno8",
+  authDomain:"demandas-limp-rp.firebaseapp.com",
+  projectId:"demandas-limp-rp",
+  storageBucket:"demandas-limp-rp.firebasestorage.app",
+  messagingSenderId:"327199319082",
+  appId:"1:327199319082:web:d04f07df17d532b7c04f53"
+});
+const db = getFirestore(app);
+const col = collection(db,"demandas");
+const colStats = collection(db,"estatisticas_mensais");
+
+// ══ CONFIG ════════════════════════════════════════════
+const SENHA = 'infra22';
 const HORAS_ALERTA = 168;
+const LIMITE_DUPLICADO = 20;
+const EQUIPES = ['Equipe 1','Equipe 2','Equipe 3','Equipe 4','Equipe 5','Equipe 6 (Retroescavadeira)'];
+const ZONAS = ['Zona Norte','Zona Sul','Zona Leste','Zona Oeste','Centro'];
 
-let perfil = '', equipeAtual = '', checkId = null, revisaoId = null;
-window._secaoAtual = '';
-window._demandas = [];
-window._estatisticas = [];
-let _charts = {};
+// ══ ESTADO ════════════════════════════════════════════
+let perfil='', equipeAtual='', checkId=null, revisaoId=null, _dadosPendentes=null;
+let _demandas=[], _estatisticas=[];
+let _charts={}, _mapaInstance=null, _mapaMarkers=[];
+let secaoAtual='';
 
-window._renderAtual = () => {
-  const s = window._secaoAtual;
-  if (s==='painel')    renderPainel();
-  if (s==='historico') renderHistorico();
-  if (s==='equipe')    renderEquipe();
-  if (s==='gerenciar') renderGerenciar();
-  if (s==='revisao')   renderRevisao();
-  if (s==='dashboard') renderDashboard && renderDashboard();
-  atualizarBadgeRevisao();
-};
-
-function horasAbertas(d) {
-  if (!d.criadoEm) return 0;
-  const ts = d.criadoEm.seconds ? d.criadoEm.seconds*1000 : Date.now();
-  return (Date.now()-ts)/3600000;
-}
-function labelTempo(h) { return h<24?`${Math.floor(h)}h aberta`:`${Math.floor(h/24)}d aberta`; }
-
-// ── SENHA ─────────────────────────────
-function tentarSecretaria() {
-  document.getElementById('input-senha').value='';
-  document.getElementById('msg-senha-erro').style.display='none';
-  document.getElementById('modal-senha').style.display='flex';
-  setTimeout(()=>document.getElementById('input-senha').focus(),150);
-}
-function verificarSenha() {
-  if (document.getElementById('input-senha').value===SENHA_SECRETARIA) {
-    fecharModal('modal-senha'); entrarComo('secretaria');
-  } else {
-    document.getElementById('msg-senha-erro').style.display='flex';
-    document.getElementById('input-senha').value='';
-    document.getElementById('input-senha').focus();
-  }
-}
-
-// ── BADGE REVISÃO ─────────────────────
-function atualizarBadgeRevisao() {
-  const n = window._demandas.filter(d=>d.status==='revisao').length;
-  const badge = document.getElementById('badge-revisao');
-  if (badge) badge.textContent = n > 0 ? n : '';
-  if (badge) badge.style.display = n>0 ? 'inline' : 'none';
-}
-
-// ── NAVEGAÇÃO ─────────────────────────
-function entrarComo(p) {
-  perfil = p;
-  document.getElementById('tela-perfil').style.display='none';
-  document.getElementById('tela-app').style.display='block';
-  document.getElementById('header-right').style.display='flex';
-  const tabs = document.getElementById('tabs-container');
-  let html='', titulo='', sec='';
-
-  if (p==='secretaria') {
-    titulo='🏢 Secretaria';
-    html=`<button class="tab active" onclick="showTab('nova',event)"><i class="ti ti-plus"></i> Nova demanda</button>
-          <button class="tab" onclick="showTab('gerenciar',event)"><i class="ti ti-settings"></i> Gerenciar</button>
-          <button class="tab" onclick="showTab('revisao',event)"><i class="ti ti-map-pin-off"></i> Revisão <span id="badge-revisao" class="tab-badge" style="display:none"></span></button>`;
-    sec='nova';
-  } else if (p==='fiscal') {
-    titulo='📋 Relatório';
-    html=`<button class="tab active" onclick="showTab('painel',event)"><i class="ti ti-layout-dashboard"></i> Painel</button>
-          <button class="tab" onclick="showTab('dashboard',event)"><i class="ti ti-chart-bar"></i> Dashboard</button>
-          <button class="tab" onclick="showTab('historico',event)"><i class="ti ti-history"></i> Concluídas / PDF</button>`;
-    sec='painel';
-  } else {
-    const num=p.replace('equipe','');
-    equipeAtual=num==='6'?'Equipe 6 (Retroescavadeira)':`Equipe ${num}`;
-    titulo='👷 '+equipeAtual;
-    html=`<button class="tab active" onclick="showTab('equipe',event)"><i class="ti ti-clipboard-list"></i> Minhas demandas</button>`;
-    sec='equipe';
-  }
-  tabs.innerHTML=html;
-  document.getElementById('header-user-label').textContent=titulo;
-  setTimeout(()=>{ showSection(sec); renderSection(sec); atualizarBadgeRevisao(); },0);
-}
-
-function voltarPerfil() {
-  perfil=''; equipeAtual=''; window._secaoAtual='';
-  Object.values(_charts).forEach(c=>c.destroy()); _charts={};
-  document.getElementById('tela-perfil').style.display='block';
-  document.getElementById('tela-app').style.display='none';
-  document.getElementById('header-right').style.display='none';
-}
-
-function showTab(t, ev) {
-  document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
-  if(ev) ev.target.closest('.tab').classList.add('active');
-  showSection(t); renderSection(t);
-}
-
-function showSection(t) {
-  ['nova','gerenciar','revisao','painel','dashboard','historico','equipe'].forEach(s=>{
-    const el=document.getElementById('sec-'+s); if(el) el.classList.remove('active');
+// ══ FIREBASE LISTENERS ════════════════════════════════
+onSnapshot(query(col,orderBy("criadoEm","desc")), snap=>{
+  _demandas = snap.docs.map(d=>({_id:d.id,...d.data()}));
+  _demandas.sort((a,b)=>{
+    if(a.prioridade==='urgente'&&b.prioridade!=='urgente') return -1;
+    if(a.prioridade!=='urgente'&&b.prioridade==='urgente') return 1;
+    return 0;
   });
-  const el=document.getElementById('sec-'+t); if(el) el.classList.add('active');
-  window._secaoAtual=t;
+  renderAtual();
+});
+onSnapshot(query(colStats,orderBy("mesISO","asc")), snap=>{
+  _estatisticas = snap.docs.map(d=>({_id:d.id,...d.data()}));
+  if(secaoAtual==='dashboard') renderDashboard();
+});
+
+const fbAdd = data => addDoc(col,{...data,criadoEm:serverTimestamp()});
+const fbUpd = (id,data) => updateDoc(doc(db,"demandas",id),data);
+const fbDel = id => deleteDoc(doc(db,"demandas",id));
+const fbStat = (mesISO,dados) => setDoc(doc(db,"estatisticas_mensais",mesISO),dados);
+
+// ══ RENDER ATUAL ══════════════════════════════════════
+function renderAtual(){
+  if(secaoAtual==='painel') renderPainel();
+  if(secaoAtual==='historico') renderHistorico();
+  if(secaoAtual==='equipe') renderEquipe();
+  if(secaoAtual==='gerenciar') renderGerenciar();
+  if(secaoAtual==='revisao') renderRevisao();
+  if(secaoAtual==='mapa') renderMapa();
+  atualizarBadgeRevisao();
 }
 
-function renderSection(t) {
-  if(t==='painel')    renderPainel();
-  if(t==='historico') renderHistorico();
-  if(t==='equipe')    renderEquipe();
-  if(t==='gerenciar') renderGerenciar();
-  if(t==='revisao')   renderRevisao();
-  if(t==='dashboard') renderDashboard();
-}
+// ══ UTILS ══════════════════════════════════════════════
+function $(id){return document.getElementById(id)}
+function mapsUrl(e){return'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(e+', Ribeirão Preto, SP')}
+function cardMaps(e){return`<a href="${mapsUrl(e)}" target="_blank" class="maps-link"><i class="ti ti-map-pin"></i>${e}<i class="ti ti-external-link" style="font-size:11px;flex-shrink:0"></i></a>`}
+function badgeHtml(s){const c=s==='pendente'?'badge-pending':s==='em andamento'?'badge-doing':s==='revisao'?'badge-revisao':'badge-done';const l=s==='revisao'?'⚠️ revisão':s;return`<span class="badge ${c}">${l}</span>`}
+function showMsg(txt,tipo='success'){const el=$('msg-global');el.innerHTML=`<i class="ti ti-${tipo==='success'?'circle-check':'alert-circle'}"></i> ${txt}`;el.className='msg msg-'+tipo;el.style.display='flex';setTimeout(()=>el.style.display='none',3500)}
+function realtimeBadge(){return`<div class="realtime-badge"><span class="realtime-dot"></span> Atualização em tempo real</div>`}
+function horasAbertas(d){if(!d.criadoEm)return 0;const ts=d.criadoEm.seconds?d.criadoEm.seconds*1000:Date.now();return(Date.now()-ts)/3600000}
+function labelTempo(h){return h<24?`${Math.floor(h)}h aberta`:`${Math.floor(h/24)}d aberta`}
+function diasAtras(dataStr){if(!dataStr)return 999;const[d,m,a]=dataStr.split('/');return Math.floor((Date.now()-new Date(+a,+m-1,+d).getTime())/86400000)}
 
-function fecharModal(id) { document.getElementById(id).style.display='none'; }
-
-function abrirLightbox(src) {
-  document.getElementById('lightbox-img').src=src;
-  document.getElementById('lightbox').style.display='flex';
-  document.body.style.overflow='hidden';
-}
-function fecharLightbox() {
-  document.getElementById('lightbox').style.display='none';
-  document.getElementById('lightbox-img').src='';
-  document.body.style.overflow='';
-}
-document.addEventListener('keydown',e=>{if(e.key==='Escape')fecharLightbox();});
-
-// ── UTILS ─────────────────────────────
-function mapsUrl(e){return'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(e+', Ribeirão Preto, SP');}
-function cardMaps(e){return`<a href="${mapsUrl(e)}" target="_blank" class="maps-link"><i class="ti ti-map-pin"></i>${e}<i class="ti ti-external-link" style="font-size:11px;flex-shrink:0"></i></a>`;}
-function badgeHtml(s){
-  const c=s==='pendente'?'badge-pending':s==='em andamento'?'badge-doing':s==='revisao'?'badge-revisao':'badge-done';
-  const label=s==='revisao'?'⚠️ revisão':s;
-  return`<span class="badge ${c}">${label}</span>`;
-}
-function showMsg(txt,tipo='success'){
-  const el=document.getElementById('msg-global');
-  el.innerHTML=`<i class="ti ti-${tipo==='success'?'circle-check':'alert-circle'}"></i> ${txt}`;
-  el.className='msg msg-'+tipo; el.style.display='flex';
-  setTimeout(()=>el.style.display='none',3500);
-}
-function previewFoto(input,prevId){
-  const prev=document.getElementById(prevId);
-  if(input.files&&input.files[0]){const r=new FileReader();r.onload=e=>{prev.src=e.target.result;prev.style.display='block';};r.readAsDataURL(input.files[0]);}
-}
-function realtimeBadge(){return`<div class="realtime-badge"><span class="realtime-dot"></span> Atualização em tempo real</div>`;}
-function comprimirImagem(src,maxPx,quality){
+async function comprimirImagem(src,maxPx=800,quality=0.75){
   return new Promise(resolve=>{
     const img=new Image();
     img.onload=()=>{
@@ -763,430 +475,391 @@ function comprimirImagem(src,maxPx,quality){
   });
 }
 
-// ── MESES DISPONÍVEIS ─────────────────
-function mesesDisponiveis(lista) {
-  const meses = new Set();
-  lista.forEach(d => {
-    // Usa dataConclusao para demandas concluídas, data para as demais
-    const dataRef = d.dataConclusao || d.data;
-    if (dataRef) {
-      const p=dataRef.split('/');
-      if(p.length===3) meses.add(`${p[2]}-${p[1]}`);
-    }
-  });
-  return [...meses].sort().reverse();
+function previewFoto(inputEl,prevId){
+  if(inputEl.files&&inputEl.files[0]){
+    const r=new FileReader();
+    r.onload=e=>{$(prevId).src=e.target.result;$(prevId).style.display='block';};
+    r.readAsDataURL(inputEl.files[0]);
+  }
 }
 
-function popularSelectMes(selectId, lista) {
-  const sel=document.getElementById(selectId);
-  if(!sel) return;
+function fecharModal(id){$(id).style.display='none'}
+
+function atualizarBadgeRevisao(){
+  const n=_demandas.filter(d=>d.status==='revisao').length;
+  const b=$('badge-revisao');
+  if(b){b.textContent=n>0?n:'';b.style.display=n>0?'inline':'none';}
+}
+
+// ══ MÊS UTILS ═════════════════════════════════════════
+function parseMes(dataStr){
+  if(!dataStr)return null;
+  const p=dataStr.split('/');
+  return p.length===3?`${p[2]}-${p[1]}`:null;
+}
+function nomeMes(mesISO){
+  const[ano,mes]=mesISO.split('-');
+  const n=new Date(+ano,+mes-1,1).toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+  return n.charAt(0).toUpperCase()+n.slice(1);
+}
+function popularSelectMes(selId,lista){
+  const sel=$(selId);if(!sel)return;
   const atual=sel.value;
-  const meses=mesesDisponiveis(lista);
-  sel.innerHTML='<option value="">Todos os meses</option>'+meses.map(m=>{
-    const [ano,mes]=m.split('-');
-    const nome=new Date(parseInt(ano),parseInt(mes)-1,1).toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
-    return`<option value="${m}">${nome.charAt(0).toUpperCase()+nome.slice(1)}</option>`;
-  }).join('');
-  if(atual&&[...sel.options].some(o=>o.value===atual)) sel.value=atual;
+  const meses=new Set();
+  lista.forEach(d=>{const m=parseMes(d.dataConclusao||d.data);if(m)meses.add(m);});
+  sel.innerHTML='<option value="">Todos os meses</option>'+[...meses].sort().reverse().map(m=>`<option value="${m}">${nomeMes(m)}</option>`).join('');
+  if(atual&&[...sel.options].some(o=>o.value===atual))sel.value=atual;
+}
+function filtrarPorMes(lista,mesISO,campo='dataConclusao'){
+  if(!mesISO)return lista;
+  return lista.filter(d=>{const m=parseMes(d[campo]);return m===mesISO;});
 }
 
-// ── DEMANDAS ──────────────────────────
-// Dados temporários para salvar caso o usuário confirme mesmo assim
-let _dadosPendentes = null;
-
-function extrairRuaNumero(endereco) {
-  // Ex: "Rua Patrocínio, 1020 - Jardim..." → { rua: "rua patrocínio", numero: 1020 }
-  const partes = endereco.toLowerCase().split(',');
-  const rua = partes[0].trim();
-  const numeroMatch = endereco.match(/,\s*(\d+)/);
-  const numero = numeroMatch ? parseInt(numeroMatch[1]) : null;
-  return { rua, numero };
+// ══ NAVEGAÇÃO ══════════════════════════════════════════
+function entrarComo(p){
+  perfil=p;
+  $('tela-perfil').style.display='none';
+  $('tela-app').style.display='block';
+  $('header-right').style.display='flex';
+  const tabs=$('tabs-container');
+  let html='',titulo='',sec='';
+  if(p==='secretaria'){
+    titulo='🏢 Secretaria';
+    html=`<button class="tab active" data-sec="nova"><i class="ti ti-plus"></i> Nova demanda</button>
+          <button class="tab" data-sec="gerenciar"><i class="ti ti-settings"></i> Gerenciar</button>
+          <button class="tab" data-sec="revisao"><i class="ti ti-map-pin-off"></i> Revisão <span id="badge-revisao" class="tab-badge" style="display:none"></span></button>`;
+    sec='nova';
+  } else if(p==='fiscal'){
+    titulo='📋 Relatório';
+    html=`<button class="tab active" data-sec="painel"><i class="ti ti-layout-dashboard"></i> Painel</button>
+          <button class="tab" data-sec="dashboard"><i class="ti ti-chart-bar"></i> Dashboard</button>
+          <button class="tab" data-sec="historico"><i class="ti ti-history"></i> Concluídas / PDF</button>`;
+    sec='painel';
+  } else {
+    const num=p.replace('equipe','');
+    equipeAtual=num==='6'?'Equipe 6 (Retroescavadeira)':`Equipe ${num}`;
+    titulo='👷 '+equipeAtual;
+    html=`<button class="tab active" data-sec="equipe"><i class="ti ti-clipboard-list"></i> Minhas demandas</button>
+          <button class="tab" data-sec="mapa"><i class="ti ti-map"></i> Mapa</button>`;
+    sec='equipe';
+  }
+  tabs.innerHTML=html;
+  $('header-user-label').textContent=titulo;
+  // Bind tab clicks
+  tabs.querySelectorAll('.tab').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      tabs.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      showSection(btn.dataset.sec);
+    });
+  });
+  showSection(sec);
+  setTimeout(()=>atualizarBadgeRevisao(),0);
 }
 
-function diasAtras(dataStr) {
-  // dataStr = "12/05/2026"
-  if (!dataStr) return 999;
-  const [d, m, a] = dataStr.split('/');
-  const data = new Date(parseInt(a), parseInt(m)-1, parseInt(d));
-  return Math.floor((Date.now() - data.getTime()) / 86400000);
+function voltarPerfil(){
+  perfil='';equipeAtual='';secaoAtual='';
+  Object.values(_charts).forEach(c=>c.destroy());_charts={};
+  if(_mapaInstance){_mapaInstance.remove();_mapaInstance=null;_mapaMarkers=[];}
+  $('tela-perfil').style.display='block';
+  $('tela-app').style.display='none';
+  $('header-right').style.display='none';
 }
 
-function verificarDuplicados(endereco) {
-  const { rua, numero } = extrairRuaNumero(endereco);
-  const LIMITE_DIAS = 30;
-  const LIMITE_METROS = 20; // diferença de ~20 números = ~20 metros
+function showSection(t){
+  ['nova','gerenciar','revisao','painel','dashboard','historico','equipe','mapa'].forEach(s=>{
+    const el=$('sec-'+s);if(el)el.classList.remove('active');
+  });
+  const el=$('sec-'+t);if(el)el.classList.add('active');
+  secaoAtual=t;
+  if(t==='painel') renderPainel();
+  if(t==='historico') renderHistorico();
+  if(t==='equipe') renderEquipe();
+  if(t==='gerenciar') renderGerenciar();
+  if(t==='revisao') renderRevisao();
+  if(t==='dashboard') renderDashboard();
+  if(t==='mapa') renderMapa();
+}
 
-  return window._demandas.filter(d => {
-    if (d.status === 'concluído' || d.status === 'revisao') return false;
-    const dias = diasAtras(d.data);
-    if (dias > LIMITE_DIAS) return false;
-    const { rua: ruaD, numero: numD } = extrairRuaNumero(d.endereco || '');
-    if (ruaD !== rua) return false;
-    if (numero && numD && Math.abs(numero - numD) > LIMITE_METROS) return false;
+// ══ LIGHTBOX ══════════════════════════════════════════
+function abrirLightbox(src){$('lightbox-img').src=src;$('lightbox').style.display='flex';document.body.style.overflow='hidden';}
+function fecharLightbox(){$('lightbox').style.display='none';$('lightbox-img').src='';document.body.style.overflow='';}
+
+// ══ DUPLICADOS ════════════════════════════════════════
+function extrairRuaNumero(end){
+  const partes=end.toLowerCase().split(',');
+  const rua=partes[0].trim();
+  const m=end.match(/,\s*(\d+)/);
+  return{rua,numero:m?parseInt(m[1]):null};
+}
+function verificarDuplicados(end){
+  const{rua,numero}=extrairRuaNumero(end);
+  return _demandas.filter(d=>{
+    if(d.status==='concluído'||d.status==='revisao')return false;
+    if(diasAtras(d.data)>30)return false;
+    const{rua:rD,numero:nD}=extrairRuaNumero(d.endereco||'');
+    if(rD!==rua)return false;
+    if(numero&&nD&&Math.abs(numero-nD)>LIMITE_DUPLICADO)return false;
     return true;
   });
 }
 
-async function enviarDemanda() {
-  const sol=document.getElementById('solicitante').value.trim();
-  const end=document.getElementById('endereco').value.trim();
-  const desc=document.getElementById('descricao').value.trim();
-  const prio=document.getElementById('prioridade').value;
-  const zona=document.getElementById('zona-nova').value;
-  const equipe=document.getElementById('equipe-nova').value;
-  const prev=document.getElementById('foto-preview');
+// ══ ENVIAR DEMANDA ════════════════════════════════════
+async function enviarDemanda(){
+  const sol=$('solicitante').value.trim();
+  const end=$('endereco').value.trim();
+  const desc=$('descricao').value.trim();
+  const prio=$('prioridade').value;
+  const zona=$('zona-nova').value;
+  const equipe=$('equipe-nova').value;
+  const prev=$('foto-preview');
   if(!sol||!end||!desc){alert('Preencha solicitante, endereço e descrição.');return;}
   if(!zona){alert('Selecione a zona da cidade.');return;}
   if(!equipe){alert('Selecione a equipe responsável.');return;}
-  let fotoBase64=null;
-  if(prev.style.display!=='none'&&prev.src) fotoBase64=await comprimirImagem(prev.src,800,0.75);
-
-  // Guarda dados para usar caso o usuário confirme mesmo assim
-  _dadosPendentes = {
-    solicitante:sol, endereco:end, descricao:desc, prioridade:prio,
-    zona, foto:fotoBase64, status:'em andamento', equipe,
-    data:new Date().toLocaleDateString('pt-BR'),
-    hora:new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),
-    dataConclusao:null, fotoConclusao:null, naoEncontrado:false
-  };
-
-  // Verifica duplicatas
-  const similares = verificarDuplicados(end);
-  if (similares.length > 0) {
-    const lista = similares.map(d => {
-      const dias = diasAtras(d.data);
-      return `<div style="padding:6px 0;border-bottom:1px solid var(--amber-border)">
-        <strong>${d.descricao}</strong><br>
-        📍 ${d.endereco}<br>
-        <span style="color:var(--text2)">
-          ${d.equipe||'—'} &nbsp;·&nbsp; há ${dias} dia${dias!==1?'s':''}
-          ${d.status==='concluído'?'&nbsp;·&nbsp; ✅ concluído':''}
-        </span>
-      </div>`;
-    }).join('');
-    document.getElementById('duplicado-lista').innerHTML = lista;
-    document.getElementById('modal-duplicado').style.display = 'flex';
+  let foto=null;
+  if(prev.style.display!=='none'&&prev.src) foto=await comprimirImagem(prev.src);
+  _dadosPendentes={solicitante:sol,endereco:end,descricao:desc,prioridade:prio,zona,foto,status:'em andamento',equipe,data:new Date().toLocaleDateString('pt-BR'),hora:new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),dataConclusao:null,fotoConclusao:null,naoEncontrado:false};
+  const similares=verificarDuplicados(end);
+  if(similares.length){
+    $('duplicado-lista').innerHTML=similares.map(d=>`<div style="padding:6px 0;border-bottom:1px solid var(--amber-border)"><strong>${d.descricao}</strong><br>📍 ${d.endereco}<br><span style="color:var(--text2)">há ${diasAtras(d.data)} dia(s) · ${d.equipe||'—'}</span></div>`).join('');
+    $('modal-duplicado').style.display='flex';
     return;
   }
-
-  await _salvarDemanda();
+  await salvarDemanda();
 }
 
-async function salvarDemandaMesmoAssim() {
-  fecharModal('modal-duplicado');
-  await _salvarDemanda();
-}
-
-async function _salvarDemanda() {
-  if (!_dadosPendentes) return;
-  try {
-    await window._addDoc(_dadosPendentes);
-    ['solicitante','endereco','descricao'].forEach(id=>document.getElementById(id).value='');
-    document.getElementById('prioridade').value='normal';
-    document.getElementById('zona-nova').value='';
-    document.getElementById('equipe-nova').value='';
-    const prev=document.getElementById('foto-preview');
-    prev.style.display='none';prev.src='';document.getElementById('foto').value='';
+async function salvarDemanda(){
+  if(!_dadosPendentes)return;
+  try{
+    await fbAdd(_dadosPendentes);
+    ['solicitante','endereco','descricao'].forEach(id=>$(id).value='');
+    $('prioridade').value='normal';$('zona-nova').value='';$('equipe-nova').value='';
+    $('foto-preview').style.display='none';$('foto-preview').src='';$('foto').value='';
     showMsg(`✓ Demanda registrada para ${_dadosPendentes.equipe} – ${_dadosPendentes.zona}!`);
-    _dadosPendentes = null;
-  } catch(e){showMsg('Erro ao salvar. Verifique a conexão.','danger');}
+    _dadosPendentes=null;
+  }catch(e){showMsg('Erro ao salvar.','danger');}
 }
 
-
+// ══ ATRIBUIR ══════════════════════════════════════════
 async function atribuir(id,equipe){
-  try{await window._updateDoc(id,{equipe,status:equipe?'em andamento':'pendente'});}
-  catch(e){showMsg('Erro ao atribuir equipe.','danger');}
+  try{await fbUpd(id,{equipe,status:equipe?'em andamento':'pendente'});}
+  catch(e){showMsg('Erro ao atribuir.','danger');}
 }
 
+// ══ DELETAR ═══════════════════════════════════════════
 async function deletarDemanda(id){
-  if(!confirm('Tem certeza que deseja apagar esta demanda?'))return;
-  try{await window._deleteDoc(id);}catch(e){showMsg('Erro ao apagar.','danger');}
+  if(!confirm('Apagar esta demanda?'))return;
+  try{await fbDel(id);}catch(e){showMsg('Erro ao apagar.','danger');}
 }
 
+// ══ CHECK ════════════════════════════════════════════
 function abrirCheck(id){
   checkId=id;
-  document.getElementById('check-data').value=new Date().toISOString().split('T')[0];
-  document.getElementById('check-foto-prev').style.display='none';
-  document.getElementById('check-foto').value='';
-  document.getElementById('modal-check').style.display='flex';
+  $('check-data').value=new Date().toISOString().split('T')[0];
+  $('check-foto-prev').style.display='none';$('check-foto').value='';$('check-observacao').value='';
+  $('modal-check').style.display='flex';
 }
-
 async function confirmarCheck(){
-  const data=document.getElementById('check-data').value;
-  const prev=document.getElementById('check-foto-prev');
+  const data=$('check-data').value;
+  const prev=$('check-foto-prev');
   if(!data){alert('Informe a data de conclusão.');return;}
   if(prev.style.display==='none'||!prev.src){alert('Adicione a foto do serviço concluído.');return;}
-  const fotoComp=await comprimirImagem(prev.src,800,0.75);
+  const foto=await comprimirImagem(prev.src);
+  const obs=$('check-observacao').value.trim();
   try{
-    await window._updateDoc(checkId,{
-      status:'concluído',
-      dataConclusao:new Date(data+'T12:00:00').toLocaleDateString('pt-BR'),
-      fotoConclusao:fotoComp
-    });
+    await fbUpd(checkId,{status:'concluído',dataConclusao:new Date(data+'T12:00:00').toLocaleDateString('pt-BR'),fotoConclusao:foto,observacao:obs||null});
     fecharModal('modal-check');showMsg('Demanda marcada como concluída!');
-  }catch(e){showMsg('Erro ao salvar conclusão.','danger');}
+  }catch(e){showMsg('Erro ao salvar.','danger');}
 }
 
-// ── LOCAL NÃO ENCONTRADO ──────────────
-let _naoEncontradoId = null;
-function abrirNaoEncontrado(id){
-  _naoEncontradoId=id;
-  document.getElementById('modal-nao-encontrado').style.display='flex';
-}
+// ══ NÃO ENCONTRADO ════════════════════════════════════
+let _naoEncontradoId=null;
+function abrirNaoEncontrado(id){_naoEncontradoId=id;$('modal-nao-encontrado').style.display='flex';}
 async function confirmarNaoEncontrado(){
-  if(!_naoEncontradoId) return;
-  try{
-    await window._updateDoc(_naoEncontradoId,{status:'revisao',naoEncontrado:true});
-    fecharModal('modal-nao-encontrado');
-    showMsg('Demanda devolvida para a Secretaria revisar o endereço.');
-    renderEquipe();
-  }catch(e){showMsg('Erro ao enviar para revisão.','danger');}
+  if(!_naoEncontradoId)return;
+  try{await fbUpd(_naoEncontradoId,{status:'revisao',naoEncontrado:true});fecharModal('modal-nao-encontrado');showMsg('Demanda devolvida para revisão.');}
+  catch(e){showMsg('Erro.','danger');}
 }
 
-// ── REVISÃO (Secretaria) ──────────────
+// ══ REVISÃO ═══════════════════════════════════════════
 function abrirRevisao(id){
   revisaoId=id;
-  const d=window._demandas.find(x=>x._id===id);
-  if(d){
-    document.getElementById('revisao-solicitante').value=d.solicitante||'';
-    document.getElementById('revisao-endereco').value=d.endereco||'';
-    document.getElementById('revisao-descricao').value=d.descricao||'';
-    // Limpa o campo de upload sempre
-    document.getElementById('revisao-foto').value='';
-    // Mostra foto atual apenas como referência visual, não no campo de upload
-    const prev=document.getElementById('revisao-foto-prev');
-    prev.src=''; prev.style.display='none';
-  }
-  document.getElementById('modal-revisao').style.display='flex';
-  setTimeout(()=>document.getElementById('revisao-endereco').focus(),150);
+  const d=_demandas.find(x=>x._id===id);
+  if(d){$('revisao-solicitante').value=d.solicitante||'';$('revisao-endereco').value=d.endereco||'';$('revisao-descricao').value=d.descricao||'';}
+  $('revisao-foto').value='';$('revisao-foto-prev').style.display='none';$('revisao-foto-prev').src='';
+  $('modal-revisao').style.display='flex';
+  setTimeout(()=>$('revisao-endereco').focus(),150);
 }
-
 async function reenviarDemanda(){
-  const novoSol=document.getElementById('revisao-solicitante').value.trim();
-  const novoEnd=document.getElementById('revisao-endereco').value.trim();
-  const novoDesc=document.getElementById('revisao-descricao').value.trim();
-  const prev=document.getElementById('revisao-foto-prev');
-  if(!novoEnd){alert('Digite o endereço correto.');return;}
-  if(!novoSol){alert('Preencha quem está solicitando.');return;}
-  if(!novoDesc){alert('Preencha a descrição do serviço.');return;}
-
-  // Comprime nova foto se foi selecionada uma nova
-  let novaFoto = null;
-  const fotoInput = document.getElementById('revisao-foto');
-  if(fotoInput.files&&fotoInput.files[0]&&prev.style.display!=='none'&&prev.src){
-    novaFoto = await comprimirImagem(prev.src,800,0.75);
-  }
-
-  const dados={
-    solicitante:novoSol,
-    endereco:novoEnd,
-    descricao:novoDesc,
-    status:'em andamento',
-    naoEncontrado:false
-  };
-  if(novaFoto) dados.foto=novaFoto;
-
-  try{
-    await window._updateDoc(revisaoId,dados);
-    fecharModal('modal-revisao');
-    showMsg('Demanda corrigida e reenviada para a equipe!');
-  }catch(e){showMsg('Erro ao reenviar.','danger');}
+  const sol=$('revisao-solicitante').value.trim();
+  const end=$('revisao-endereco').value.trim();
+  const desc=$('revisao-descricao').value.trim();
+  if(!end||!sol||!desc){alert('Preencha todos os campos obrigatórios.');return;}
+  const prev=$('revisao-foto-prev');
+  let foto=null;
+  if(prev.style.display!=='none'&&prev.src&&$('revisao-foto').files?.length) foto=await comprimirImagem(prev.src);
+  const dados={solicitante:sol,endereco:end,descricao:desc,status:'em andamento',naoEncontrado:false};
+  if(foto)dados.foto=foto;
+  try{await fbUpd(revisaoId,dados);fecharModal('modal-revisao');showMsg('Demanda corrigida e reenviada!');}
+  catch(e){showMsg('Erro ao reenviar.','danger');}
 }
 async function apagarDemandaRevisao(){
   if(!confirm('Apagar esta demanda permanentemente?'))return;
-  try{
-    await window._deleteDoc(revisaoId);
-    fecharModal('modal-revisao');
-    showMsg('Demanda apagada.');
-  }catch(e){showMsg('Erro ao apagar.','danger');}
+  try{await fbDel(revisaoId);fecharModal('modal-revisao');showMsg('Demanda apagada.');}
+  catch(e){showMsg('Erro.','danger');}
 }
 
-// ── APAGAR CONCLUÍDAS ─────────────────
-function confirmarApagarConcluidasSecretaria(){
-  const conc=window._demandas.filter(d=>d.status==='concluído');
+// ══ APAGAR CONCLUÍDAS ════════════════════════════════
+function abrirApagarConcluidas(){
+  const conc=_demandas.filter(d=>d.status==='concluído');
   if(!conc.length){alert('Não há demandas concluídas para apagar.');return;}
   popularSelectMes('filtro-mes-apagar',conc);
-  document.getElementById('modal-confirmar-apagar').style.display='flex';
+  $('modal-confirmar-apagar').style.display='flex';
 }
-
 async function executarApagarConcluidas(){
   fecharModal('modal-confirmar-apagar');
-  const mesSel=document.getElementById('filtro-mes-apagar').value;
-  let conc=window._demandas.filter(d=>d.status==='concluído');
-  if(mesSel){
-    conc=conc.filter(d=>{
-      if(!d.dataConclusao) return false;
-      const p=d.dataConclusao.split('/');
-      return p.length===3 && `${p[2]}-${p[1]}`===mesSel;
-    });
-  }
-  if(!conc.length){showMsg('Nenhuma demanda encontrada para o período selecionado.','danger');return;}
-
+  const mesSel=$('filtro-mes-apagar').value;
+  let conc=_demandas.filter(d=>d.status==='concluído');
+  if(mesSel) conc=filtrarPorMes(conc,mesSel,'dataConclusao');
+  if(!conc.length){showMsg('Nenhuma demanda no período.','danger');return;}
+  // Salva estatísticas
   const porMes={};
-  conc.forEach(d=>{
-    const dataRef=d.dataConclusao||d.data;
-    const p=dataRef?dataRef.split('/'):null;
-    const mesISO=p&&p.length===3?`${p[2]}-${p[1]}`:new Date().toISOString().slice(0,7);
-    if(!porMes[mesISO]) porMes[mesISO]=[];
-    porMes[mesISO].push(d);
-  });
-
-  for(const[mesISO,lista] of Object.entries(porMes)){
-    const nomes=['Equipe 1','Equipe 2','Equipe 3','Equipe 4','Equipe 5','Equipe 6 (Retroescavadeira)'];
-    const znomes=['Zona Norte','Zona Sul','Zona Leste','Zona Oeste','Centro'];
-    const urgentes=lista.filter(d=>d.prioridade==='urgente').length;
-    const existente=(window._estatisticas||[]).find(e=>e._id===mesISO);
-    const novasEquipes={...(existente?.porEquipe||{})};
-    const novasZonas={...(existente?.porZona||{})};
-    nomes.forEach(e=>novasEquipes[e]=(novasEquipes[e]||0)+lista.filter(d=>d.equipe===e).length);
-    znomes.forEach(z=>novasZonas[z]=(novasZonas[z]||0)+lista.filter(d=>d.zona===z).length);
-    const[ano,mes]=mesISO.split('-');
-    const nomeMes=new Date(parseInt(ano),parseInt(mes)-1,1).toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
-    await window._salvarEstatistica(mesISO,{
-      mesISO,nomeMes,
-      total:(existente?.total||0)+lista.length,
-      urgentes:(existente?.urgentes||0)+urgentes,
-      porEquipe:novasEquipes,porZona:novasZonas
-    });
+  conc.forEach(d=>{const m=parseMes(d.dataConclusao||d.data)||new Date().toISOString().slice(0,7);if(!porMes[m])porMes[m]=[];porMes[m].push(d);});
+  for(const[m,lista] of Object.entries(porMes)){
+    const ex=_estatisticas.find(e=>e._id===m);
+    const nE={...(ex?.porEquipe||{})},nZ={...(ex?.porZona||{})};
+    EQUIPES.forEach(e=>nE[e]=(nE[e]||0)+lista.filter(d=>d.equipe===e).length);
+    ZONAS.forEach(z=>nZ[z]=(nZ[z]||0)+lista.filter(d=>d.zona===z).length);
+    await fbStat(m,{mesISO:m,nomeMes:nomeMes(m),total:(ex?.total||0)+lista.length,urgentes:(ex?.urgentes||0)+lista.filter(d=>d.prioridade==='urgente').length,porEquipe:nE,porZona:nZ});
   }
-  try{
-    await Promise.all(conc.map(d=>window._deleteDoc(d._id)));
-    showMsg(`✓ ${conc.length} demandas apagadas. Resumo salvo no Dashboard!`);
-  }catch(e){showMsg('Erro ao apagar.','danger');}
+  try{await Promise.all(conc.map(d=>fbDel(d._id)));showMsg(`✓ ${conc.length} demandas apagadas. Resumo salvo no Dashboard!`);}
+  catch(e){showMsg('Erro ao apagar.','danger');}
 }
 
-// ── RENDERS ───────────────────────────
+// ══ RENDERS ═══════════════════════════════════════════
+function alocarHtml(d){
+  const eqs=EQUIPES.map(e=>`<option value="${e}" ${d.equipe===e?'selected':''}>${e}</option>`).join('');
+  return`<div class="alocar-box"><div class="alocar-label"><i class="ti ti-users"></i> Equipe responsável</div>
+    <select class="alocar-select" data-id="${d._id}"><option value="">— Selecione —</option>${eqs}</select>
+    ${d.equipe?`<div class="alocar-alocada"><i class="ti ti-circle-check"></i><span class="tag-equipe">${d.equipe}</span> alocada</div>`:''}</div>`;
+}
+
+function cardHtml(d,opts={}){
+  const{mostrarAlocar=false,mostrarApagar=false,mostrarCheck=false,mostrarNaoEncontrado=false,mostrarRevisao=false,mostrarConcluido=false}=opts;
+  const h=horasAbertas(d);
+  const atrasada=d.status!=='concluído'&&d.status!=='revisao'&&h>=HORAS_ALERTA;
+  const cls=d.status==='revisao'?'revisao':d.prioridade==='urgente'?'urgente':atrasada?'atrasada':'';
+  return`<div class="demand-card ${cls}" data-id="${d._id}">
+    <div class="demand-header">
+      <span class="demand-title">${d.descricao}</span>
+      <div class="demand-badges">
+        ${badgeHtml(d.status)}
+        ${d.prioridade==='urgente'?'<span class="badge badge-urgente">⚡ URGENTE</span>':''}
+        ${atrasada?`<span class="badge badge-atrasada">⏰ ${labelTempo(h)}</span>`:''}
+        ${d.zona?`<span class="badge badge-zona">${d.zona}</span>`:''}
+      </div>
+    </div>
+    <div class="demand-meta">
+      <i class="ti ti-user"></i> ${d.solicitante} &nbsp;·&nbsp;
+      <i class="ti ti-clock"></i> ${d.data} ${d.hora}
+      ${d.equipe?`&nbsp;·&nbsp;<span class="tag-equipe">${d.equipe}</span>`:''}
+      ${mostrarConcluido&&d.dataConclusao?`&nbsp;·&nbsp;✅ <strong>${d.dataConclusao}</strong>`:''}
+    </div>
+    ${cardMaps(d.endereco)}
+    ${d.foto?`<img src="${d.foto}" class="photo-preview" data-src="${d.foto}" alt="Foto" style="margin-bottom:10px">`:''}
+    ${mostrarConcluido&&d.fotoConclusao?`<img src="${d.fotoConclusao}" class="photo-preview" data-src="${d.fotoConclusao}" alt="Foto conclusão" style="margin-bottom:10px">`:''}
+    ${mostrarConcluido&&d.observacao?`<div style="margin-top:8px;background:var(--amber-bg);border:1px solid var(--amber-border);border-radius:var(--radius);padding:8px 10px;font-size:13px"><i class="ti ti-message" style="font-size:13px;vertical-align:-1px"></i> <strong>Obs. da equipe:</strong> ${d.observacao}</div>`:''}
+    ${mostrarRevisao?`<div class="revisao-box"><div class="revisao-label"><i class="ti ti-map-pin-off"></i> Endereço não encontrado</div><p style="font-size:13px;color:var(--red);font-style:italic">A ${d.equipe||'equipe'} não localizou este endereço.</p></div>`:''}
+    ${mostrarAlocar?alocarHtml(d):''}
+    <div class="demand-actions">
+      ${mostrarCheck?`<button class="btn-done" data-check="${d._id}"><i class="ti ti-camera"></i> Concluir com foto e data</button>`:''}
+      ${mostrarNaoEncontrado?`<button class="btn-nao-encontrado" data-nao="${d._id}"><i class="ti ti-map-pin-off"></i> Local não encontrado</button>`:''}
+      ${mostrarRevisao?`<button class="btn btn-sm btn-primary" data-revisao="${d._id}"><i class="ti ti-edit"></i> Corrigir endereço</button>`:''}
+      ${mostrarApagar?`<button class="btn-del" data-del="${d._id}"><i class="ti ti-trash"></i> Apagar</button>`:''}
+    </div>
+  </div>`;
+}
+
+function bindCards(container){
+  container.querySelectorAll('[data-check]').forEach(b=>b.addEventListener('click',()=>abrirCheck(b.dataset.check)));
+  container.querySelectorAll('[data-nao]').forEach(b=>b.addEventListener('click',()=>abrirNaoEncontrado(b.dataset.nao)));
+  container.querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click',()=>deletarDemanda(b.dataset.del)));
+  container.querySelectorAll('[data-revisao]').forEach(b=>b.addEventListener('click',()=>abrirRevisao(b.dataset.revisao)));
+  container.querySelectorAll('.alocar-select').forEach(sel=>sel.addEventListener('change',()=>atribuir(sel.dataset.id,sel.value)));
+  container.querySelectorAll('.photo-preview[data-src]').forEach(img=>img.addEventListener('click',()=>abrirLightbox(img.dataset.src)));
+}
+
 function renderStats(){
-  const d=window._demandas;
-  const pend=d.filter(x=>x.status==='pendente').length;
-  const and=d.filter(x=>x.status==='em andamento').length;
-  const conc=d.filter(x=>x.status==='concluído').length;
-  document.getElementById('stats-box').innerHTML=`
-    <div class="stat"><div class="stat-num">${d.length}</div><div class="stat-label">Total</div></div>
+  const pend=_demandas.filter(d=>d.status==='pendente').length;
+  const and=_demandas.filter(d=>d.status==='em andamento').length;
+  const conc=_demandas.filter(d=>d.status==='concluído').length;
+  $('stats-box').innerHTML=`
+    <div class="stat"><div class="stat-num">${_demandas.length}</div><div class="stat-label">Total</div></div>
     <div class="stat"><div class="stat-num" style="color:var(--amber)">${pend}</div><div class="stat-label">Pendentes</div></div>
     <div class="stat"><div class="stat-num" style="color:var(--blue)">${and}</div><div class="stat-label">Em andamento</div></div>
     <div class="stat"><div class="stat-num" style="color:var(--green)">${conc}</div><div class="stat-label">Concluídas</div></div>`;
 }
 
-function alocarHtml(d){
-  const equipes=['Equipe 1','Equipe 2','Equipe 3','Equipe 4','Equipe 5','Equipe 6 (Retroescavadeira)'];
-  const eqs=equipes.map(e=>`<option value="${e}" ${d.equipe===e?'selected':''}>${e}</option>`).join('');
-  return`<div class="alocar-box">
-    <div class="alocar-label"><i class="ti ti-users"></i> Equipe responsável</div>
-    <select class="alocar-select" onchange="atribuir('${d._id}',this.value)">
-      <option value="">— Selecione a equipe —</option>${eqs}
-    </select>
-    ${d.equipe?`<div class="alocar-alocada"><i class="ti ti-circle-check"></i><span class="tag-equipe">${d.equipe}</span> alocada</div>`:''}
-  </div>`;
-}
-
-function demandaCardHtml(d,opts={}){
-  const{mostrarAlocar=false,mostrarApagar=false,mostrarCheck=false,mostrarConcluido=false,mostrarNaoEncontrado=false,mostrarRevisao=false}=opts;
-  const horas=horasAbertas(d);
-  const atrasada=d.status!=='concluído'&&d.status!=='revisao'&&horas>=HORAS_ALERTA;
-  const classeCard=d.status==='revisao'?'revisao':d.prioridade==='urgente'?'urgente':atrasada?'atrasada':'';
-  return`
-    <div class="demand-card ${classeCard}">
-      <div class="demand-header">
-        <span class="demand-title">${d.descricao}</span>
-        <div class="demand-badges">
-          ${badgeHtml(d.status)}
-          ${d.prioridade==='urgente'?'<span class="badge badge-urgente">⚡ URGENTE</span>':''}
-          ${atrasada?`<span class="badge badge-atrasada">⏰ ${labelTempo(horas)}</span>`:''}
-          ${d.zona?`<span class="badge badge-zona">${d.zona}</span>`:''}
-        </div>
-      </div>
-      <div class="demand-meta">
-        <i class="ti ti-user"></i> ${d.solicitante} &nbsp;·&nbsp;
-        <i class="ti ti-clock"></i> ${d.data} ${d.hora}
-        ${d.equipe?`&nbsp;·&nbsp;<span class="tag-equipe">${d.equipe}</span>`:''}
-        ${mostrarConcluido&&d.dataConclusao?`&nbsp;·&nbsp;✅ <strong>${d.dataConclusao}</strong>`:''}
-      </div>
-      ${cardMaps(d.endereco)}
-      ${d.foto?`<img src="${d.foto}" class="photo-preview" alt="Foto" style="margin-bottom:10px" onclick="abrirLightbox(this.src)" title="Clique para ampliar">`:''}
-      ${mostrarConcluido&&d.fotoConclusao?`<img src="${d.fotoConclusao}" class="photo-preview" alt="Foto conclusão" style="margin-bottom:10px" onclick="abrirLightbox(this.src)" title="Clique para ampliar">`:''}
-      ${mostrarRevisao?`<div class="revisao-box"><div class="revisao-label"><i class="ti ti-map-pin-off"></i> Endereço não encontrado pela equipe</div><div class="revisao-motivo">A ${d.equipe} não localizou este endereço. Corrija e reenvie.</div></div>`:''}
-      ${mostrarAlocar?alocarHtml(d):''}
-      <div class="demand-actions">
-        ${mostrarCheck?`<button class="btn-done" onclick="abrirCheck('${d._id}')"><i class="ti ti-camera"></i> Concluir com foto e data</button>`:''}
-        ${mostrarNaoEncontrado?`<button class="btn-nao-encontrado" onclick="abrirNaoEncontrado('${d._id}')"><i class="ti ti-map-pin-off"></i> Local não encontrado</button>`:''}
-        ${mostrarRevisao?`<button class="btn btn-sm btn-primary" onclick="abrirRevisao('${d._id}')"><i class="ti ti-edit"></i> Corrigir endereço</button>`:''}
-        ${mostrarApagar?`<button class="btn-del" onclick="deletarDemanda('${d._id}')"><i class="ti ti-trash"></i> Apagar</button>`:''}
-      </div>
-    </div>`;
-}
-
 function renderGerenciar(){
-  const lista=window._demandas.filter(d=>d.status!=='concluído'&&d.status!=='revisao');
-  const el=document.getElementById('lista-gerenciar');
+  const lista=_demandas.filter(d=>d.status!=='concluído'&&d.status!=='revisao');
+  const el=$('lista-gerenciar');
   if(!lista.length){el.innerHTML='<div class="empty"><i class="ti ti-check"></i>Nenhuma demanda aberta</div>';return;}
-  el.innerHTML=realtimeBadge()+lista.map(d=>demandaCardHtml(d,{mostrarAlocar:true,mostrarApagar:true})).join('');
+  el.innerHTML=realtimeBadge()+lista.map(d=>cardHtml(d,{mostrarAlocar:true,mostrarApagar:true})).join('');
+  bindCards(el);
 }
 
 function renderRevisao(){
-  const lista=window._demandas.filter(d=>d.status==='revisao');
-  const el=document.getElementById('lista-revisao');
+  const lista=_demandas.filter(d=>d.status==='revisao');
+  const el=$('lista-revisao');
   if(!lista.length){el.innerHTML='<div class="empty"><i class="ti ti-circle-check"></i>Nenhuma demanda aguardando revisão</div>';return;}
-  el.innerHTML=realtimeBadge()+lista.map(d=>demandaCardHtml(d,{mostrarRevisao:true,mostrarApagar:true})).join('');
+  el.innerHTML=realtimeBadge()+lista.map(d=>cardHtml(d,{mostrarRevisao:true,mostrarApagar:true})).join('');
+  bindCards(el);
 }
 
 function renderPainel(){
   renderStats();
-  const fs=document.getElementById('filtro-status').value;
-  const fe=document.getElementById('filtro-equipe-painel').value;
-  const fz=document.getElementById('filtro-zona-painel').value;
-  let lista=[...window._demandas];
-  if(fs) lista=lista.filter(d=>d.status===fs);
-  if(fe) lista=lista.filter(d=>d.equipe===fe);
-  if(fz) lista=lista.filter(d=>d.zona===fz);
-  const el=document.getElementById('lista-painel');
+  const fs=$('filtro-status').value,fe=$('filtro-equipe-painel').value,fz=$('filtro-zona-painel').value;
+  let lista=[..._demandas];
+  if(fs)lista=lista.filter(d=>d.status===fs);
+  if(fe)lista=lista.filter(d=>d.equipe===fe);
+  if(fz)lista=lista.filter(d=>d.zona===fz);
+  const el=$('lista-painel');
   if(!lista.length){el.innerHTML='<div class="empty"><i class="ti ti-check"></i>Nenhuma demanda encontrada</div>';return;}
-  const urgentes=lista.filter(d=>d.prioridade==='urgente'&&d.status!=='concluído');
-  const atrasadas=lista.filter(d=>d.status!=='concluído'&&d.status!=='revisao'&&horasAbertas(d)>=HORAS_ALERTA&&d.prioridade!=='urgente');
-  const revisao=lista.filter(d=>d.status==='revisao');
+  const urg=lista.filter(d=>d.prioridade==='urgente'&&d.status!=='concluído');
+  const atr=lista.filter(d=>d.status!=='concluído'&&d.status!=='revisao'&&horasAbertas(d)>=HORAS_ALERTA&&d.prioridade!=='urgente');
+  const rev=lista.filter(d=>d.status==='revisao');
   let html=realtimeBadge();
-  if(urgentes.length) html+=`<div class="alerta-topo alerta-urgente"><i class="ti ti-alert-triangle"></i> ${urgentes.length} demanda${urgentes.length>1?'s':''} urgente${urgentes.length>1?'s':''} em aberto</div>`;
-  if(atrasadas.length) html+=`<div class="alerta-topo alerta-atrasada"><i class="ti ti-clock"></i> ${atrasadas.length} demanda${atrasadas.length>1?'s':''} com mais de 7 dias em aberto</div>`;
-  if(revisao.length) html+=`<div class="alerta-topo alerta-revisao"><i class="ti ti-map-pin-off"></i> ${revisao.length} demanda${revisao.length>1?'s':''} com endereço não encontrado</div>`;
-  html+=lista.map(d=>demandaCardHtml(d,{mostrarAlocar:false,mostrarApagar:false,mostrarConcluido:d.status==='concluído'})).join('');
+  if(urg.length)html+=`<div class="alerta-topo alerta-urgente"><i class="ti ti-alert-triangle"></i> ${urg.length} demanda${urg.length>1?'s':''} urgente${urg.length>1?'s':''} em aberto</div>`;
+  if(atr.length)html+=`<div class="alerta-topo alerta-atrasada"><i class="ti ti-clock"></i> ${atr.length} demanda${atr.length>1?'s':''} com mais de 7 dias em aberto</div>`;
+  if(rev.length)html+=`<div class="alerta-topo alerta-revisao"><i class="ti ti-map-pin-off"></i> ${rev.length} demanda${rev.length>1?'s':''} com endereço não encontrado</div>`;
+  html+=lista.map(d=>cardHtml(d,{mostrarConcluido:d.status==='concluído'})).join('');
   el.innerHTML=html;
+  bindCards(el);
 }
 
 function renderEquipe(){
-  const fz=document.getElementById('filtro-zona-equipe').value;
-  let lista=window._demandas.filter(d=>d.equipe===equipeAtual&&d.status!=='concluído'&&d.status!=='revisao');
-  if(fz) lista=lista.filter(d=>d.zona===fz);
-  const contador=document.getElementById('contador-equipe');
-  if(contador){
-    const total=lista.length;
-    const urg=lista.filter(d=>d.prioridade==='urgente').length;
-    const label=fz?`${fz}`:'Total';
-    contador.innerHTML=`${label}: <span style="color:var(--text)">${total}</span> demanda${total!==1?'s':''}${urg>0?` · <span style="color:var(--red)">⚡ ${urg} urgente${urg>1?'s':''}</span>`:''}`;
-  }
-  const el=document.getElementById('lista-equipe');
+  const fz=$('filtro-zona-equipe').value;
+  let lista=_demandas.filter(d=>d.equipe===equipeAtual&&d.status!=='concluído'&&d.status!=='revisao');
+  if(fz)lista=lista.filter(d=>d.zona===fz);
+  const cont=$('contador-equipe');
+  if(cont){const t=lista.length,u=lista.filter(d=>d.prioridade==='urgente').length;const lbl=fz||'Total';cont.innerHTML=`${lbl}: <span style="color:var(--text)">${t}</span> demanda${t!==1?'s':''}${u>0?` · <span style="color:var(--red)">⚡ ${u} urgente${u>1?'s':''}</span>`:''}`;}
+  const el=$('lista-equipe');
   if(!lista.length){el.innerHTML=`<div class="empty"><i class="ti ti-check"></i>Nenhuma demanda${fz?' na '+fz:''} para ${equipeAtual}</div>`;return;}
-  const urgentes=lista.filter(d=>d.prioridade==='urgente');
-  const atrasadas=lista.filter(d=>horasAbertas(d)>=HORAS_ALERTA&&d.prioridade!=='urgente');
+  const urg=lista.filter(d=>d.prioridade==='urgente');
+  const atr=lista.filter(d=>horasAbertas(d)>=HORAS_ALERTA&&d.prioridade!=='urgente');
   let html=realtimeBadge();
-  if(urgentes.length) html+=`<div class="alerta-topo alerta-urgente"><i class="ti ti-alert-triangle"></i> ${urgentes.length} demanda${urgentes.length>1?'s':''} urgente${urgentes.length>1?'s':''} — execute primeiro!</div>`;
-  if(atrasadas.length) html+=`<div class="alerta-topo alerta-atrasada"><i class="ti ti-clock"></i> ${atrasadas.length} demanda${atrasadas.length>1?'s':''} com mais de 7 dias em aberto</div>`;
-  html+=lista.map(d=>demandaCardHtml(d,{mostrarCheck:true,mostrarNaoEncontrado:true})).join('');
-  el.innerHTML=html;
+  if(urg.length)html+=`<div class="alerta-topo alerta-urgente"><i class="ti ti-alert-triangle"></i> ${urg.length} demanda${urg.length>1?'s':''} urgente${urg.length>1?'s':''} — execute primeiro!</div>`;
+  if(atr.length)html+=`<div class="alerta-topo alerta-atrasada"><i class="ti ti-clock"></i> ${atr.length} demanda${atr.length>1?'s':''} com mais de 7 dias em aberto</div>`;
+  html+=lista.map(d=>cardHtml(d,{mostrarCheck:true,mostrarNaoEncontrado:true})).join('');
+  el.innerHTML=html;bindCards(el);
 }
 
 function renderHistorico(){
-  const conc=window._demandas.filter(d=>d.status==='concluído');
+  const conc=_demandas.filter(d=>d.status==='concluído');
   popularSelectMes('filtro-mes-historico',conc);
-  const mesSel=document.getElementById('filtro-mes-historico').value;
-  let lista=conc;
-  if(mesSel){
-    lista=conc.filter(d=>{
-      if(!d.dataConclusao) return false;
-      const p=d.dataConclusao.split('/');
-      return p.length===3&&`${p[2]}-${p[1]}`===mesSel;
-    });
-  }
-  const el=document.getElementById('lista-historico');
+  const mesSel=$('filtro-mes-historico').value;
+  const lista=filtrarPorMes(conc,mesSel,'dataConclusao');
+  const el=$('lista-historico');
   if(!lista.length){el.innerHTML='<div class="empty"><i class="ti ti-history"></i>Nenhum serviço concluído ainda</div>';return;}
   el.innerHTML=realtimeBadge()+`<div class="card">${lista.map(d=>`
     <div class="hist-row">
@@ -1198,48 +871,39 @@ function renderHistorico(){
         ${d.zona?`<span class="tag-zona">${d.zona}</span>`:''}
         <span>✅ <strong>${d.dataConclusao||'—'}</strong></span>
       </div>
-      ${d.fotoConclusao?`<img src="${d.fotoConclusao}" class="photo-preview" alt="Foto conclusão" style="margin-top:10px" onclick="abrirLightbox(this.src)" title="Clique para ampliar">`:''}
+      ${d.observacao?`<div style="margin-top:8px;background:var(--amber-bg);border:1px solid var(--amber-border);border-radius:var(--radius);padding:8px 10px;font-size:13px"><i class="ti ti-message" style="font-size:13px;vertical-align:-1px"></i> <strong>Obs. da equipe:</strong> ${d.observacao}</div>`:''}
+      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+        ${d.foto?`<div style="flex:1;min-width:120px"><div style="font-size:11px;color:var(--text3);margin-bottom:4px;font-weight:600">ANTES</div><img src="${d.foto}" class="photo-preview" data-src="${d.foto}" alt="Antes" style="margin-top:0;max-height:140px;width:100%"></div>`:''}
+        ${d.fotoConclusao?`<div style="flex:1;min-width:120px"><div style="font-size:11px;color:var(--text3);margin-bottom:4px;font-weight:600">DEPOIS</div><img src="${d.fotoConclusao}" class="photo-preview" data-src="${d.fotoConclusao}" alt="Depois" style="margin-top:0;max-height:140px;width:100%"></div>`:''}
+      </div>
     </div>`).join('')}</div>`;
+  el.querySelectorAll('.photo-preview[data-src]').forEach(img=>img.addEventListener('click',()=>abrirLightbox(img.dataset.src)));
 }
 
-// ── DASHBOARD ─────────────────────────
-function popularSelectMeses(){
-  const sel=document.getElementById('sel-mes-dash');
-  if(!sel) return;
+// ══ DASHBOARD ═════════════════════════════════════════
+function renderDashboard(){
+  // Popula select de meses
+  const sel=$('sel-mes-dash');if(!sel)return;
   const meses=new Set();
-  window._demandas.forEach(d=>{if(d.data){const p=d.data.split('/');if(p.length===3)meses.add(`${p[2]}-${p[1]}`); }});
-  (window._estatisticas||[]).forEach(e=>meses.add(e._id||e.mesISO));
+  _demandas.forEach(d=>{const m=parseMes(d.data);if(m)meses.add(m);});
+  _estatisticas.forEach(e=>{if(e._id)meses.add(e._id);});
   const todos=[...meses].sort().reverse();
   const atual=sel.value;
-  sel.innerHTML=todos.length?todos.map(m=>{
-    const[ano,mes]=m.split('-');
-    const nome=new Date(parseInt(ano),parseInt(mes)-1,1).toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
-    return`<option value="${m}">${nome.charAt(0).toUpperCase()+nome.slice(1)}</option>`;
-  }).join(''):'<option value="">Sem dados ainda</option>';
-  if(atual&&[...sel.options].some(o=>o.value===atual)) sel.value=atual;
-}
-
-window.renderDashboard=function(){
-  popularSelectMeses();
-  const sel=document.getElementById('sel-mes-dash');
-  const mesISO=sel?.value;
-  const conteudo=document.getElementById('dash-conteudo');
-  if(!mesISO||!conteudo) return;
-  const stat=(window._estatisticas||[]).find(e=>e._id===mesISO||e.mesISO===mesISO);
+  sel.innerHTML=todos.length?todos.map(m=>`<option value="${m}">${nomeMes(m)}</option>`).join(''):'<option value="">Sem dados</option>';
+  if(atual&&[...sel.options].some(o=>o.value===atual))sel.value=atual;
+  const mesISO=sel.value;
+  const conteudo=$('dash-conteudo');if(!mesISO||!conteudo)return;
+  const stat=_estatisticas.find(e=>e._id===mesISO);
   const[ano,mes]=mesISO.split('-');
-  const demMes=window._demandas.filter(d=>{if(!d.data)return false;const p=d.data.split('/');return p.length===3&&p[2]===ano&&p[1]===mes;});
+  const demMes=_demandas.filter(d=>{if(!d.data)return false;const p=d.data.split('/');return p.length===3&&p[2]===ano&&p[1]===mes;});
   const concMes=demMes.filter(d=>d.status==='concluído');
   const aberMes=demMes.filter(d=>d.status!=='concluído');
-  const urgMes=demMes.filter(d=>d.prioridade==='urgente');
   const totalConc=concMes.length+(stat?.total||0);
-  const totalUrg=urgMes.length+(stat?.urgentes||0);
-  const equipes=['Equipe 1','Equipe 2','Equipe 3','Equipe 4','Equipe 5','Equipe 6 (Retroescavadeira)'];
-  const zonas=['Zona Norte','Zona Sul','Zona Leste','Zona Oeste','Centro'];
+  const totalUrg=demMes.filter(d=>d.prioridade==='urgente').length+(stat?.urgentes||0);
+  const porEquipe=EQUIPES.map(e=>concMes.filter(d=>d.equipe===e).length+(stat?.porEquipe?.[e]||0));
+  const porZona=ZONAS.map(z=>concMes.filter(d=>d.zona===z).length+(stat?.porZona?.[z]||0));
+  const abertasEq=EQUIPES.map(e=>aberMes.filter(d=>d.equipe===e).length);
   const eqLabels=['Eq.1','Eq.2','Eq.3','Eq.4','Eq.5','Eq.6'];
-  const porEquipe=equipes.map(e=>concMes.filter(d=>d.equipe===e).length+(stat?.porEquipe?.[e]||0));
-  const porZona=zonas.map(z=>concMes.filter(d=>d.zona===z).length+(stat?.porZona?.[z]||0));
-  const abertasEq=equipes.map(e=>aberMes.filter(d=>d.equipe===e).length);
-
   conteudo.innerHTML=`
     <div class="dash-stat-row">
       <div class="dash-stat"><div class="dash-stat-num" style="color:var(--green)">${totalConc}</div><div class="dash-stat-label">Concluídas</div></div>
@@ -1251,100 +915,173 @@ window.renderDashboard=function(){
       <div class="dash-card"><h4><i class="ti ti-chart-pie"></i> Concluídas por zona</h4><canvas id="chart-zona"></canvas></div>
       <div class="dash-card dash-card-full"><h4><i class="ti ti-users"></i> Em aberto por equipe</h4><canvas id="chart-abertas"></canvas></div>
     </div>
-    <div class="dash-card"><h4><i class="ti ti-history"></i> Histórico de meses anteriores</h4><div class="historico-meses" id="hist-meses"></div></div>`;
-
+    <div class="dash-card"><h4><i class="ti ti-history"></i> Histórico de meses anteriores</h4>
+      <div class="historico-meses">${_estatisticas.slice().sort((a,b)=>b.mesISO?.localeCompare(a.mesISO)).map(m=>`<div class="mes-row"><span class="mes-row-nome">${m.nomeMes||m.mesISO}</span><span class="mes-row-num">${m.total||0} concluídas</span></div>`).join('')||'<div class="sem-dados">Nenhum mês anterior salvo ainda.</div>'}</div>
+    </div>`;
   ['chart-equipe','chart-zona','chart-abertas'].forEach(id=>{if(_charts[id]){_charts[id].destroy();delete _charts[id];}});
   const cores=['#1a6640','#1a3f7a','#7a4f00','#4a1a7a','#7a3a00','#2a5f5a'];
-  _charts['chart-equipe']=new Chart(document.getElementById('chart-equipe'),{type:'bar',data:{labels:eqLabels,datasets:[{data:porEquipe,backgroundColor:cores,borderRadius:6}]},options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:1}}},responsive:true}});
-  _charts['chart-zona']=new Chart(document.getElementById('chart-zona'),{type:'doughnut',data:{labels:zonas,datasets:[{data:porZona,backgroundColor:cores.slice(0,5),borderWidth:2,borderColor:'#fff'}]},options:{plugins:{legend:{position:'bottom',labels:{font:{size:11},boxWidth:12}}},responsive:true}});
-  _charts['chart-abertas']=new Chart(document.getElementById('chart-abertas'),{type:'bar',data:{labels:eqLabels,datasets:[{label:'Em aberto',data:abertasEq,backgroundColor:'#a8bce0',borderRadius:6}]},options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:1}}},responsive:true}});
+  _charts['chart-equipe']=new Chart($('chart-equipe'),{type:'bar',data:{labels:eqLabels,datasets:[{data:porEquipe,backgroundColor:cores,borderRadius:6}]},options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:1}}},responsive:true}});
+  _charts['chart-zona']=new Chart($('chart-zona'),{type:'doughnut',data:{labels:ZONAS,datasets:[{data:porZona,backgroundColor:cores.slice(0,5),borderWidth:2,borderColor:'#fff'}]},options:{plugins:{legend:{position:'bottom',labels:{font:{size:11},boxWidth:12}}},responsive:true}});
+  _charts['chart-abertas']=new Chart($('chart-abertas'),{type:'bar',data:{labels:eqLabels,datasets:[{data:abertasEq,backgroundColor:'#a8bce0',borderRadius:6}]},options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:1}}},responsive:true}});
+}
 
-  const histEl=document.getElementById('hist-meses');
-  const salvos=[...(window._estatisticas||[])].sort((a,b)=>b.mesISO?.localeCompare(a.mesISO));
-  histEl.innerHTML=salvos.length?salvos.map(m=>`<div class="mes-row"><span class="mes-row-nome">${m.nomeMes||m.mesISO}</span><span class="mes-row-num">${m.total||0} concluídas</span></div>`).join(''):'<div class="sem-dados">Nenhum mês anterior salvo ainda.</div>';
-};
+// ══ MAPA ══════════════════════════════════════════════
+function renderMapa(){
+  const lista=_demandas.filter(d=>d.equipe===equipeAtual&&d.status!=='concluído'&&d.status!=='revisao');
+  if(!_mapaInstance){
+    _mapaInstance=L.map('mapa-container').setView([-21.1775,-47.8103],13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap',maxZoom:19}).addTo(_mapaInstance);
+  } else {_mapaMarkers.forEach(m=>m.remove());_mapaMarkers=[];}
+  if(!lista.length){setTimeout(()=>_mapaInstance.invalidateSize(),100);return;}
+  const bounds=[];
+  lista.forEach(d=>{
+    const q=encodeURIComponent(d.endereco+', Ribeirão Preto, SP, Brasil');
+    fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${q}&limit=1`)
+      .then(r=>r.json()).then(data=>{
+        if(!data||!data[0])return;
+        const lat=parseFloat(data[0].lat),lng=parseFloat(data[0].lon);
+        const cor=d.prioridade==='urgente'?'#e05555':'#1a3f7a';
+        const icone=L.divIcon({html:`<div style="width:16px;height:16px;background:${cor};border-radius:50%;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4)"></div>`,className:'',iconSize:[16,16],iconAnchor:[8,8]});
+        const marker=L.marker([lat,lng],{icon:icone}).addTo(_mapaInstance);
+        marker.bindPopup(`<div style="font-family:sans-serif;font-size:13px;min-width:180px"><strong>${d.prioridade==='urgente'?'⚡ ':''}${d.descricao}</strong><br><span style="color:#666;font-size:12px">${d.endereco}</span><br><span style="color:#666;font-size:12px">${d.zona||''} · ${d.data}</span>${d.prioridade==='urgente'?'<br><span style="color:#e05555;font-weight:600;font-size:12px">⚡ URGENTE</span>':''}</div>`);
+        _mapaMarkers.push(marker);bounds.push([lat,lng]);
+        if(bounds.length>1)_mapaInstance.fitBounds(bounds,{padding:[30,30]});
+        else _mapaInstance.setView([lat,lng],16);
+      }).catch(()=>{});
+  });
+  setTimeout(()=>_mapaInstance.invalidateSize(),100);
+}
 
-// ── PDF ───────────────────────────────
+// ══ PDF ═══════════════════════════════════════════════
 function gerarRelatorio(){
-  const mesSel=document.getElementById('filtro-mes-historico').value;
-  let conc=window._demandas.filter(d=>d.status==='concluído');
-  if(mesSel){
-    conc=conc.filter(d=>{
-      if(!d.dataConclusao) return false;
-      const p=d.dataConclusao.split('/');
-      return p.length===3&&`${p[2]}-${p[1]}`===mesSel;
-    });
-  }
+  const mesSel=$('filtro-mes-historico').value;
+  let conc=_demandas.filter(d=>d.status==='concluído');
+  conc=filtrarPorMes(conc,mesSel,'dataConclusao');
   if(!conc.length){alert('Não há demandas concluídas para gerar relatório.');return;}
   const hoje=new Date().toLocaleDateString('pt-BR');
-  const tituloMes=mesSel?`– ${document.getElementById('filtro-mes-historico').options[document.getElementById('filtro-mes-historico').selectedIndex].text}`:'';
-  document.getElementById('rel-conteudo').innerHTML=
-    `<strong>Total: ${conc.length} demandas concluídas ${tituloMes}</strong><br>Gerado em: ${hoje}<br><br>`+
-    conc.map((d,i)=>`<div style="margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--border)">
-      <strong>${i+1}. ${d.descricao}</strong><br>
-      Solicitante: ${d.solicitante}<br>Endereço: ${d.endereco}<br>
-      Zona: ${d.zona||'—'}<br>Abertura: ${d.data} ${d.hora}<br>
-      Conclusão: ${d.dataConclusao||'—'}<br>Equipe: ${d.equipe||'—'}${d.prioridade==='urgente'?' ⚡':''}
-    </div>`).join('');
-  document.getElementById('modal-relatorio').style.display='flex';
+  $('rel-conteudo').innerHTML=`<strong>Total: ${conc.length} demandas concluídas</strong><br>Gerado em: ${hoje}<br><br>`+conc.map((d,i)=>`<div style="margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--border)"><strong>${i+1}. ${d.descricao}</strong><br>Solicitante: ${d.solicitante}<br>Endereço: ${d.endereco}<br>Zona: ${d.zona||'—'}<br>Abertura: ${d.data} ${d.hora}<br>Conclusão: ${d.dataConclusao||'—'}<br>Equipe: ${d.equipe||'—'}${d.prioridade==='urgente'?' ⚡':''}</div>`).join('');
+  $('modal-relatorio').style.display='flex';
 }
 
 function baixarPDF(){
-  const mesSel=document.getElementById('filtro-mes-historico').value;
-  let conc=window._demandas.filter(d=>d.status==='concluído');
-  if(mesSel){
-    conc=conc.filter(d=>{
-      if(!d.dataConclusao) return false;
-      const p=d.dataConclusao.split('/');
-      return p.length===3&&`${p[2]}-${p[1]}`===mesSel;
-    });
-  }
-  if(!conc.length) return;
+  const mesSel=$('filtro-mes-historico').value;
+  let conc=_demandas.filter(d=>d.status==='concluído');
+  conc=filtrarPorMes(conc,mesSel,'dataConclusao');
+  if(!conc.length)return;
   const{jsPDF}=window.jspdf;
   const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
   const hoje=new Date().toLocaleDateString('pt-BR');
   const W=210,M=15,lH=6;let y=M;
   function chk(n=10){if(y+n>284){doc.addPage();y=M;}}
-
   doc.setFillColor(26,25,23);doc.rect(0,0,W,26,'F');
   doc.setTextColor(255,255,255);doc.setFontSize(13);doc.setFont('helvetica','bold');
   doc.text('Secretaria da Infraestrutura – Ribeirão Preto',M,11);
-  doc.setFontSize(9);doc.setFont('helvetica','normal');
-  doc.text('Gestão de Limpeza Urbana',M,17);doc.text(`Gerado em: ${hoje}`,W-M,17,{align:'right'});
+  doc.setFontSize(9);doc.setFont('helvetica','normal');doc.text('Gestão de Limpeza Urbana',M,17);doc.text(`Gerado em: ${hoje}`,W-M,17,{align:'right'});
   y=34;
-  const tituloMes=mesSel?` – ${document.getElementById('filtro-mes-historico').options[document.getElementById('filtro-mes-historico').selectedIndex].text}`:'';
+  const tMes=mesSel?` – ${$('filtro-mes-historico').options[$('filtro-mes-historico').selectedIndex]?.text||''}` : '';
   doc.setTextColor(26,25,23);doc.setFontSize(14);doc.setFont('helvetica','bold');
-  doc.text(`Relatório de Demandas Concluídas${tituloMes}`,M,y);y+=7;
+  doc.text(`Relatório de Demandas Concluídas${tMes}`,M,y);y+=7;
   doc.setFontSize(10);doc.setFont('helvetica','normal');doc.setTextColor(100,100,100);
   doc.text(`Total: ${conc.length} demanda${conc.length>1?'s':''} concluída${conc.length>1?'s':''}`,M,y);y+=4;
   doc.setDrawColor(210,210,210);doc.line(M,y,W-M,y);y+=8;
-
   conc.forEach((d,i)=>{
     chk(38);
     doc.setFillColor(244,243,239);doc.roundedRect(M,y,W-M*2,10,1,1,'F');
     doc.setFontSize(10);doc.setFont('helvetica','bold');doc.setTextColor(26,25,23);
-    const titulo=doc.splitTextToSize(`${i+1}. ${d.descricao}`,W-M*2-6);
-    doc.text(titulo,M+3,y+6.5);y+=10+(titulo.length-1)*5+4;
-    [['Solicitante',d.solicitante],['Endereço',d.endereco],['Zona',d.zona||'—'],
-     ['Abertura',`${d.data} às ${d.hora}`],['Conclusão',d.dataConclusao||'—'],
-     ['Equipe',d.equipe||'—'],['Prioridade',d.prioridade==='urgente'?'URGENTE':'Normal']
-    ].forEach(([l,v])=>{
-      chk(7);doc.setFontSize(9);doc.setFont('helvetica','bold');doc.setTextColor(90,90,90);
-      doc.text(l+':',M+3,y);doc.setFont('helvetica','normal');doc.setTextColor(26,25,23);
-      const lines=doc.splitTextToSize(String(v),W-M*2-36);doc.text(lines,M+36,y);y+=lH*lines.length;
+    const tit=doc.splitTextToSize(`${i+1}. ${d.descricao}`,W-M*2-6);doc.text(tit,M+3,y+6.5);y+=10+(tit.length-1)*5+4;
+    [['Solicitante',d.solicitante],['Endereço',d.endereco],['Zona',d.zona||'—'],['Abertura',`${d.data} às ${d.hora}`],['Conclusão',d.dataConclusao||'—'],['Equipe',d.equipe||'—'],['Prioridade',d.prioridade==='urgente'?'URGENTE':'Normal']].forEach(([l,v])=>{
+      chk(7);doc.setFontSize(9);doc.setFont('helvetica','bold');doc.setTextColor(90,90,90);doc.text(l+':',M+3,y);
+      doc.setFont('helvetica','normal');doc.setTextColor(26,25,23);const lines=doc.splitTextToSize(String(v),W-M*2-36);doc.text(lines,M+36,y);y+=lH*lines.length;
     });
-    if(d.fotoConclusao){chk(52);try{
-      doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(90,90,90);
-      doc.text('Foto do serviço concluído:',M+3,y);y+=4;
-      doc.addImage(d.fotoConclusao,'JPEG',M+3,y,70,50);y+=53;
-    }catch(e){}}
+    if(d.observacao){chk(12);doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(90,90,90);doc.text('Observação:',M+3,y);y+=4;doc.setFont('helvetica','normal');doc.setTextColor(26,25,23);const ol=doc.splitTextToSize(d.observacao,W-M*2-6);doc.text(ol,M+3,y);y+=lH*ol.length+2;}
+    const temA=!!d.foto,temD=!!d.fotoConclusao;
+    if(temA||temD){
+      chk(58);doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(90,90,90);
+      if(temA&&temD){doc.text('ANTES',M+3,y);doc.text('DEPOIS',M+93,y);y+=4;try{doc.addImage(d.foto,'JPEG',M+3,y,82,55);}catch(e){}try{doc.addImage(d.fotoConclusao,'JPEG',M+93,y,82,55);}catch(e){}y+=58;}
+      else if(temD){doc.text('Foto concluído:',M+3,y);y+=4;try{doc.addImage(d.fotoConclusao,'JPEG',M+3,y,70,50);y+=53;}catch(e){}}
+      else if(temA){doc.text('Foto do local:',M+3,y);y+=4;try{doc.addImage(d.foto,'JPEG',M+3,y,70,50);y+=53;}catch(e){}}
+    }
     chk(6);doc.setDrawColor(220,220,220);doc.line(M,y,W-M,y);y+=7;
   });
   chk(10);doc.setFontSize(8);doc.setTextColor(160,160,160);doc.setFont('helvetica','italic');
   doc.text('Documento gerado automaticamente – Sistema de Gestão de Limpeza Urbana / Secretaria da Infraestrutura de Ribeirão Preto',M,y,{maxWidth:W-M*2});
-  const sufixo=mesSel?`_${mesSel}`:'';
-  doc.save(`relatorio_demandas${sufixo}_${hoje.replace(/\//g,'-')}.pdf`);
+  const sf=mesSel?`_${mesSel}`:'';doc.save(`relatorio_demandas${sf}_${hoje.replace(/\//g,'-')}.pdf`);
 }
+
+// ══ EVENT LISTENERS ═══════════════════════════════════
+document.addEventListener('DOMContentLoaded', ()=>{
+  // Perfil
+  $('btn-secretaria').addEventListener('click',()=>{
+    $('input-senha').value='';$('msg-senha-erro').style.display='none';$('modal-senha').style.display='flex';
+    setTimeout(()=>$('input-senha').focus(),150);
+  });
+  $('btn-fiscal').addEventListener('click',()=>entrarComo('fiscal'));
+  document.querySelectorAll('.equipe-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>entrarComo('equipe'+btn.dataset.equipe));
+  });
+
+  // Voltar
+  $('btn-voltar-header').addEventListener('click',voltarPerfil);
+  $('btn-voltar-app').addEventListener('click',voltarPerfil);
+
+  // Senha
+  $('btn-cancelar-senha').addEventListener('click',()=>fecharModal('modal-senha'));
+  $('btn-confirmar-senha').addEventListener('click',()=>{
+    if($('input-senha').value===SENHA){fecharModal('modal-senha');entrarComo('secretaria');}
+    else{$('msg-senha-erro').style.display='flex';$('input-senha').value='';$('input-senha').focus();}
+  });
+  $('input-senha').addEventListener('keydown',e=>{if(e.key==='Enter')$('btn-confirmar-senha').click();});
+
+  // Nova demanda
+  $('btn-enviar-demanda').addEventListener('click',enviarDemanda);
+  $('foto').addEventListener('change',()=>previewFoto($('foto'),'foto-preview'));
+
+  // Duplicado
+  $('btn-cancelar-duplicado').addEventListener('click',()=>fecharModal('modal-duplicado'));
+  $('btn-confirmar-duplicado').addEventListener('click',()=>{fecharModal('modal-duplicado');salvarDemanda();});
+
+  // Check
+  $('btn-cancelar-check').addEventListener('click',()=>fecharModal('modal-check'));
+  $('btn-confirmar-check').addEventListener('click',confirmarCheck);
+  $('check-foto').addEventListener('change',()=>previewFoto($('check-foto'),'check-foto-prev'));
+
+  // Não encontrado
+  $('btn-cancelar-nao-encontrado').addEventListener('click',()=>fecharModal('modal-nao-encontrado'));
+  $('btn-confirmar-nao-encontrado').addEventListener('click',confirmarNaoEncontrado);
+
+  // Revisão
+  $('btn-cancelar-revisao').addEventListener('click',()=>fecharModal('modal-revisao'));
+  $('btn-reenviar-revisao').addEventListener('click',reenviarDemanda);
+  $('btn-apagar-revisao').addEventListener('click',apagarDemandaRevisao);
+  $('revisao-foto').addEventListener('change',()=>previewFoto($('revisao-foto'),'revisao-foto-prev'));
+
+  // Apagar concluídas
+  $('btn-apagar-concluidas').addEventListener('click',abrirApagarConcluidas);
+  $('btn-cancelar-apagar').addEventListener('click',()=>fecharModal('modal-confirmar-apagar'));
+  $('btn-executar-apagar').addEventListener('click',executarApagarConcluidas);
+
+  // Relatório
+  $('btn-gerar-relatorio').addEventListener('click',gerarRelatorio);
+  $('btn-fechar-relatorio').addEventListener('click',()=>fecharModal('modal-relatorio'));
+  $('btn-baixar-pdf').addEventListener('click',baixarPDF);
+
+  // Filtros painel
+  $('filtro-status').addEventListener('change',renderPainel);
+  $('filtro-equipe-painel').addEventListener('change',renderPainel);
+  $('filtro-zona-painel').addEventListener('change',renderPainel);
+
+  // Filtros equipe e historico
+  $('filtro-zona-equipe').addEventListener('change',renderEquipe);
+  $('filtro-mes-historico').addEventListener('change',renderHistorico);
+
+  // Dashboard
+  $('sel-mes-dash').addEventListener('change',renderDashboard);
+
+  // Lightbox
+  $('lightbox').addEventListener('click',fecharLightbox);
+  $('btn-fechar-lightbox').addEventListener('click',e=>{e.stopPropagation();fecharLightbox();});
+  document.addEventListener('keydown',e=>{if(e.key==='Escape')fecharLightbox();});
+});
 </script>
 </body>
 </html>
