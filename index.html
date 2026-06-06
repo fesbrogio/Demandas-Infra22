@@ -168,6 +168,42 @@
   .mes-filter-box label{font-size:12px;font-weight:600;color:var(--text2);margin-bottom:8px;display:flex;align-items:center;gap:5px}
   .mes-filter-box select{width:100%;padding:9px 30px 9px 12px;border:1px solid var(--border);border-radius:var(--radius);font-size:14px;font-family:var(--font);background:var(--surface);color:var(--text);-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b6860' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;cursor:pointer}
   @media(max-width:500px){.perfil-grid{grid-template-columns:1fr 1fr}.equipe-grid{grid-template-columns:1fr 1fr}.stats{grid-template-columns:repeat(2,1fr)}.dash-grid{grid-template-columns:1fr}.dash-card-full{grid-column:1}.demand-header{flex-direction:column;gap:6px}.demand-badges{flex-direction:row}.brand-text{font-size:12px}#header-user-label{display:none}.btn-done,.btn-del,.btn-nao-encontrado{flex:1;justify-content:center}.card{padding:14px}}
+  /* ── Serviços de Área ── */
+  .tipo-selector{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px}
+  .tipo-btn{background:var(--surface);border:2px solid var(--border);border-radius:var(--radius-lg);padding:14px;cursor:pointer;text-align:center;transition:border-color .15s,background .15s;font-family:var(--font)}
+  .tipo-btn:hover{border-color:var(--border2)}
+  .tipo-btn.selected{border-color:var(--text);background:var(--surface2)}
+  .tipo-btn i{font-size:22px;display:block;margin-bottom:6px;color:var(--text2)}
+  .tipo-btn.selected i{color:var(--text)}
+  .tipo-btn span{font-size:13px;font-weight:600;display:block}
+  .tipo-btn small{font-size:11px;color:var(--text3)}
+  .autocomplete-wrap{position:relative}
+  .autocomplete-list{position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--border);border-radius:var(--radius);z-index:100;max-height:200px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,.1);margin-top:2px}
+  .autocomplete-item{padding:10px 12px;font-size:14px;cursor:pointer;border-bottom:1px solid var(--border);transition:background .1s}
+  .autocomplete-item:last-child{border-bottom:none}
+  .autocomplete-item:hover,.autocomplete-item.active{background:var(--surface2)}
+  .area-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px;margin-bottom:10px}
+  .area-card.em-andamento{border-left:4px solid var(--blue)}
+  .area-card.concluido{border-left:4px solid var(--green);opacity:.85}
+  .area-card.aguardando{border-left:4px solid var(--amber)}
+  .area-header{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:8px}
+  .area-tipo-tag{display:inline-flex;align-items:center;gap:4px;font-size:11px;padding:2px 8px;border-radius:20px;font-family:var(--font-mono);font-weight:600}
+  .area-tipo-bairro{background:var(--purple-bg);color:var(--purple);border:1px solid var(--purple-border)}
+  .area-tipo-avenida{background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-border)}
+  .area-tipo-acao{background:var(--orange-bg);color:var(--orange);border:1px solid var(--orange-border)}
+  .area-progress{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin-top:10px}
+  .area-progress label{font-size:12px;font-weight:600;color:var(--text2);margin-bottom:6px;display:block}
+  .progress-bar-wrap{height:8px;background:var(--border);border-radius:4px;overflow:hidden;margin-bottom:8px}
+  .progress-bar{height:100%;background:var(--green);border-radius:4px;transition:width .3s}
+  .area-datas{display:flex;gap:8px;flex-wrap:wrap}
+  .area-datas .field{flex:1;min-width:120px;margin-bottom:0}
+  .area-sec-tabs{display:flex;gap:4px;margin-bottom:14px}
+  .area-sec-tab{padding:7px 14px;font-size:13px;cursor:pointer;border:1px solid var(--border);background:var(--surface);border-radius:var(--radius);font-family:var(--font);color:var(--text2);transition:all .15s}
+  .area-sec-tab.active{background:var(--text);color:#fff;border-color:var(--text)}
+  .resumo-anual{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px}
+  .resumo-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px;text-align:center}
+  .resumo-num{font-size:24px;font-weight:600;font-family:var(--font-mono)}
+  .resumo-label{font-size:11px;color:var(--text3);margin-top:2px}
   @keyframes fadeIn{from{opacity:0}to{opacity:1}}
   @keyframes slideUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
   @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
@@ -211,6 +247,11 @@
     <button class="btn-voltar" id="btn-voltar-app"><i class="ti ti-arrow-left"></i> Voltar à seleção de perfil</button>
     <div class="tabs" id="tabs-container"></div>
     <div id="msg-global" style="display:none" class="msg"></div>
+
+    <div id="sec-servicos" class="section">
+      <!-- Conteúdo renderizado por JS dependendo do perfil -->
+      <div id="servicos-conteudo"></div>
+    </div>
 
     <div id="sec-nova" class="section">
       <div class="card">
@@ -384,6 +425,88 @@
   </div>
 </div>
 
+<!-- MODAL NOVO SERVIÇO DE ÁREA -->
+<div id="modal-novo-servico" class="modal-wrap" style="display:none">
+  <div class="modal" style="max-width:500px;max-height:92vh;overflow-y:auto">
+    <h3><i class="ti ti-map-2" style="color:var(--blue)"></i> Novo Serviço de Área</h3>
+    <div class="field">
+      <label>Tipo de serviço</label>
+      <div class="tipo-selector">
+        <button class="tipo-btn selected" data-tipo="bairro" id="tipo-btn-bairro">
+          <i class="ti ti-building-community"></i>
+          <span>Limpeza de Bairro</span>
+          <small>Nome do bairro com autocomplete</small>
+        </button>
+        <button class="tipo-btn" data-tipo="avenida" id="tipo-btn-avenida">
+          <i class="ti ti-road"></i>
+          <span>Avenida / Rua</span>
+          <small>Texto livre</small>
+        </button>
+        <button class="tipo-btn" data-tipo="acao" id="tipo-btn-acao" style="grid-column:1/-1">
+          <i class="ti ti-star"></i>
+          <span>Ação Especial da Prefeitura</span>
+          <small>Ex: mutirão, evento, operação</small>
+        </button>
+      </div>
+    </div>
+    <div class="field" id="field-bairro">
+      <label>Nome do bairro</label>
+      <div class="autocomplete-wrap">
+        <input type="text" id="servico-local-bairro" placeholder="Digite para buscar o bairro…" autocomplete="off">
+        <div class="autocomplete-list" id="autocomplete-lista" style="display:none"></div>
+      </div>
+    </div>
+    <div class="field" id="field-avenida" style="display:none">
+      <label>Nome da avenida / rua</label>
+      <input type="text" id="servico-local-avenida" placeholder="Ex: Av. Presidente Vargas" autocomplete="off">
+    </div>
+    <div class="field" id="field-acao" style="display:none">
+      <label>Descrição da ação</label>
+      <input type="text" id="servico-local-acao" placeholder="Ex: Mutirão Cidade Limpa – Parque Curupira" autocomplete="off">
+    </div>
+    <div class="field-destaque">
+      <label><i class="ti ti-users"></i> Equipe responsável</label>
+      <select id="servico-equipe">
+        <option value="">— Selecione —</option>
+        <option value="Equipe 1">Equipe 1</option>
+        <option value="Equipe 2">Equipe 2</option>
+        <option value="Equipe 3">Equipe 3</option>
+        <option value="Equipe 4">Equipe 4</option>
+        <option value="Equipe 5">Equipe 5</option>
+        <option value="Equipe 6 (Retroescavadeira)">Equipe 6 (Retroescavadeira)</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Observação inicial (opcional)</label>
+      <textarea id="servico-obs-inicial" placeholder="Ex: Priorizar ruas internas do bairro…" style="min-height:60px"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" id="btn-cancelar-novo-servico">Cancelar</button>
+      <button class="btn btn-primary" id="btn-salvar-novo-servico"><i class="ti ti-send"></i> Criar serviço</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL EXECUTAR SERVIÇO DE ÁREA -->
+<div id="modal-exec-servico" class="modal-wrap" style="display:none">
+  <div class="modal" style="max-width:460px">
+    <h3><i class="ti ti-circle-check" style="color:var(--green)"></i> Registrar execução</h3>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:16px">Informe o período em que o serviço foi realizado.</p>
+    <div class="area-datas">
+      <div class="field"><label>Data de início</label><input type="date" id="exec-data-inicio"></div>
+      <div class="field"><label>Data de conclusão</label><input type="date" id="exec-data-fim"></div>
+    </div>
+    <div class="field" style="margin-top:10px">
+      <label>Observação (opcional)</label>
+      <textarea id="exec-obs" placeholder="Ex: Serviço concluído, houve chuva no 2º dia…" style="min-height:70px"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" id="btn-cancelar-exec">Cancelar</button>
+      <button class="btn btn-primary" id="btn-confirmar-exec"><i class="ti ti-check"></i> Confirmar</button>
+    </div>
+  </div>
+</div>
+
 <div id="lightbox" class="lightbox" style="display:none">
   <button class="lightbox-close" id="btn-fechar-lightbox"><i class="ti ti-x"></i></button>
   <img id="lightbox-img" src="" alt="Foto ampliada">
@@ -405,6 +528,39 @@ const app = initializeApp({
 const db = getFirestore(app);
 const col = collection(db,"demandas");
 const colStats = collection(db,"estatisticas_mensais");
+const colServicos = collection(db,"servicos_area");
+
+// ══ BAIRROS DE RIBEIRÃO PRETO ════════════════════════
+const BAIRROS_RP = [
+  'Adelino Simioni','Alto da Boa Vista','Alto do Ipiranga','Alto Ipiranga',
+  'Antonio Marincek','Avelino Alves Palma','Bonfim Paulista','Campos Elíseos',
+  'Centro','City Ribeirão','Conjunto Habitacional Jardim Palmeiras',
+  'Dom Bernardo José Mielle','Geraldo Correia Carvalho','Higienópolis',
+  'Iguatemi','Independência','Ipiranga','Jamil Seme Cury',
+  'Jardim Aeroporto','Jardim Alexandre Balbo','Jardim América',
+  'Jardim Ângelo Jurca','Jardim Anhanguera','Jardim Antártica',
+  'Jardim Arlindo Laguna','Jardim Bela Vista','Jardim Botânico',
+  'Jardim Califórnia','Jardim Canadá','Jardim Castelo Branco',
+  'Jardim Florestan Fernandes','Jardim Heitor Rigon','Jardim Helena',
+  'Jardim Interlagos','Jardim Irajá','Jardim Jandaia',
+  'Jardim Joaquim Poço Área Ferraz','Jardim Jóquei Clube',
+  'Jardim José Sampaio Jr','Jardim Macedo','Jardim Marchesi',
+  'Jardim Mosteiro','Jardim Nova Aliança','Jardim Novo Mundo',
+  'Jardim Palma Travassos','Jardim Paulista','Jardim Paulistano',
+  'Jardim Recreio','Jardim Santa Cruz','Jardim São Luiz',
+  'Jardim Sumaré','Jardim Tomás Martins','Jardim Tropical',
+  'Jardim Zorzetto','Lagoinha','Laureano','Luiz Spina',
+  'Morro São Bento','Nova Aliança','Parque Anhanguera',
+  'Parque Ribeirão Preto','Parque São Sebastião','Planalto Verde',
+  'Presidente Médici','Quintino Facci I','Quintino Facci II',
+  'Recreio Anhanguera','República','Residencial Coml Palmares',
+  'Residencial Flórida','Residencial Parque Servidores','Ribeirânia',
+  'Santa Cruz do José Jacques','Setor Central','Sumaré','Sumarezinho',
+  'Tanquinho','Vila Abranches','Vila Albertina','Vila Amélia',
+  'Vila Brasil','Vila Carvalho','Vila Elisa','Vila Lobato',
+  'Vila Mariana','Vila Monte Alegre','Vila Seixas','Vila Tamandaré',
+  'Vila Tibério','Vila Virgínia'
+].sort();
 
 // ══ CONFIG ════════════════════════════════════════════
 const SENHA = 'infra22';
@@ -415,9 +571,9 @@ const ZONAS = ['Zona Norte','Zona Sul','Zona Leste','Zona Oeste','Centro'];
 
 // ══ ESTADO ════════════════════════════════════════════
 let perfil='', equipeAtual='', checkId=null, revisaoId=null, _dadosPendentes=null;
-let _demandas=[], _estatisticas=[];
+let _demandas=[], _estatisticas=[], _servicos=[];
 let _charts={}, _mapaInstance=null, _mapaMarkers=[];
-let secaoAtual='';
+let secaoAtual='', _execServicoId=null, _tipoServicoSel='bairro';
 
 // ══ FIREBASE LISTENERS ════════════════════════════════
 onSnapshot(query(col,orderBy("criadoEm","desc")), snap=>{
@@ -433,11 +589,18 @@ onSnapshot(query(colStats,orderBy("mesISO","asc")), snap=>{
   _estatisticas = snap.docs.map(d=>({_id:d.id,...d.data()}));
   if(secaoAtual==='dashboard') renderDashboard();
 });
+onSnapshot(query(colServicos,orderBy("criadoEm","desc")), snap=>{
+  _servicos = snap.docs.map(d=>({_id:d.id,...d.data()}));
+  if(secaoAtual==='servicos') renderServicos();
+});
 
 const fbAdd = data => addDoc(col,{...data,criadoEm:serverTimestamp()});
 const fbUpd = (id,data) => updateDoc(doc(db,"demandas",id),data);
 const fbDel = id => deleteDoc(doc(db,"demandas",id));
 const fbStat = (mesISO,dados) => setDoc(doc(db,"estatisticas_mensais",mesISO),dados);
+const fbAddServico = data => addDoc(colServicos,{...data,criadoEm:serverTimestamp()});
+const fbUpdServico = (id,data) => updateDoc(doc(db,"servicos_area",id),data);
+const fbDelServico = id => deleteDoc(doc(db,"servicos_area",id));
 
 // ══ RENDER ATUAL ══════════════════════════════════════
 function renderAtual(){
@@ -447,6 +610,7 @@ function renderAtual(){
   if(secaoAtual==='gerenciar') renderGerenciar();
   if(secaoAtual==='revisao') renderRevisao();
   if(secaoAtual==='mapa') renderMapa();
+  if(secaoAtual==='servicos') renderServicos();
   atualizarBadgeRevisao();
 }
 
@@ -526,12 +690,14 @@ function entrarComo(p){
   if(p==='secretaria'){
     titulo='🏢 Secretaria';
     html=`<button class="tab active" data-sec="nova"><i class="ti ti-plus"></i> Nova demanda</button>
+          <button class="tab" data-sec="servicos"><i class="ti ti-map-2"></i> Serviços</button>
           <button class="tab" data-sec="gerenciar"><i class="ti ti-settings"></i> Gerenciar</button>
           <button class="tab" data-sec="revisao"><i class="ti ti-map-pin-off"></i> Revisão <span id="badge-revisao" class="tab-badge" style="display:none"></span></button>`;
     sec='nova';
   } else if(p==='fiscal'){
     titulo='📋 Relatório';
     html=`<button class="tab active" data-sec="painel"><i class="ti ti-layout-dashboard"></i> Painel</button>
+          <button class="tab" data-sec="servicos"><i class="ti ti-map-2"></i> Serviços</button>
           <button class="tab" data-sec="dashboard"><i class="ti ti-chart-bar"></i> Dashboard</button>
           <button class="tab" data-sec="historico"><i class="ti ti-history"></i> Concluídas / PDF</button>`;
     sec='painel';
@@ -540,6 +706,7 @@ function entrarComo(p){
     equipeAtual=num==='6'?'Equipe 6 (Retroescavadeira)':`Equipe ${num}`;
     titulo='👷 '+equipeAtual;
     html=`<button class="tab active" data-sec="equipe"><i class="ti ti-clipboard-list"></i> Minhas demandas</button>
+          <button class="tab" data-sec="servicos"><i class="ti ti-map-2"></i> Serviços</button>
           <button class="tab" data-sec="mapa"><i class="ti ti-map"></i> Mapa</button>`;
     sec='equipe';
   }
@@ -567,7 +734,7 @@ function voltarPerfil(){
 }
 
 function showSection(t){
-  ['nova','gerenciar','revisao','painel','dashboard','historico','equipe','mapa'].forEach(s=>{
+  ['nova','gerenciar','revisao','painel','dashboard','historico','equipe','mapa','servicos'].forEach(s=>{
     const el=$('sec-'+s);if(el)el.classList.remove('active');
   });
   const el=$('sec-'+t);if(el)el.classList.add('active');
@@ -579,6 +746,7 @@ function showSection(t){
   if(t==='revisao') renderRevisao();
   if(t==='dashboard') renderDashboard();
   if(t==='mapa') renderMapa();
+  if(t==='servicos') renderServicos();
 }
 
 // ══ LIGHTBOX ══════════════════════════════════════════
@@ -952,6 +1120,194 @@ function renderMapa(){
   setTimeout(()=>_mapaInstance.invalidateSize(),100);
 }
 
+// ══ SERVIÇOS DE ÁREA ══════════════════════════════════
+function tipoTag(tipo){
+  const map={bairro:'area-tipo-bairro',avenida:'area-tipo-avenida',acao:'area-tipo-acao'};
+  const label={bairro:'🏘️ Bairro',avenida:'🛣️ Avenida/Rua',acao:'⭐ Ação Especial'};
+  return`<span class="area-tipo-tag ${map[tipo]||'area-tipo-bairro'}">${label[tipo]||tipo}</span>`;
+}
+
+function statusServicoHtml(s){
+  if(s==='concluido') return`<span class="badge badge-done">✅ Concluído</span>`;
+  if(s==='em-andamento') return`<span class="badge badge-doing">🔄 Em andamento</span>`;
+  return`<span class="badge badge-pending">⏳ Aguardando</span>`;
+}
+
+function areaCardHtml(s, opts={}){
+  const{podeConcluir=false,podeApagar=false}=opts;
+  const cls=s.status==='concluido'?'concluido':s.status==='em-andamento'?'em-andamento':'aguardando';
+  return`<div class="area-card ${cls}">
+    <div class="area-header">
+      <div style="flex:1">
+        ${tipoTag(s.tipo)}
+        <div style="font-size:15px;font-weight:600;margin-top:6px">${s.local}</div>
+        <div style="font-size:12px;color:var(--text2);margin-top:4px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <span class="tag-equipe">${s.equipe||'—'}</span>
+          <span><i class="ti ti-calendar" style="font-size:12px"></i> Criado: ${s.dataCriacao||'—'}</span>
+        </div>
+      </div>
+      <div style="flex-shrink:0">${statusServicoHtml(s.status)}</div>
+    </div>
+    ${s.obsInicial?`<div style="font-size:12px;color:var(--text2);margin-top:6px;background:var(--bg);border-radius:var(--radius);padding:8px 10px"><i class="ti ti-message" style="font-size:12px"></i> ${s.obsInicial}</div>`:''}
+    ${s.dataInicio||s.dataFim?`<div style="font-size:12px;margin-top:8px;display:flex;gap:12px;flex-wrap:wrap">
+      ${s.dataInicio?`<span>🟢 <strong>Início:</strong> ${s.dataInicio}</span>`:''}
+      ${s.dataFim?`<span>🏁 <strong>Conclusão:</strong> ${s.dataFim}</span>`:''}
+    </div>`:''}
+    ${s.obs?`<div style="font-size:12px;color:var(--text2);margin-top:6px;background:var(--amber-bg);border:1px solid var(--amber-border);border-radius:var(--radius);padding:8px 10px"><i class="ti ti-message"></i> <strong>Obs. da equipe:</strong> ${s.obs}</div>`:''}
+    <div class="demand-actions">
+      ${podeConcluir&&s.status!=='concluido'?`<button class="btn-done" data-exec="${s._id}"><i class="ti ti-calendar-check"></i> ${s.status==='aguardando'?'Iniciar / Concluir':'Registrar conclusão'}</button>`:''}
+      ${podeApagar?`<button class="btn-del" data-del-servico="${s._id}"><i class="ti ti-trash"></i> Apagar</button>`:''}
+    </div>
+  </div>`;
+}
+
+function bindAreaCards(container){
+  container.querySelectorAll('[data-exec]').forEach(b=>b.addEventListener('click',()=>abrirExecServico(b.dataset.exec)));
+  container.querySelectorAll('[data-del-servico]').forEach(b=>b.addEventListener('click',()=>deletarServico(b.dataset.delServico)));
+}
+
+function renderServicos(){
+  const el=$('servicos-conteudo');if(!el)return;
+  const ano=new Date().getFullYear();
+
+  // Filtro por equipe se for equipe
+  let lista=[..._servicos];
+  if(perfil&&perfil.startsWith('equipe')) lista=lista.filter(s=>s.equipe===equipeAtual);
+
+  // sub-abas: em andamento / concluídos / todos
+  const abaSel=el.dataset.aba||'ativos';
+
+  const ativos=lista.filter(s=>s.status!=='concluido');
+  const concluidos=lista.filter(s=>s.status==='concluido');
+  // totais por tipo (ano corrente)
+  const bairrosAno=concluidos.filter(s=>s.tipo==='bairro'&&(s.dataFim||'').includes(String(ano))).length;
+  const avenidasAno=concluidos.filter(s=>s.tipo==='avenida'&&(s.dataFim||'').includes(String(ano))).length;
+  const acoesAno=concluidos.filter(s=>s.tipo==='acao'&&(s.dataFim||'').includes(String(ano))).length;
+
+  const podeApagar=perfil==='secretaria';
+  const podeConcluir=perfil==='secretaria'||perfil?.startsWith('equipe');
+  const podeCriar=perfil==='secretaria';
+
+  const listaExibir=abaSel==='ativos'?ativos:abaSel==='concluidos'?concluidos:lista;
+
+  el.innerHTML=`
+    ${realtimeBadge()}
+    <div class="resumo-anual">
+      <div class="resumo-card"><div class="resumo-num" style="color:var(--purple)">${bairrosAno}</div><div class="resumo-label">Bairros ${ano}</div></div>
+      <div class="resumo-card"><div class="resumo-num" style="color:var(--blue)">${avenidasAno}</div><div class="resumo-label">Avenidas ${ano}</div></div>
+      <div class="resumo-card"><div class="resumo-num" style="color:var(--orange)">${acoesAno}</div><div class="resumo-label">Ações ${ano}</div></div>
+    </div>
+    ${podeCriar?`<button class="btn btn-primary" style="margin-bottom:14px;width:100%;justify-content:center" id="btn-abrir-novo-servico"><i class="ti ti-plus"></i> Novo serviço de área</button>`:''}
+    <div class="area-sec-tabs">
+      <button class="area-sec-tab ${abaSel==='ativos'?'active':''}" data-aba="ativos">Em aberto (${ativos.length})</button>
+      <button class="area-sec-tab ${abaSel==='concluidos'?'active':''}" data-aba="concluidos">Concluídos (${concluidos.length})</button>
+      <button class="area-sec-tab ${abaSel==='todos'?'active':''}" data-aba="todos">Todos (${lista.length})</button>
+    </div>
+    ${listaExibir.length?listaExibir.map(s=>areaCardHtml(s,{podeConcluir,podeApagar})).join(''):`<div class="empty"><i class="ti ti-map-2"></i>${abaSel==='ativos'?'Nenhum serviço em aberto':'Nenhum serviço encontrado'}</div>`}
+  `;
+
+  el.querySelectorAll('.area-sec-tab').forEach(btn=>{
+    btn.addEventListener('click',()=>{el.dataset.aba=btn.dataset.aba;renderServicos();});
+  });
+  if(podeCriar){
+    const b=$('btn-abrir-novo-servico');
+    if(b) b.addEventListener('click',abrirNovoServico);
+  }
+  bindAreaCards(el);
+}
+
+function abrirNovoServico(){
+  _tipoServicoSel='bairro';
+  $('servico-local-bairro').value='';
+  $('servico-local-avenida').value='';
+  $('servico-local-acao').value='';
+  $('servico-equipe').value='';
+  $('servico-obs-inicial').value='';
+  $('autocomplete-lista').style.display='none';
+  selecionarTipoServico('bairro');
+  $('modal-novo-servico').style.display='flex';
+  setTimeout(()=>$('servico-local-bairro').focus(),150);
+}
+
+function selecionarTipoServico(tipo){
+  _tipoServicoSel=tipo;
+  ['bairro','avenida','acao'].forEach(t=>{
+    $('tipo-btn-'+t).classList.toggle('selected',t===tipo);
+    const f=$('field-'+t);if(f)f.style.display=t===tipo?'block':'none';
+  });
+}
+
+function setupAutocomplete(){
+  const input=$('servico-local-bairro');
+  const lista=$('autocomplete-lista');
+  if(!input||!lista)return;
+  input.addEventListener('input',()=>{
+    const q=input.value.trim().toLowerCase();
+    if(!q){lista.style.display='none';return;}
+    const matches=BAIRROS_RP.filter(b=>b.toLowerCase().includes(q)).slice(0,8);
+    if(!matches.length){lista.style.display='none';return;}
+    lista.innerHTML=matches.map(b=>`<div class="autocomplete-item">${b}</div>`).join('');
+    lista.style.display='block';
+    lista.querySelectorAll('.autocomplete-item').forEach(item=>{
+      item.addEventListener('click',()=>{input.value=item.textContent;lista.style.display='none';});
+    });
+  });
+  document.addEventListener('click',e=>{if(!e.target.closest('.autocomplete-wrap'))lista.style.display='none';});
+}
+
+async function salvarNovoServico(){
+  const tipo=_tipoServicoSel;
+  let local='';
+  if(tipo==='bairro') local=$('servico-local-bairro').value.trim();
+  else if(tipo==='avenida') local=$('servico-local-avenida').value.trim();
+  else local=$('servico-local-acao').value.trim();
+  const equipe=$('servico-equipe').value;
+  if(!local){alert('Preencha o nome do local.');return;}
+  if(!equipe){alert('Selecione a equipe responsável.');return;}
+  const obs=$('servico-obs-inicial').value.trim();
+  try{
+    await fbAddServico({tipo,local,equipe,obsInicial:obs||null,status:'aguardando',dataCriacao:new Date().toLocaleDateString('pt-BR'),dataInicio:null,dataFim:null,obs:null});
+    fecharModal('modal-novo-servico');
+    showMsg(`✓ Serviço de área registrado para ${equipe}!`);
+  }catch(e){showMsg('Erro ao salvar.','danger');}
+}
+
+function abrirExecServico(id){
+  _execServicoId=id;
+  const s=_servicos.find(x=>x._id===id);
+  const hoje=new Date().toISOString().split('T')[0];
+  $('exec-data-inicio').value=s?.dataInicio?isoFromBR(s.dataInicio):hoje;
+  $('exec-data-fim').value=s?.dataFim?isoFromBR(s.dataFim):'';
+  $('exec-obs').value=s?.obs||'';
+  $('modal-exec-servico').style.display='flex';
+}
+
+function isoFromBR(br){
+  if(!br)return'';const p=br.split('/');return p.length===3?`${p[2]}-${p[1]}-${p[0]}`:'';
+}
+function brFromISO(iso){
+  if(!iso)return'';const p=iso.split('-');return p.length===3?`${p[2]}/${p[1]}/${p[0]}`:'';
+}
+
+async function confirmarExecServico(){
+  const inicio=$('exec-data-inicio').value;
+  const fim=$('exec-data-fim').value;
+  const obs=$('exec-obs').value.trim();
+  if(!inicio){alert('Informe a data de início.');return;}
+  const status=fim?'concluido':'em-andamento';
+  try{
+    await fbUpdServico(_execServicoId,{dataInicio:brFromISO(inicio),dataFim:fim?brFromISO(fim):null,obs:obs||null,status});
+    fecharModal('modal-exec-servico');
+    showMsg(status==='concluido'?'Serviço marcado como concluído!':'Data de início registrada!');
+  }catch(e){showMsg('Erro ao salvar.','danger');}
+}
+
+async function deletarServico(id){
+  if(!confirm('Apagar este serviço de área?'))return;
+  try{await fbDelServico(id);showMsg('Serviço apagado.');}
+  catch(e){showMsg('Erro ao apagar.','danger');}
+}
+
 // ══ PDF ═══════════════════════════════════════════════
 function gerarRelatorio(){
   const mesSel=$('filtro-mes-historico').value;
@@ -1081,6 +1437,17 @@ document.addEventListener('DOMContentLoaded', ()=>{
   $('lightbox').addEventListener('click',fecharLightbox);
   $('btn-fechar-lightbox').addEventListener('click',e=>{e.stopPropagation();fecharLightbox();});
   document.addEventListener('keydown',e=>{if(e.key==='Escape')fecharLightbox();});
+
+  // Serviços de área – tipo selector
+  ['bairro','avenida','acao'].forEach(t=>{
+    const b=$('tipo-btn-'+t);
+    if(b) b.addEventListener('click',()=>selecionarTipoServico(t));
+  });
+  setupAutocomplete();
+  $('btn-cancelar-novo-servico').addEventListener('click',()=>fecharModal('modal-novo-servico'));
+  $('btn-salvar-novo-servico').addEventListener('click',salvarNovoServico);
+  $('btn-cancelar-exec').addEventListener('click',()=>fecharModal('modal-exec-servico'));
+  $('btn-confirmar-exec').addEventListener('click',confirmarExecServico);
 });
 </script>
 </body>
