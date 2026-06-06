@@ -425,6 +425,18 @@
   </div>
 </div>
 
+<!-- MODAL RELATÓRIO SERVIÇOS -->
+<div id="modal-relatorio-servicos" class="modal-wrap" style="display:none">
+  <div class="modal modal-lg">
+    <h3><i class="ti ti-file-type-pdf" style="color:var(--blue)"></i> Relatório — Serviços de Área</h3>
+    <div class="rel-content" id="rel-servicos-conteudo"></div>
+    <div class="modal-actions">
+      <button class="btn" id="btn-fechar-relatorio-servicos">Fechar</button>
+      <button class="btn btn-primary" id="btn-baixar-pdf-servicos"><i class="ti ti-download"></i> Baixar PDF</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL NOVO SERVIÇO DE ÁREA -->
 <div id="modal-novo-servico" class="modal-wrap" style="display:none">
   <div class="modal" style="max-width:500px;max-height:92vh;overflow-y:auto">
@@ -489,7 +501,7 @@
 
 <!-- MODAL EXECUTAR SERVIÇO DE ÁREA -->
 <div id="modal-exec-servico" class="modal-wrap" style="display:none">
-  <div class="modal" style="max-width:460px">
+  <div class="modal" style="max-width:460px;max-height:92vh;overflow-y:auto">
     <h3><i class="ti ti-circle-check" style="color:var(--green)"></i> Registrar execução</h3>
     <p style="font-size:13px;color:var(--text2);margin-bottom:16px">Informe o período em que o serviço foi realizado.</p>
     <div class="area-datas">
@@ -499,6 +511,12 @@
     <div class="field" style="margin-top:10px">
       <label>Observação (opcional)</label>
       <textarea id="exec-obs" placeholder="Ex: Serviço concluído, houve chuva no 2º dia…" style="min-height:70px"></textarea>
+    </div>
+    <!-- Foto somente para Ação Especial -->
+    <div class="field" id="exec-campo-foto" style="display:none;margin-top:4px">
+      <label><i class="ti ti-camera" style="font-size:13px"></i> Foto da ação (opcional)</label>
+      <input type="file" id="exec-foto" accept="image/*">
+      <img id="exec-foto-prev" style="display:none" class="photo-preview" alt="Foto da ação">
     </div>
     <div class="modal-actions">
       <button class="btn" id="btn-cancelar-exec">Cancelar</button>
@@ -1195,6 +1213,7 @@ function areaCardHtml(s, opts={}){
       ${s.dataFim?`<span>🏁 <strong>Conclusão:</strong> ${s.dataFim}</span>`:''}
     </div>`:''}
     ${s.obs?`<div style="font-size:12px;color:var(--text2);margin-top:6px;background:var(--amber-bg);border:1px solid var(--amber-border);border-radius:var(--radius);padding:8px 10px"><i class="ti ti-message"></i> <strong>Obs. da equipe:</strong> ${s.obs}</div>`:''}
+    ${s.fotoAcao&&s.tipo==='acao'?`<div style="margin-top:8px"><img src="${s.fotoAcao}" style="max-width:100%;max-height:180px;border-radius:var(--radius);object-fit:cover;cursor:zoom-in;border:1px solid var(--border)" onclick="document.getElementById('lightbox').style.display='flex';document.getElementById('lightbox-img').src='${s.fotoAcao}'" title="Clique para ampliar"></div>`:''}
     <div class="demand-actions">
       ${podeConcluir&&s.status!=='concluido'?`<button class="btn-done" data-exec="${s._id}"><i class="ti ti-calendar-check"></i> ${s.status==='aguardando'?'Iniciar / Concluir':'Registrar conclusão'}</button>`:''}
       ${podeApagar?`<button class="btn-del" data-del-servico="${s._id}"><i class="ti ti-trash"></i> Apagar</button>`:''}
@@ -1211,16 +1230,19 @@ function renderServicos(){
   const el=$('servicos-conteudo');if(!el)return;
   const ano=new Date().getFullYear();
 
-  // Filtro por equipe se for equipe
+  // Equipe vê: seus serviços em andamento OU aguardando (não vê concluídos de outras equipes)
+  // Secretaria/Fiscal veem tudo
   let lista=[..._servicos];
-  if(perfil&&perfil.startsWith('equipe')) lista=lista.filter(s=>s.equipe===equipeAtual);
+  if(perfil&&perfil.startsWith('equipe')){
+    lista=lista.filter(s=>s.equipe===equipeAtual&&s.status!=='aguardando');
+    // também mostra aguardando da própria equipe
+    const aguardando=_servicos.filter(s=>s.equipe===equipeAtual&&s.status==='aguardando');
+    lista=[..._servicos.filter(s=>s.equipe===equipeAtual)];
+  }
 
-  // sub-abas: em andamento / concluídos / todos
   const abaSel=el.dataset.aba||'ativos';
-
   const ativos=lista.filter(s=>s.status!=='concluido');
   const concluidos=lista.filter(s=>s.status==='concluido');
-  // totais por tipo (ano corrente)
   const bairrosAno=concluidos.filter(s=>s.tipo==='bairro'&&(s.dataFim||'').includes(String(ano))).length;
   const avenidasAno=concluidos.filter(s=>s.tipo==='avenida'&&(s.dataFim||'').includes(String(ano))).length;
   const acoesAno=concluidos.filter(s=>s.tipo==='acao'&&(s.dataFim||'').includes(String(ano))).length;
@@ -1228,6 +1250,7 @@ function renderServicos(){
   const podeApagar=perfil==='secretaria';
   const podeConcluir=perfil==='secretaria'||perfil?.startsWith('equipe');
   const podeCriar=perfil==='secretaria';
+  const podePDF=perfil==='secretaria'||perfil==='fiscal';
 
   const listaExibir=abaSel==='ativos'?ativos:abaSel==='concluidos'?concluidos:lista;
 
@@ -1238,7 +1261,10 @@ function renderServicos(){
       <div class="resumo-card"><div class="resumo-num" style="color:var(--blue)">${avenidasAno}</div><div class="resumo-label">Avenidas ${ano}</div></div>
       <div class="resumo-card"><div class="resumo-num" style="color:var(--orange)">${acoesAno}</div><div class="resumo-label">Ações ${ano}</div></div>
     </div>
-    ${podeCriar?`<button class="btn btn-primary" style="margin-bottom:14px;width:100%;justify-content:center" id="btn-abrir-novo-servico"><i class="ti ti-plus"></i> Novo serviço de área</button>`:''}
+    <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+      ${podeCriar?`<button class="btn btn-primary" style="flex:1;min-width:160px;justify-content:center" id="btn-abrir-novo-servico"><i class="ti ti-plus"></i> Novo serviço</button>`:''}
+      ${podePDF?`<button class="btn btn-info btn-sm" id="btn-gerar-pdf-servicos"><i class="ti ti-file-type-pdf"></i> Gerar PDF</button>`:''}
+    </div>
     <div class="area-sec-tabs">
       <button class="area-sec-tab ${abaSel==='ativos'?'active':''}" data-aba="ativos">Em aberto (${ativos.length})</button>
       <button class="area-sec-tab ${abaSel==='concluidos'?'active':''}" data-aba="concluidos">Concluídos (${concluidos.length})</button>
@@ -1250,10 +1276,8 @@ function renderServicos(){
   el.querySelectorAll('.area-sec-tab').forEach(btn=>{
     btn.addEventListener('click',()=>{el.dataset.aba=btn.dataset.aba;renderServicos();});
   });
-  if(podeCriar){
-    const b=$('btn-abrir-novo-servico');
-    if(b) b.addEventListener('click',abrirNovoServico);
-  }
+  if(podeCriar){const b=$('btn-abrir-novo-servico');if(b)b.addEventListener('click',abrirNovoServico);}
+  if(podePDF){const b=$('btn-gerar-pdf-servicos');if(b)b.addEventListener('click',gerarRelatorioServicos);}
   bindAreaCards(el);
 }
 
@@ -1320,6 +1344,15 @@ function abrirExecServico(id){
   $('exec-data-inicio').value=s?.dataInicio?isoFromBR(s.dataInicio):hoje;
   $('exec-data-fim').value=s?.dataFim?isoFromBR(s.dataFim):'';
   $('exec-obs').value=s?.obs||'';
+  // Foto somente para Ação Especial
+  const campoFoto=$('exec-campo-foto');
+  if(s?.tipo==='acao'){
+    campoFoto.style.display='block';
+    $('exec-foto').value='';
+    $('exec-foto-prev').style.display='none';
+  } else {
+    campoFoto.style.display='none';
+  }
   $('modal-exec-servico').style.display='flex';
 }
 
@@ -1336,8 +1369,17 @@ async function confirmarExecServico(){
   const obs=$('exec-obs').value.trim();
   if(!inicio){alert('Informe a data de início.');return;}
   const status=fim?'concluido':'em-andamento';
+  // Foto para ação especial
+  const s=_servicos.find(x=>x._id===_execServicoId);
+  let fotoBase64=s?.fotoAcao||null;
+  const fotoInput=$('exec-foto');
+  if(s?.tipo==='acao'&&fotoInput?.files[0]){
+    fotoBase64=await comprimirImagem(fotoInput.files[0],800,0.75);
+  }
   try{
-    await fbUpdServico(_execServicoId,{dataInicio:brFromISO(inicio),dataFim:fim?brFromISO(fim):null,obs:obs||null,status});
+    const upd={dataInicio:brFromISO(inicio),dataFim:fim?brFromISO(fim):null,obs:obs||null,status};
+    if(s?.tipo==='acao') upd.fotoAcao=fotoBase64;
+    await fbUpdServico(_execServicoId,upd);
     fecharModal('modal-exec-servico');
     showMsg(status==='concluido'?'Serviço marcado como concluído!':'Data de início registrada!');
   }catch(e){showMsg('Erro ao salvar.','danger');}
@@ -1403,6 +1445,110 @@ function baixarPDF(){
   chk(10);doc.setFontSize(8);doc.setTextColor(160,160,160);doc.setFont('helvetica','italic');
   doc.text('Documento gerado automaticamente – Sistema de Gestão de Limpeza Urbana / Secretaria da Infraestrutura de Ribeirão Preto',M,y,{maxWidth:W-M*2});
   const sf=mesSel?`_${mesSel}`:'';doc.save(`relatorio_demandas${sf}_${hoje.replace(/\//g,'-')}.pdf`);
+}
+
+// ══ PDF SERVIÇOS ══════════════════════════════════════
+function gerarRelatorioServicos(){
+  if(!_servicos.length){alert('Nenhum serviço cadastrado para gerar relatório.');return;}
+  const hoje=new Date().toLocaleDateString('pt-BR');
+  const concluidos=_servicos.filter(s=>s.status==='concluido');
+  const andamento=_servicos.filter(s=>s.status==='em-andamento');
+  const aguardando=_servicos.filter(s=>s.status==='aguardando');
+  $('rel-servicos-conteudo').innerHTML=`
+    <strong>Total: ${_servicos.length} serviços</strong> · ${concluidos.length} concluídos · ${andamento.length} em andamento · ${aguardando.length} aguardando<br>
+    Gerado em: ${hoje}<br><br>
+    ${_servicos.map((s,i)=>`<div style="margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--border)">
+      <strong>${i+1}. ${s.local}</strong> <span style="font-size:12px;color:var(--text2)">[${s.tipo}]</span><br>
+      Equipe: ${s.equipe||'—'} · Status: ${s.status}<br>
+      ${s.dataInicio?`Início: ${s.dataInicio}`:''} ${s.dataFim?`· Conclusão: ${s.dataFim}`:''}
+      ${s.obs?`<br>Obs: ${s.obs}`:''}
+    </div>`).join('')}
+  `;
+  $('modal-relatorio-servicos').style.display='flex';
+}
+
+function baixarPDFServicos(){
+  if(!_servicos.length)return;
+  const{jsPDF}=window.jspdf;
+  const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+  const hoje=new Date().toLocaleDateString('pt-BR');
+  const ano=new Date().getFullYear();
+  const W=210,M=15,lH=6;let y=M;
+  function chk(n=10){if(y+n>284){doc.addPage();y=M;}}
+
+  // Cabeçalho
+  doc.setFillColor(26,25,23);doc.rect(0,0,W,26,'F');
+  doc.setTextColor(255,255,255);doc.setFontSize(13);doc.setFont('helvetica','bold');
+  doc.text('Secretaria da Infraestrutura – Ribeirão Preto',M,11);
+  doc.setFontSize(9);doc.setFont('helvetica','normal');
+  doc.text('Gestão de Limpeza Urbana',M,17);
+  doc.text(`Gerado em: ${hoje}`,W-M,17,{align:'right'});
+  y=34;
+
+  doc.setTextColor(26,25,23);doc.setFontSize(14);doc.setFont('helvetica','bold');
+  doc.text(`Relatório de Serviços de Área – ${ano}`,M,y);y+=7;
+
+  // Resumo
+  const conc=_servicos.filter(s=>s.status==='concluido');
+  const and=_servicos.filter(s=>s.status==='em-andamento');
+  const agu=_servicos.filter(s=>s.status==='aguardando');
+  const bairros=conc.filter(s=>s.tipo==='bairro');
+  const avenidas=conc.filter(s=>s.tipo==='avenida');
+  const acoes=conc.filter(s=>s.tipo==='acao');
+
+  doc.setFontSize(10);doc.setFont('helvetica','normal');doc.setTextColor(100,100,100);
+  doc.text(`Total: ${_servicos.length} serviço(s)  ·  ${conc.length} concluído(s)  ·  ${and.length} em andamento  ·  ${agu.length} aguardando`,M,y);y+=5;
+  doc.text(`Bairros concluídos: ${bairros.length}  ·  Avenidas/Ruas: ${avenidas.length}  ·  Ações especiais: ${acoes.length}`,M,y);y+=4;
+  doc.setDrawColor(210,210,210);doc.line(M,y,W-M,y);y+=8;
+
+  // Agrupar por tipo
+  const grupos=[
+    {label:'🏘️  Limpeza de Bairros',tipo:'bairro'},
+    {label:'🛣️  Avenidas e Ruas',tipo:'avenida'},
+    {label:'⭐  Ações Especiais',tipo:'acao'}
+  ];
+
+  grupos.forEach(g=>{
+    const itens=_servicos.filter(s=>s.tipo===g.tipo);
+    if(!itens.length)return;
+    chk(14);
+    doc.setFillColor(238,236,234);doc.rect(M,y,W-M*2,9,'F');
+    doc.setFontSize(11);doc.setFont('helvetica','bold');doc.setTextColor(26,25,23);
+    doc.text(g.label,M+3,y+6);y+=13;
+
+    itens.forEach((s,i)=>{
+      chk(32);
+      // status cor
+      const statusLabel=s.status==='concluido'?'CONCLUÍDO':s.status==='em-andamento'?'EM ANDAMENTO':'AGUARDANDO';
+      const corStatus=s.status==='concluido'?[26,102,64]:s.status==='em-andamento'?[26,63,122]:[122,79,0];
+      doc.setFillColor(244,243,239);doc.roundedRect(M,y,W-M*2,10,1,1,'F');
+      doc.setFontSize(10);doc.setFont('helvetica','bold');doc.setTextColor(...corStatus);
+      doc.text(statusLabel,W-M-3,y+6.5,{align:'right'});
+      doc.setTextColor(26,25,23);
+      const tit=doc.splitTextToSize(`${i+1}. ${s.local}`,W-M*2-50);
+      doc.text(tit,M+3,y+6.5);y+=10+(tit.length-1)*5+4;
+
+      const campos=[
+        ['Equipe',s.equipe||'—'],
+        ['Criado em',s.dataCriacao||'—'],
+        ...(s.dataInicio?[['Início',s.dataInicio]]:[]),
+        ...(s.dataFim?[['Conclusão',s.dataFim]]:[]),
+      ];
+      campos.forEach(([l,v])=>{
+        chk(7);doc.setFontSize(9);doc.setFont('helvetica','bold');doc.setTextColor(90,90,90);doc.text(l+':',M+3,y);
+        doc.setFont('helvetica','normal');doc.setTextColor(26,25,23);doc.text(String(v),M+36,y);y+=lH;
+      });
+      if(s.obsInicial){chk(10);doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(90,90,90);doc.text('Obs. inicial:',M+3,y);y+=4;doc.setFont('helvetica','normal');doc.setTextColor(26,25,23);const ol=doc.splitTextToSize(s.obsInicial,W-M*2-6);doc.text(ol,M+3,y);y+=lH*ol.length+2;}
+      if(s.obs){chk(10);doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(90,90,90);doc.text('Obs. da equipe:',M+3,y);y+=4;doc.setFont('helvetica','normal');doc.setTextColor(26,25,23);const ol=doc.splitTextToSize(s.obs,W-M*2-6);doc.text(ol,M+3,y);y+=lH*ol.length+2;}
+      if(s.fotoAcao&&s.tipo==='acao'){chk(58);doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(90,90,90);doc.text('Foto da ação:',M+3,y);y+=4;try{doc.addImage(s.fotoAcao,'JPEG',M+3,y,80,54);y+=57;}catch(e){}}
+      chk(6);doc.setDrawColor(220,220,220);doc.line(M,y,W-M,y);y+=7;
+    });
+    y+=4;
+  });
+
+  chk(10);doc.setFontSize(8);doc.setTextColor(160,160,160);doc.setFont('helvetica','italic');
+  doc.text('Documento gerado automaticamente – Sistema de Gestão de Limpeza Urbana / Secretaria da Infraestrutura de Ribeirão Preto',M,y,{maxWidth:W-M*2});
+  doc.save(`relatorio_servicos_${ano}_${hoje.replace(/\//g,'-')}.pdf`);
 }
 
 // ══ EVENT LISTENERS ═══════════════════════════════════
@@ -1489,6 +1635,9 @@ document.addEventListener('DOMContentLoaded', ()=>{
   $('btn-salvar-novo-servico').addEventListener('click',salvarNovoServico);
   $('btn-cancelar-exec').addEventListener('click',()=>fecharModal('modal-exec-servico'));
   $('btn-confirmar-exec').addEventListener('click',confirmarExecServico);
+  $('exec-foto').addEventListener('change',()=>previewFoto($('exec-foto'),'exec-foto-prev'));
+  $('btn-fechar-relatorio-servicos').addEventListener('click',()=>fecharModal('modal-relatorio-servicos'));
+  $('btn-baixar-pdf-servicos').addEventListener('click',baixarPDFServicos);
 });
 </script>
 </body>
