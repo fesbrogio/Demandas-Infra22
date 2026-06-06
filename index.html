@@ -749,7 +749,7 @@ function entrarComo(p){
   if(p==='secretaria'){
     titulo='🏢 Secretaria';
     html=`<button class="tab active" data-sec="nova"><i class="ti ti-plus"></i> Nova demanda</button>
-          <button class="tab" data-sec="servicos"><i class="ti ti-map-2"></i> Serviços</button>
+          <button class="tab" data-sec="servicos"><i class="ti ti-map-2"></i> Novo Serviço</button>
           <button class="tab" data-sec="gerenciar"><i class="ti ti-settings"></i> Gerenciar</button>
           <button class="tab" data-sec="revisao"><i class="ti ti-map-pin-off"></i> Revisão <span id="badge-revisao" class="tab-badge" style="display:none"></span></button>`;
     sec='nova';
@@ -858,13 +858,30 @@ async function enviarDemanda(){
 async function salvarDemanda(){
   if(!_dadosPendentes)return;
   try{
-    await fbAdd(_dadosPendentes);
+    const docRef = await fbAdd(_dadosPendentes);
+    // Geocodificação silenciosa em segundo plano
+    geocodificarBairro(_dadosPendentes.endereco, docRef.id);
     ['solicitante','endereco','descricao'].forEach(id=>$(id).value='');
     $('prioridade').value='normal';$('zona-nova').value='';$('equipe-nova').value='';
     $('foto-preview').style.display='none';$('foto-preview').src='';$('foto').value='';
     showMsg(`✓ Demanda registrada para ${_dadosPendentes.equipe} – ${_dadosPendentes.zona}!`);
     _dadosPendentes=null;
   }catch(e){showMsg('Erro ao salvar.','danger');}
+}
+
+async function geocodificarBairro(endereco, docId){
+  if(!endereco||!docId)return;
+  try{
+    const q=encodeURIComponent(endereco+', Ribeirão Preto, SP, Brasil');
+    const res=await fetch(`https://nominatim.openstreetmap.org/search?q=${q}&format=json&addressdetails=1&limit=1`,{headers:{'Accept-Language':'pt-BR'}});
+    const data=await res.json();
+    if(!data||!data[0])return;
+    const addr=data[0].address;
+    const bairro=addr.suburb||addr.neighbourhood||addr.quarter||addr.city_district||addr.village||null;
+    if(bairro){
+      await fbUpd(docId,{bairroDetectado:bairro});
+    }
+  }catch(e){/* silencioso — não impacta o fluxo */}
 }
 
 // ══ ATRIBUIR ══════════════════════════════════════════
@@ -1109,47 +1126,139 @@ function renderHistorico(){
 
 // ══ DASHBOARD ═════════════════════════════════════════
 function renderDashboard(){
-  // Popula select de meses
   const sel=$('sel-mes-dash');if(!sel)return;
+
+  // Popula select de meses + opção "Todos"
   const meses=new Set();
   _demandas.forEach(d=>{const m=parseMes(d.data);if(m)meses.add(m);});
   _estatisticas.forEach(e=>{if(e._id)meses.add(e._id);});
   const todos=[...meses].sort().reverse();
   const atual=sel.value;
-  sel.innerHTML=todos.length?todos.map(m=>`<option value="${m}">${nomeMes(m)}</option>`).join(''):'<option value="">Sem dados</option>';
+  sel.innerHTML=`<option value="">📅 Todos os meses (${new Date().getFullYear()})</option>`
+    +( todos.length?todos.map(m=>`<option value="${m}">${nomeMes(m)}</option>`).join(''):'');
   if(atual&&[...sel.options].some(o=>o.value===atual))sel.value=atual;
+
   const mesISO=sel.value;
-  const conteudo=$('dash-conteudo');if(!mesISO||!conteudo)return;
-  const stat=_estatisticas.find(e=>e._id===mesISO);
-  const[ano,mes]=mesISO.split('-');
-  const demMes=_demandas.filter(d=>{if(!d.data)return false;const p=d.data.split('/');return p.length===3&&p[2]===ano&&p[1]===mes;});
-  const concMes=demMes.filter(d=>d.status==='concluído');
-  const aberMes=demMes.filter(d=>d.status!=='concluído');
-  const totalConc=concMes.length+(stat?.total||0);
-  const totalUrg=demMes.filter(d=>d.prioridade==='urgente').length+(stat?.urgentes||0);
-  const porEquipe=EQUIPES.map(e=>concMes.filter(d=>d.equipe===e).length+(stat?.porEquipe?.[e]||0));
-  const porZona=ZONAS.map(z=>concMes.filter(d=>d.zona===z).length+(stat?.porZona?.[z]||0));
-  const abertasEq=EQUIPES.map(e=>aberMes.filter(d=>d.equipe===e).length);
+  const conteudo=$('dash-conteudo');if(!conteudo)return;
+  const anoAtual=String(new Date().getFullYear());
+
+  // ── Dados filtrados ──
+  let demFiltro, concFiltro, aberFiltro, labelTitulo;
+  if(!mesISO){
+    // Todos os meses do ano atual
+    labelTitulo=`Visão geral – ${anoAtual}`;
+    demFiltro=_demandas.filter(d=>{if(!d.data)return false;const p=d.data.split('/');return p[2]===anoAtual;});
+    concFiltro=demFiltro.filter(d=>d.status==='concluído');
+    aberFiltro=demFiltro.filter(d=>d.status!=='concluído');
+  } else {
+    const[ano,mes]=mesISO.split('-');
+    labelTitulo=nomeMes(mesISO);
+    const stat=_estatisticas.find(e=>e._id===mesISO);
+    demFiltro=_demandas.filter(d=>{if(!d.data)return false;const p=d.data.split('/');return p.length===3&&p[2]===ano&&p[1]===mes;});
+    concFiltro=demFiltro.filter(d=>d.status==='concluído');
+    aberFiltro=demFiltro.filter(d=>d.status!=='concluído');
+    // adiciona estatísticas arquivadas
+    const totalConc=concFiltro.length+(stat?.total||0);
+    const totalUrg=demFiltro.filter(d=>d.prioridade==='urgente').length+(stat?.urgentes||0);
+    const porEquipe=EQUIPES.map(e=>concFiltro.filter(d=>d.equipe===e).length+(stat?.porEquipe?.[e]||0));
+    const porZona=ZONAS.map(z=>concFiltro.filter(d=>d.zona===z).length+(stat?.porZona?.[z]||0));
+    const abertasEq=EQUIPES.map(e=>aberFiltro.filter(d=>d.equipe===e).length);
+    const eqLabels=['Eq.1','Eq.2','Eq.3','Eq.4','Eq.5','Eq.6'];
+    const cores=['#1a6640','#1a3f7a','#7a4f00','#4a1a7a','#7a3a00','#2a5f5a'];
+
+    // Bairros – mês selecionado
+    const bairroHtml=renderBairrosFreq(demFiltro, _servicos.filter(s=>{
+      const f=s.dataFim||s.dataInicio||'';const p=f.split('/');return p.length===3&&p[2]===ano&&p[1]===mes;
+    }), ano);
+
+    conteudo.innerHTML=`
+      <div class="dash-stat-row">
+        <div class="dash-stat"><div class="dash-stat-num" style="color:var(--green)">${totalConc}</div><div class="dash-stat-label">Concluídas</div></div>
+        <div class="dash-stat"><div class="dash-stat-num" style="color:var(--blue)">${aberFiltro.length}</div><div class="dash-stat-label">Em aberto</div></div>
+        <div class="dash-stat"><div class="dash-stat-num" style="color:var(--red)">${totalUrg}</div><div class="dash-stat-label">Urgentes</div></div>
+      </div>
+      <div class="dash-grid">
+        <div class="dash-card"><h4><i class="ti ti-chart-bar"></i> Concluídas por equipe</h4><canvas id="chart-equipe"></canvas></div>
+        <div class="dash-card"><h4><i class="ti ti-chart-pie"></i> Concluídas por zona</h4><canvas id="chart-zona"></canvas></div>
+        <div class="dash-card dash-card-full"><h4><i class="ti ti-users"></i> Em aberto por equipe</h4><canvas id="chart-abertas"></canvas></div>
+      </div>
+      ${bairroHtml}
+      <div class="dash-card"><h4><i class="ti ti-history"></i> Histórico de meses anteriores</h4>
+        <div class="historico-meses">${_estatisticas.slice().sort((a,b)=>b.mesISO?.localeCompare(a.mesISO)).map(m=>`<div class="mes-row"><span class="mes-row-nome">${m.nomeMes||m.mesISO}</span><span class="mes-row-num">${m.total||0} concluídas</span></div>`).join('')||'<div class="sem-dados">Nenhum mês anterior salvo ainda.</div>'}</div>
+      </div>`;
+    ['chart-equipe','chart-zona','chart-abertas'].forEach(id=>{if(_charts[id]){_charts[id].destroy();delete _charts[id];}});
+    _charts['chart-equipe']=new Chart($('chart-equipe'),{type:'bar',data:{labels:eqLabels,datasets:[{data:porEquipe,backgroundColor:cores,borderRadius:6}]},options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:1}}},responsive:true}});
+    _charts['chart-zona']=new Chart($('chart-zona'),{type:'doughnut',data:{labels:ZONAS,datasets:[{data:porZona,backgroundColor:cores.slice(0,5),borderWidth:2,borderColor:'#fff'}]},options:{plugins:{legend:{position:'bottom',labels:{font:{size:11},boxWidth:12}}},responsive:true}});
+    _charts['chart-abertas']=new Chart($('chart-abertas'),{type:'bar',data:{labels:eqLabels,datasets:[{data:abertasEq,backgroundColor:'#a8bce0',borderRadius:6}]},options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:1}}},responsive:true}});
+    return;
+  }
+
+  // ── Visão TODOS os meses ──
+  const porEquipeTodos=EQUIPES.map(e=>concFiltro.filter(d=>d.equipe===e).length);
+  const porZonaTodos=ZONAS.map(z=>concFiltro.filter(d=>d.zona===z).length);
+  const abertasEqTodos=EQUIPES.map(e=>aberFiltro.filter(d=>d.equipe===e).length);
   const eqLabels=['Eq.1','Eq.2','Eq.3','Eq.4','Eq.5','Eq.6'];
+  const cores=['#1a6640','#1a3f7a','#7a4f00','#4a1a7a','#7a3a00','#2a5f5a'];
+  const servsAno=_servicos.filter(s=>{const f=s.dataFim||s.dataInicio||'';return f.includes(anoAtual);});
+  const bairroHtml=renderBairrosFreq(concFiltro, servsAno, anoAtual);
+
   conteudo.innerHTML=`
     <div class="dash-stat-row">
-      <div class="dash-stat"><div class="dash-stat-num" style="color:var(--green)">${totalConc}</div><div class="dash-stat-label">Concluídas</div></div>
-      <div class="dash-stat"><div class="dash-stat-num" style="color:var(--blue)">${aberMes.length}</div><div class="dash-stat-label">Em aberto</div></div>
-      <div class="dash-stat"><div class="dash-stat-num" style="color:var(--red)">${totalUrg}</div><div class="dash-stat-label">Urgentes</div></div>
+      <div class="dash-stat"><div class="dash-stat-num" style="color:var(--green)">${concFiltro.length}</div><div class="dash-stat-label">Concluídas ${anoAtual}</div></div>
+      <div class="dash-stat"><div class="dash-stat-num" style="color:var(--blue)">${aberFiltro.length}</div><div class="dash-stat-label">Em aberto</div></div>
+      <div class="dash-stat"><div class="dash-stat-num" style="color:var(--red)">${demFiltro.filter(d=>d.prioridade==='urgente').length}</div><div class="dash-stat-label">Urgentes ${anoAtual}</div></div>
     </div>
     <div class="dash-grid">
       <div class="dash-card"><h4><i class="ti ti-chart-bar"></i> Concluídas por equipe</h4><canvas id="chart-equipe"></canvas></div>
       <div class="dash-card"><h4><i class="ti ti-chart-pie"></i> Concluídas por zona</h4><canvas id="chart-zona"></canvas></div>
       <div class="dash-card dash-card-full"><h4><i class="ti ti-users"></i> Em aberto por equipe</h4><canvas id="chart-abertas"></canvas></div>
     </div>
+    ${bairroHtml}
     <div class="dash-card"><h4><i class="ti ti-history"></i> Histórico de meses anteriores</h4>
       <div class="historico-meses">${_estatisticas.slice().sort((a,b)=>b.mesISO?.localeCompare(a.mesISO)).map(m=>`<div class="mes-row"><span class="mes-row-nome">${m.nomeMes||m.mesISO}</span><span class="mes-row-num">${m.total||0} concluídas</span></div>`).join('')||'<div class="sem-dados">Nenhum mês anterior salvo ainda.</div>'}</div>
     </div>`;
   ['chart-equipe','chart-zona','chart-abertas'].forEach(id=>{if(_charts[id]){_charts[id].destroy();delete _charts[id];}});
-  const cores=['#1a6640','#1a3f7a','#7a4f00','#4a1a7a','#7a3a00','#2a5f5a'];
-  _charts['chart-equipe']=new Chart($('chart-equipe'),{type:'bar',data:{labels:eqLabels,datasets:[{data:porEquipe,backgroundColor:cores,borderRadius:6}]},options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:1}}},responsive:true}});
-  _charts['chart-zona']=new Chart($('chart-zona'),{type:'doughnut',data:{labels:ZONAS,datasets:[{data:porZona,backgroundColor:cores.slice(0,5),borderWidth:2,borderColor:'#fff'}]},options:{plugins:{legend:{position:'bottom',labels:{font:{size:11},boxWidth:12}}},responsive:true}});
-  _charts['chart-abertas']=new Chart($('chart-abertas'),{type:'bar',data:{labels:eqLabels,datasets:[{data:abertasEq,backgroundColor:'#a8bce0',borderRadius:6}]},options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:1}}},responsive:true}});
+  _charts['chart-equipe']=new Chart($('chart-equipe'),{type:'bar',data:{labels:eqLabels,datasets:[{data:porEquipeTodos,backgroundColor:cores,borderRadius:6}]},options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:1}}},responsive:true}});
+  _charts['chart-zona']=new Chart($('chart-zona'),{type:'doughnut',data:{labels:ZONAS,datasets:[{data:porZonaTodos,backgroundColor:cores.slice(0,5),borderWidth:2,borderColor:'#fff'}]},options:{plugins:{legend:{position:'bottom',labels:{font:{size:11},boxWidth:12}}},responsive:true}});
+  _charts['chart-abertas']=new Chart($('chart-abertas'),{type:'bar',data:{labels:eqLabels,datasets:[{data:abertasEqTodos,backgroundColor:'#a8bce0',borderRadius:6}]},options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:1}}},responsive:true}});
+}
+
+function renderBairrosFreq(demandas, servicos, ano){
+  // Conta atendimentos por bairro
+  const contagem={};
+  // Demandas com bairroDetectado
+  demandas.forEach(d=>{
+    if(!d.bairroDetectado)return;
+    const b=d.bairroDetectado;
+    if(!contagem[b])contagem[b]={total:0,demandas:0,servicos:0};
+    contagem[b].total++;contagem[b].demandas++;
+  });
+  // Serviços de bairro concluídos
+  servicos.forEach(s=>{
+    if(s.tipo!=='bairro'||!s.local)return;
+    const b=s.local;
+    if(!contagem[b])contagem[b]={total:0,demandas:0,servicos:0};
+    contagem[b].total++;contagem[b].servicos++;
+  });
+  const lista=Object.entries(contagem).sort((a,b)=>b[1].total-a[1].total);
+  if(!lista.length)return'';
+  const max=lista[0][1].total||1;
+  return`<div class="dash-card dash-card-full">
+    <h4><i class="ti ti-map-pin"></i> Frequência de atendimento por bairro – ${ano}</h4>
+    <p style="font-size:12px;color:var(--text3);margin:-4px 0 12px">Demandas concluídas com bairro detectado automaticamente + limpezas de área concluídas.</p>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      ${lista.map(([b,v])=>`
+        <div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
+            <span style="font-size:13px;font-weight:500">${b}</span>
+            <span style="font-size:12px;font-family:var(--font-mono);color:var(--text2)">${v.total}x ${v.demandas?`<span style="color:var(--blue)">· ${v.demandas} dem.</span>`:''}${v.servicos?` <span style="color:var(--purple)">· ${v.servicos} serv.</span>`:''}</span>
+          </div>
+          <div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden">
+            <div style="height:100%;width:${Math.round(v.total/max*100)}%;background:var(--green);border-radius:3px;transition:width .4s"></div>
+          </div>
+        </div>`).join('')}
+    </div>
+  </div>`;
 }
 
 // ══ MAPA ══════════════════════════════════════════════
