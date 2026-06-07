@@ -204,6 +204,24 @@
   .resumo-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px;text-align:center}
   .resumo-num{font-size:24px;font-weight:600;font-family:var(--font-mono)}
   .resumo-label{font-size:11px;color:var(--text3);margin-top:2px}
+  /* ── Clima ── */
+  .clima-card{margin-top:18px;border-radius:var(--radius-lg);border:1px solid var(--border);background:var(--surface);padding:14px 16px;animation:fadeIn .3s}
+  .clima-card.alerta{border-color:#e05555;background:#fff5f5}
+  .clima-card.atencao{border-color:var(--amber);background:#fffbf0}
+  .clima-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+  .clima-titulo{font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.6px}
+  .clima-atualizado{font-size:10px;color:var(--text3)}
+  .clima-principal{display:flex;align-items:center;gap:14px;margin-bottom:10px}
+  .clima-emoji{font-size:36px;line-height:1}
+  .clima-temp{font-size:32px;font-weight:700;font-family:var(--font-mono);color:var(--text)}
+  .clima-desc{font-size:13px;color:var(--text2);margin-top:2px}
+  .clima-max-min{font-size:11px;color:var(--text3)}
+  .clima-detalhes{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+  .clima-detalhe{background:var(--bg);border-radius:var(--radius);padding:8px;text-align:center}
+  .clima-detalhe-val{font-size:14px;font-weight:600;font-family:var(--font-mono)}
+  .clima-detalhe-label{font-size:10px;color:var(--text3);margin-top:2px}
+  .clima-alerta-banner{display:flex;align-items:center;gap:8px;background:#fef2f2;border:1px solid #fca5a5;border-radius:var(--radius);padding:10px 12px;margin-bottom:10px;font-size:13px;font-weight:600;color:#b91c1c}
+  .clima-loading{text-align:center;padding:16px;color:var(--text3);font-size:13px}
   @keyframes fadeIn{from{opacity:0}to{opacity:1}}
   @keyframes slideUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
   @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
@@ -240,6 +258,10 @@
       <button class="perfil-btn equipe-btn" data-equipe="4"><i class="ti ti-users"></i> Equipe 4</button>
       <button class="perfil-btn equipe-btn" data-equipe="5"><i class="ti ti-users"></i> Equipe 5</button>
       <button class="perfil-btn equipe-btn" data-equipe="6"><i class="ti ti-bulldozer"></i> Equipe 6 (Retroescavadeira)</button>
+    </div>
+    <!-- Card de Clima -->
+    <div id="clima-card" class="clima-card">
+      <div class="clima-loading"><i class="ti ti-cloud"></i> Carregando previsão do tempo…</div>
     </div>
   </div>
 
@@ -1685,8 +1707,91 @@ function baixarPDFServicos(){
   doc.save(`relatorio_servicos_${ano}_${hoje.replace(/\//g,'-')}.pdf`);
 }
 
+// ══ CLIMA ═════════════════════════════════════════════
+async function carregarClima(){
+  const card=$('clima-card');if(!card)return;
+  // Coordenadas de Ribeirão Preto
+  const LAT=-21.1775,LNG=-47.8103;
+  try{
+    const url=`https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LNG}&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weather_code&timezone=America%2FSao_Paulo&forecast_days=1`;
+    const res=await fetch(url);
+    const d=await res.json();
+    const c=d.current,dy=d.daily;
+    const temp=Math.round(c.temperature_2m);
+    const sensacao=Math.round(c.apparent_temperature);
+    const umidade=c.relative_humidity_2m;
+    const chuva=c.precipitation;
+    const vento=Math.round(c.wind_speed_10m);
+    const tmax=Math.round(dy.temperature_2m_max[0]);
+    const tmin=Math.round(dy.temperature_2m_min[0]);
+    const chuvaTotal=dy.precipitation_sum[0];
+    const wcode=c.weather_code;
+    const agora=new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+
+    // Traduz código de tempo
+    function descClima(code){
+      if(code===0)return{emoji:'☀️',desc:'Céu limpo',tipo:'ok'};
+      if(code<=2)return{emoji:'🌤️',desc:'Parcialmente nublado',tipo:'ok'};
+      if(code===3)return{emoji:'☁️',desc:'Nublado',tipo:'ok'};
+      if(code<=49)return{emoji:'🌫️',desc:'Névoa / neblina',tipo:'atencao'};
+      if(code<=59)return{emoji:'🌦️',desc:'Garoa',tipo:'atencao'};
+      if(code<=69)return{emoji:'🌧️',desc:'Chuva',tipo:'atencao'};
+      if(code<=79)return{emoji:'🌨️',desc:'Neve / granizo',tipo:'alerta'};
+      if(code<=82)return{emoji:'🌧️',desc:'Chuva forte',tipo:'alerta'};
+      if(code<=99)return{emoji:'⛈️',desc:'Tempestade',tipo:'alerta'};
+      return{emoji:'🌡️',desc:'Condição variável',tipo:'ok'};
+    }
+
+    const{emoji,desc,tipo}=descClima(wcode);
+
+    // Alertas
+    const alertas=[];
+    if(temp>=37) alertas.push('🌡️ Calor extremo — hidratação obrigatória em campo');
+    else if(temp>=35) alertas.push('☀️ Temperatura muito alta — atenção ao calor');
+    if(wcode>=80) alertas.push('⛈️ Tempestade prevista — avaliar segurança das equipes');
+    else if(wcode>=60) alertas.push('🌧️ Chuva — atenção à segurança no trabalho');
+    if(umidade<=30) alertas.push('💧 Umidade muito baixa — risco à saúde em campo');
+
+    const alertaHtml=alertas.length?`<div class="clima-alerta-banner"><i class="ti ti-alert-triangle"></i>${alertas[0]}</div>`:'';
+
+    card.className=`clima-card${tipo==='alerta'?' alerta':tipo==='atencao'?' atencao':''}`;
+    card.innerHTML=`
+      ${alertaHtml}
+      <div class="clima-header">
+        <span class="clima-titulo"><i class="ti ti-cloud" style="font-size:11px"></i> Tempo agora · Ribeirão Preto</span>
+        <span class="clima-atualizado">Atualizado às ${agora}</span>
+      </div>
+      <div class="clima-principal">
+        <div class="clima-emoji">${emoji}</div>
+        <div>
+          <div class="clima-temp">${temp}°C</div>
+          <div class="clima-desc">${desc}</div>
+          <div class="clima-max-min">↑ ${tmax}° ↓ ${tmin}° · Sensação ${sensacao}°C</div>
+        </div>
+      </div>
+      <div class="clima-detalhes">
+        <div class="clima-detalhe">
+          <div class="clima-detalhe-val" style="color:var(--blue)">${umidade}%</div>
+          <div class="clima-detalhe-label">Umidade</div>
+        </div>
+        <div class="clima-detalhe">
+          <div class="clima-detalhe-val" style="color:${chuvaTotal>0?'var(--blue)':'var(--text3)'}">${chuvaTotal>0?chuvaTotal.toFixed(1)+' mm':'Sem chuva'}</div>
+          <div class="clima-detalhe-label">Chuva hoje</div>
+        </div>
+        <div class="clima-detalhe">
+          <div class="clima-detalhe-val">${vento} km/h</div>
+          <div class="clima-detalhe-label">Vento</div>
+        </div>
+      </div>`;
+  }catch(e){
+    card.innerHTML=`<div class="clima-loading" style="color:var(--text3)"><i class="ti ti-cloud-off"></i> Previsão indisponível no momento</div>`;
+  }
+}
+
 // ══ EVENT LISTENERS ═══════════════════════════════════
 document.addEventListener('DOMContentLoaded', ()=>{
+  carregarClima();
+  setInterval(carregarClima, 30*60*1000);
   // Perfil
   $('btn-secretaria').addEventListener('click',()=>{
     $('input-senha').value='';$('msg-senha-erro').style.display='none';$('modal-senha').style.display='flex';
