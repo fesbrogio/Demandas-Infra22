@@ -337,10 +337,14 @@
     </div>
 
     <div id="sec-mapa" class="section">
-      <p style="font-size:13px;color:var(--text2);margin-bottom:12px">
-        <span style="display:inline-flex;align-items:center;gap:5px;margin-right:12px"><span style="width:12px;height:12px;background:#e05555;border-radius:50%;display:inline-block"></span> Urgente</span>
-        <span style="display:inline-flex;align-items:center;gap:5px"><span style="width:12px;height:12px;background:#1a3f7a;border-radius:50%;display:inline-block"></span> Normal</span>
-      </p>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+        <p style="font-size:13px;color:var(--text2);margin:0">
+          <span style="display:inline-flex;align-items:center;gap:5px;margin-right:12px"><span style="width:12px;height:12px;background:#e05555;border-radius:50%;display:inline-block"></span> Urgente</span>
+          <span style="display:inline-flex;align-items:center;gap:5px;margin-right:12px"><span style="width:12px;height:12px;background:#1a3f7a;border-radius:50%;display:inline-block"></span> Normal</span>
+          <span style="display:inline-flex;align-items:center;gap:5px"><span style="width:12px;height:12px;background:#16a34a;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 2px #16a34a;display:inline-block"></span> Você</span>
+        </p>
+        <button id="btn-minha-localizacao" class="btn btn-sm" style="border-color:var(--green-border);color:var(--green);background:var(--green-bg)"><i class="ti ti-navigation"></i> Minha localização</button>
+      </div>
       <div id="mapa-container" style="height:480px;border-radius:var(--radius-lg);overflow:hidden;border:1px solid var(--border)"></div>
       <p style="font-size:12px;color:var(--text3);margin-top:8px;text-align:center">Clique em um ponto para ver os detalhes da demanda</p>
     </div>
@@ -822,7 +826,7 @@ function entrarComo(p){
 function voltarPerfil(){
   perfil='';equipeAtual='';secaoAtual='';
   Object.values(_charts).forEach(c=>c.destroy());_charts={};
-  if(_mapaInstance){_mapaInstance.remove();_mapaInstance=null;_mapaMarkers=[];}
+  if(_mapaInstance){_mapaInstance.remove();_mapaInstance=null;_mapaMarkers=[];_marcadorUsuario=null;_circuloUsuario=null;}
   $('tela-perfil').style.display='block';
   $('tela-app').style.display='none';
   $('header-right').style.display='none';
@@ -1203,7 +1207,7 @@ function renderDashboard(){
     const cores=['#1a6640','#1a3f7a','#7a4f00','#4a1a7a','#7a3a00','#2a5f5a'];
 
     // Bairros – mês selecionado
-    const bairroHtml=renderBairrosFreq(demFiltro, _servicos.filter(s=>{
+    const bairroHtml=renderBairrosFreq(concFiltro, _servicos.filter(s=>{
       const f=s.dataFim||s.dataInicio||'';const p=f.split('/');return p.length===3&&p[2]===ano&&p[1]===mes;
     }), ano);
 
@@ -1259,51 +1263,98 @@ function renderDashboard(){
   _charts['chart-abertas']=new Chart($('chart-abertas'),{type:'bar',data:{labels:eqLabels,datasets:[{data:abertasEqTodos,backgroundColor:'#a8bce0',borderRadius:6}]},options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:1}}},responsive:true}});
 }
 
-function renderBairrosFreq(demandas, servicos, ano){
-  // Conta atendimentos por bairro
-  const contagem={};
-  // Demandas com bairroDetectado
-  demandas.forEach(d=>{
-    if(!d.bairroDetectado)return;
-    const b=d.bairroDetectado;
-    if(!contagem[b])contagem[b]={total:0,demandas:0,servicos:0};
-    contagem[b].total++;contagem[b].demandas++;
-  });
-  // Serviços de bairro concluídos
-  servicos.forEach(s=>{
-    if(s.tipo!=='bairro'||!s.local)return;
-    const b=s.local;
-    if(!contagem[b])contagem[b]={total:0,demandas:0,servicos:0};
-    contagem[b].total++;contagem[b].servicos++;
-  });
-  const lista=Object.entries(contagem).sort((a,b)=>b[1].total-a[1].total);
+function renderBarras(titulo, subtitulo, corBarra, lista){
   if(!lista.length)return'';
-  const max=lista[0][1].total||1;
+  const max=lista[0][1]||1;
   return`<div class="dash-card dash-card-full">
-    <h4><i class="ti ti-map-pin"></i> Frequência de atendimento por bairro – ${ano}</h4>
-    <p style="font-size:12px;color:var(--text3);margin:-4px 0 12px">Demandas concluídas com bairro detectado automaticamente + limpezas de área concluídas.</p>
+    <h4>${titulo}</h4>
+    <p style="font-size:12px;color:var(--text3);margin:-4px 0 12px">${subtitulo}</p>
     <div style="display:flex;flex-direction:column;gap:8px">
       ${lista.map(([b,v])=>`
         <div>
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
             <span style="font-size:13px;font-weight:500">${b}</span>
-            <span style="font-size:12px;font-family:var(--font-mono);color:var(--text2)">${v.total}x ${v.demandas?`<span style="color:var(--blue)">· ${v.demandas} dem.</span>`:''}${v.servicos?` <span style="color:var(--purple)">· ${v.servicos} serv.</span>`:''}</span>
+            <span style="font-size:12px;font-family:var(--font-mono);color:var(--text2)">${v}x</span>
           </div>
           <div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden">
-            <div style="height:100%;width:${Math.round(v.total/max*100)}%;background:var(--green);border-radius:3px;transition:width .4s"></div>
+            <div style="height:100%;width:${Math.round(v/max*100)}%;background:${corBarra};border-radius:3px;transition:width .4s"></div>
           </div>
         </div>`).join('')}
     </div>
   </div>`;
 }
 
+function renderBairrosFreq(demandas, servicos, ano){
+  // Bloco 1 — Serviços de área (limpeza de bairro)
+  const contagemServ={};
+  servicos.forEach(s=>{
+    if(s.tipo!=='bairro'||!s.local)return;
+    const b=s.local;
+    contagemServ[b]=(contagemServ[b]||0)+1;
+  });
+  const listaServ=Object.entries(contagemServ).sort((a,b)=>b[1]-a[1]);
+
+  // Bloco 2 — Demandas com bairro detectado automaticamente
+  const contagemDem={};
+  if(demandas){
+    demandas.forEach(d=>{
+      if(!d.bairroDetectado)return;
+      const b=d.bairroDetectado;
+      contagemDem[b]=(contagemDem[b]||0)+1;
+    });
+  }
+  const listaDem=Object.entries(contagemDem).sort((a,b)=>b[1]-a[1]);
+
+  const blocoServ=renderBarras(
+    `<i class="ti ti-map-2"></i> Limpezas de bairro – ${ano}`,
+    'Serviços de área do tipo "Bairro" concluídos no período.',
+    'var(--purple)',
+    listaServ
+  );
+  const blocoDem=renderBarras(
+    `<i class="ti ti-map-pin"></i> Demandas por bairro – ${ano}`,
+    'Demandas concluídas com bairro detectado automaticamente pelo sistema.',
+    'var(--blue)',
+    listaDem
+  );
+
+  if(!blocoServ&&!blocoDem)return'';
+  return blocoServ+blocoDem;
+}
+
 // ══ MAPA ══════════════════════════════════════════════
+let _marcadorUsuario=null, _circuloUsuario=null;
+
+function mostrarLocalizacaoUsuario(){
+  if(!_mapaInstance)return;
+  if(!navigator.geolocation){showMsg('Geolocalização não suportada neste dispositivo.','danger');return;}
+  navigator.geolocation.getCurrentPosition(pos=>{
+    const lat=pos.coords.latitude,lng=pos.coords.longitude;
+    const acc=pos.coords.accuracy;
+    if(_marcadorUsuario){_marcadorUsuario.remove();_circuloUsuario.remove();}
+    const iconeUser=L.divIcon({
+      html:`<div style="width:18px;height:18px;background:#16a34a;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 2px #16a34a,0 2px 6px rgba(0,0,0,.4)"></div>`,
+      className:'',iconSize:[18,18],iconAnchor:[9,9]
+    });
+    _marcadorUsuario=L.marker([lat,lng],{icon:iconeUser,zIndexOffset:1000}).addTo(_mapaInstance);
+    _marcadorUsuario.bindPopup('<div style="font-family:sans-serif;font-size:13px"><strong>📍 Você está aqui</strong><br><span style="color:#666;font-size:11px">Precisão: ±'+Math.round(acc)+'m</span></div>');
+    _circuloUsuario=L.circle([lat,lng],{radius:acc,color:'#16a34a',fillColor:'#16a34a',fillOpacity:0.08,weight:1}).addTo(_mapaInstance);
+    _mapaInstance.setView([lat,lng],16);
+  },err=>{
+    const msgs={1:'Permissão de localização negada.',2:'Localização indisponível.',3:'Tempo esgotado ao obter localização.'};
+    showMsg(msgs[err.code]||'Erro ao obter localização.','danger');
+  },{enableHighAccuracy:true,timeout:10000});
+}
+
 function renderMapa(){
   const lista=_demandas.filter(d=>d.equipe===equipeAtual&&d.status!=='concluído'&&d.status!=='revisao');
   if(!_mapaInstance){
     _mapaInstance=L.map('mapa-container').setView([-21.1775,-47.8103],13);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap',maxZoom:19}).addTo(_mapaInstance);
   } else {_mapaMarkers.forEach(m=>m.remove());_mapaMarkers=[];}
+  // Botão de localização
+  const btnLoc=document.getElementById('btn-minha-localizacao');
+  if(btnLoc) btnLoc.onclick=mostrarLocalizacaoUsuario;
   if(!lista.length){setTimeout(()=>_mapaInstance.invalidateSize(),100);return;}
   const bounds=[];
   lista.forEach(d=>{
