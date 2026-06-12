@@ -222,6 +222,10 @@
   .clima-detalhe-label{font-size:10px;color:var(--text3);margin-top:2px}
   .clima-alerta-banner{display:flex;align-items:center;gap:8px;background:#fef2f2;border:1px solid #fca5a5;border-radius:var(--radius);padding:10px 12px;margin-bottom:10px;font-size:13px;font-weight:600;color:#b91c1c}
   .clima-loading{text-align:center;padding:16px;color:var(--text3);font-size:13px}
+  .hist-end-box{background:var(--blue-bg);border:1px solid var(--blue-border);border-radius:var(--radius);padding:11px 13px;margin-top:8px;font-size:12px}
+  .hist-end-titulo{font-size:11px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.06em;margin-bottom:7px;display:flex;align-items:center;gap:5px}
+  .hist-end-item{padding:5px 0;border-bottom:1px solid var(--blue-border);line-height:1.6}
+  .hist-end-item:last-child{border-bottom:none;padding-bottom:0}
   @keyframes fadeIn{from{opacity:0}to{opacity:1}}
   @keyframes slideUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
   @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
@@ -280,6 +284,7 @@
         <p class="section-title">Registrar nova demanda</p>
         <div class="field"><label>Quem está solicitando</label><input id="solicitante" type="text" placeholder="Nome e setor" autocomplete="off"></div>
         <div class="field"><label>Endereço completo</label><input id="endereco" type="text" placeholder="Ex: Rua das Flores, 120 – Jardim Paulista"></div>
+        <div id="hist-end-nova" style="display:none"></div>
         <div class="field"><label>Descrição do serviço</label><textarea id="descricao" placeholder="Descreva o que precisa ser feito…"></textarea></div>
         <div class="field"><label>Prioridade</label><select id="prioridade"><option value="normal">Normal</option><option value="urgente">⚡ Urgente</option></select></div>
         <div class="divider"></div>
@@ -853,6 +858,32 @@ function abrirLightbox(src){$('lightbox-img').src=src;$('lightbox').style.displa
 function fecharLightbox(){$('lightbox').style.display='none';$('lightbox-img').src='';document.body.style.overflow='';}
 
 // ══ DUPLICADOS ════════════════════════════════════════
+function historicoDemanda(endereco, idAtual){
+  // Busca qualquer demanda concluída no mesmo endereço (sem limite de data)
+  const{rua,numero}=extrairRuaNumero(endereco);
+  if(!rua||rua.length<4)return[];
+  return _demandas.filter(d=>{
+    if(d._id===idAtual)return false;
+    if(d.status!=='concluído')return false;
+    const{rua:rD,numero:nD}=extrairRuaNumero(d.endereco||'');
+    if(rD!==rua)return false;
+    if(numero&&nD&&Math.abs(numero-nD)>LIMITE_DUPLICADO)return false;
+    return true;
+  }).sort((a,b)=>diasAtras(a.dataConclusao||a.data)-diasAtras(b.dataConclusao||b.data));
+}
+
+function htmlHistorico(lista){
+  if(!lista.length)return'';
+  return`<div class="hist-end-box">
+    <div class="hist-end-titulo"><i class="ti ti-clock-history"></i> Atendimentos anteriores neste endereço (${lista.length})</div>
+    ${lista.map(d=>`<div class="hist-end-item">
+      <span style="font-weight:600">${d.descricao}</span><br>
+      <span style="color:var(--text2)">✅ Concluído em <strong>${d.dataConclusao||'—'}</strong> · ${d.equipe||'—'}${d.zona?` · ${d.zona}`:''}</span>
+      ${d.observacao?`<br><span style="color:var(--text3);font-style:italic">Obs: ${d.observacao}</span>`:''}
+    </div>`).join('')}
+  </div>`;
+}
+
 function extrairRuaNumero(end){
   const partes=end.toLowerCase().split(',');
   const rua=partes[0].trim();
@@ -928,6 +959,11 @@ async function geocodificarBairro(endereco, docId){
 async function atribuir(id,equipe){
   try{await fbUpd(id,{equipe,status:equipe?'em andamento':'pendente'});}
   catch(e){showMsg('Erro ao atribuir.','danger');}
+}
+
+async function atualizarZona(id,zona){
+  try{await fbUpd(id,{zona});}
+  catch(e){showMsg('Erro ao atualizar zona.','danger');}
 }
 
 // ══ DELETAR ═══════════════════════════════════════════
@@ -1023,9 +1059,21 @@ async function executarApagarConcluidas(){
 // ══ RENDERS ═══════════════════════════════════════════
 function alocarHtml(d){
   const eqs=EQUIPES.map(e=>`<option value="${e}" ${d.equipe===e?'selected':''}>${e}</option>`).join('');
-  return`<div class="alocar-box"><div class="alocar-label"><i class="ti ti-users"></i> Equipe responsável</div>
-    <select class="alocar-select" data-id="${d._id}"><option value="">— Selecione —</option>${eqs}</select>
-    ${d.equipe?`<div class="alocar-alocada"><i class="ti ti-circle-check"></i><span class="tag-equipe">${d.equipe}</span> alocada</div>`:''}</div>`;
+  const zns=ZONAS.map(z=>`<option value="${z}" ${d.zona===z?'selected':''}>${z}</option>`).join('');
+  return`<div class="alocar-box">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div>
+        <div class="alocar-label"><i class="ti ti-users"></i> Equipe responsável</div>
+        <select class="alocar-select" data-id="${d._id}"><option value="">— Selecione —</option>${eqs}</select>
+        ${d.equipe?`<div class="alocar-alocada"><i class="ti ti-circle-check"></i><span class="tag-equipe">${d.equipe}</span> alocada</div>`:''}
+      </div>
+      <div>
+        <div class="alocar-label"><i class="ti ti-map"></i> Zona da cidade</div>
+        <select class="alocar-select zona-select" data-zona-id="${d._id}"><option value="">— Selecione —</option>${zns}</select>
+        ${d.zona?`<div class="alocar-alocada"><i class="ti ti-circle-check"></i><span class="tag-zona" style="font-size:11px;padding:2px 8px;border-radius:20px;background:var(--purple-bg);color:var(--purple);border:1px solid var(--purple-border);font-family:var(--font-mono)">${d.zona}</span> definida</div>`:''}
+      </div>
+    </div>
+  </div>`;
 }
 
 function cardHtml(d,opts={}){
@@ -1054,6 +1102,7 @@ function cardHtml(d,opts={}){
     ${mostrarConcluido&&d.fotoConclusao?`<img src="${d.fotoConclusao}" class="photo-preview" data-src="${d.fotoConclusao}" alt="Foto conclusão" style="margin-bottom:10px">`:''}
     ${mostrarConcluido&&d.observacao?`<div style="margin-top:8px;background:var(--amber-bg);border:1px solid var(--amber-border);border-radius:var(--radius);padding:8px 10px;font-size:13px"><i class="ti ti-message" style="font-size:13px;vertical-align:-1px"></i> <strong>Obs. da equipe:</strong> ${d.observacao}</div>`:''}
     ${mostrarRevisao?`<div class="revisao-box"><div class="revisao-label"><i class="ti ti-map-pin-off"></i> Endereço não encontrado</div><p style="font-size:13px;color:var(--red);font-style:italic">A ${d.equipe||'equipe'} não localizou este endereço.</p></div>`:''}
+    ${(()=>{const hist=historicoDemanda(d.endereco,d._id);return hist.length?htmlHistorico(hist):'';})()}
     ${mostrarAlocar?alocarHtml(d):''}
     <div class="demand-actions">
       ${mostrarCheck?`<button class="btn-done" data-check="${d._id}"><i class="ti ti-camera"></i> Concluir com foto e data</button>`:''}
@@ -1070,6 +1119,7 @@ function bindCards(container){
   container.querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click',()=>deletarDemanda(b.dataset.del)));
   container.querySelectorAll('[data-revisao]').forEach(b=>b.addEventListener('click',()=>abrirRevisao(b.dataset.revisao)));
   container.querySelectorAll('.alocar-select').forEach(sel=>sel.addEventListener('change',()=>atribuir(sel.dataset.id,sel.value)));
+  container.querySelectorAll('.zona-select').forEach(sel=>sel.addEventListener('change',()=>atualizarZona(sel.dataset.zonaId,sel.value)));
   container.querySelectorAll('.photo-preview[data-src]').forEach(img=>img.addEventListener('click',()=>abrirLightbox(img.dataset.src)));
 }
 
@@ -1868,6 +1918,19 @@ document.addEventListener('DOMContentLoaded', ()=>{
   // Nova demanda
   $('btn-enviar-demanda').addEventListener('click',enviarDemanda);
   $('foto').addEventListener('change',()=>previewFoto($('foto'),'foto-preview'));
+  // Histórico de endereço no formulário nova demanda
+  let _debounceEnd=null;
+  $('endereco').addEventListener('input',()=>{
+    clearTimeout(_debounceEnd);
+    _debounceEnd=setTimeout(()=>{
+      const end=$('endereco').value.trim();
+      const el=$('hist-end-nova');
+      if(end.length<6){el.style.display='none';el.innerHTML='';return;}
+      const hist=historicoDemanda(end,null);
+      if(hist.length){el.innerHTML=htmlHistorico(hist);el.style.display='block';}
+      else{el.style.display='none';el.innerHTML='';}
+    },400);
+  });
 
   // Duplicado
   $('btn-cancelar-duplicado').addEventListener('click',()=>fecharModal('modal-duplicado'));
