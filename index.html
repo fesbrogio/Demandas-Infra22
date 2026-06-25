@@ -502,25 +502,6 @@
     <div class="field" id="field-avenida" style="display:none">
       <label>Nome da avenida / rua</label>
       <input type="text" id="servico-local-avenida" placeholder="Ex: Av. Presidente Vargas" autocomplete="off">
-      <div style="margin-top:10px">
-        <label style="font-size:12px;font-weight:500;color:var(--text2);margin-bottom:6px;display:block">Extensão do serviço</label>
-        <div class="tipo-selector" style="margin-bottom:0">
-          <button type="button" class="tipo-btn selected" data-extensao="total" id="extensao-btn-total" style="padding:10px">
-            <i class="ti ti-arrows-horizontal"></i>
-            <span>Total</span>
-            <small>A via inteira</small>
-          </button>
-          <button type="button" class="tipo-btn" data-extensao="parcial" id="extensao-btn-parcial" style="padding:10px">
-            <i class="ti ti-cut"></i>
-            <span>Parcial / por trecho</span>
-            <small>Apenas um trecho</small>
-          </button>
-        </div>
-      </div>
-      <div class="field" id="field-trecho-avenida" style="display:none;margin-top:10px;margin-bottom:0">
-        <label>Qual trecho?</label>
-        <input type="text" id="servico-trecho-avenida" placeholder="Ex: Entre a Av. Brasil e a Rua 9 de Julho" autocomplete="off">
-      </div>
     </div>
     <div class="field" id="field-acao" style="display:none">
       <label>Descrição da ação</label>
@@ -596,7 +577,7 @@
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, query, orderBy, serverTimestamp, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, query, orderBy, where, serverTimestamp, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 // ══ FIREBASE ══════════════════════════════════════════
 const app = initializeApp({
@@ -697,17 +678,10 @@ let perfil='', equipeAtual='', checkId=null, revisaoId=null, _dadosPendentes=nul
 let _demandas=[], _estatisticas=[], _servicos=[];
 let _charts={}, _mapaInstance=null, _mapaMarkers=[];
 let secaoAtual='', _execServicoId=null, _tipoServicoSel='bairro', _extensaoSel='total';
+let _unsubDemandas=null; // controla o listener ativo
 
 // ══ FIREBASE LISTENERS ════════════════════════════════
-onSnapshot(query(col,orderBy("criadoEm","desc")), snap=>{
-  _demandas = snap.docs.map(d=>({_id:d.id,...d.data()}));
-  _demandas.sort((a,b)=>{
-    if(a.prioridade==='urgente'&&b.prioridade!=='urgente') return -1;
-    if(a.prioridade!=='urgente'&&b.prioridade==='urgente') return 1;
-    return 0;
-  });
-  renderAtual();
-});
+// Stats e Serviços — sempre ativos
 onSnapshot(query(colStats,orderBy("mesISO","asc")), snap=>{
   _estatisticas = snap.docs.map(d=>({_id:d.id,...d.data()}));
   if(secaoAtual==='dashboard') renderDashboard();
@@ -716,6 +690,23 @@ onSnapshot(query(colServicos,orderBy("criadoEm","desc")), snap=>{
   _servicos = snap.docs.map(d=>({_id:d.id,...d.data()}));
   if(secaoAtual==='servicos') renderServicos();
 });
+
+// Demandas — listener ativado ao entrar no perfil
+function iniciarListenerDemandas(sobertas=false){
+  if(_unsubDemandas){_unsubDemandas();_unsubDemandas=null;}
+  const q=sobertas
+    ? query(col, where("status","!=","concluído"), orderBy("status"), orderBy("criadoEm","desc"))
+    : query(col, orderBy("criadoEm","desc"));
+  _unsubDemandas=onSnapshot(q, snap=>{
+    _demandas = snap.docs.map(d=>({_id:d.id,...d.data()}));
+    _demandas.sort((a,b)=>{
+      if(a.prioridade==='urgente'&&b.prioridade!=='urgente') return -1;
+      if(a.prioridade!=='urgente'&&b.prioridade==='urgente') return 1;
+      return 0;
+    });
+    renderAtual();
+  });
+}
 
 const fbAdd = data => addDoc(col,{...data,criadoEm:serverTimestamp()});
 const fbUpd = (id,data) => updateDoc(doc(db,"demandas",id),data);
@@ -817,6 +808,7 @@ function entrarComo(p){
           <button class="tab" data-sec="gerenciar"><i class="ti ti-settings"></i> Gerenciar</button>
           <button class="tab" data-sec="revisao"><i class="ti ti-map-pin-off"></i> Revisão <span id="badge-revisao" class="tab-badge" style="display:none"></span></button>`;
     sec='nova';
+    iniciarListenerDemandas(false); // tudo
   } else if(p==='fiscal'){
     titulo='📋 Relatório';
     html=`<button class="tab active" data-sec="painel"><i class="ti ti-layout-dashboard"></i> Painel</button>
@@ -824,6 +816,7 @@ function entrarComo(p){
           <button class="tab" data-sec="dashboard"><i class="ti ti-chart-bar"></i> Dashboard</button>
           <button class="tab" data-sec="historico"><i class="ti ti-history"></i> Concluídas / PDF</button>`;
     sec='painel';
+    iniciarListenerDemandas(false); // tudo
   } else {
     const num=p.replace('equipe','');
     equipeAtual=num==='6'?'Equipe 6 (Retroescavadeira)':`Equipe ${num}`;
@@ -832,10 +825,10 @@ function entrarComo(p){
           <button class="tab" data-sec="servicos"><i class="ti ti-map-2"></i> Serviços</button>
           <button class="tab" data-sec="mapa"><i class="ti ti-map"></i> Mapa</button>`;
     sec='equipe';
+    iniciarListenerDemandas(true); // só não concluídas
   }
   tabs.innerHTML=html;
   $('header-user-label').textContent=titulo;
-  // Bind tab clicks
   tabs.querySelectorAll('.tab').forEach(btn=>{
     btn.addEventListener('click',()=>{
       tabs.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
@@ -849,6 +842,8 @@ function entrarComo(p){
 
 function voltarPerfil(){
   perfil='';equipeAtual='';secaoAtual='';
+  if(_unsubDemandas){_unsubDemandas();_unsubDemandas=null;}
+  _demandas=[];
   Object.values(_charts).forEach(c=>c.destroy());_charts={};
   if(_mapaInstance){_mapaInstance.remove();_mapaInstance=null;_mapaMarkers=[];_marcadorUsuario=null;_circuloUsuario=null;}
   $('tela-perfil').style.display='block';
@@ -1460,15 +1455,10 @@ function statusServicoHtml(s){
 function areaCardHtml(s, opts={}){
   const{podeConcluir=false,podeApagar=false}=opts;
   const cls=s.status==='concluido'?'concluido':s.status==='em-andamento'?'em-andamento':'aguardando';
-  const extensaoTag=s.tipo==='avenida'&&s.extensao==='parcial'
-    ?`<span class="area-tipo-tag" style="background:var(--orange-bg);color:var(--orange);border:1px solid var(--orange-border)"><i class="ti ti-cut" style="font-size:11px"></i> Trecho${s.trecho?`: ${s.trecho}`:''}</span>`
-    :s.tipo==='avenida'&&s.extensao==='total'
-    ?`<span class="area-tipo-tag" style="background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)"><i class="ti ti-arrows-horizontal" style="font-size:11px"></i> Via inteira</span>`
-    :'';
   return`<div class="area-card ${cls}">
     <div class="area-header">
       <div style="flex:1">
-        ${tipoTag(s.tipo)} ${extensaoTag}
+        ${tipoTag(s.tipo)}
         <div style="font-size:15px;font-weight:600;margin-top:6px">${s.local}</div>
         <div style="font-size:12px;color:var(--text2);margin-top:4px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
           <span class="tag-equipe">${s.equipe||'—'}</span>
@@ -1553,16 +1543,13 @@ function renderServicos(){
 
 function abrirNovoServico(){
   _tipoServicoSel='bairro';
-  _extensaoSel='total';
   $('servico-local-bairro').value='';
   $('servico-local-avenida').value='';
   $('servico-local-acao').value='';
-  $('servico-trecho-avenida').value='';
   $('servico-equipe').value='';
   $('servico-obs-inicial').value='';
   $('autocomplete-lista').style.display='none';
   selecionarTipoServico('bairro');
-  selecionarExtensao('total');
   $('modal-novo-servico').style.display='flex';
   setTimeout(()=>$('servico-local-bairro').focus(),150);
 }
@@ -1573,14 +1560,6 @@ function selecionarTipoServico(tipo){
     $('tipo-btn-'+t).classList.toggle('selected',t===tipo);
     const f=$('field-'+t);if(f)f.style.display=t===tipo?'block':'none';
   });
-}
-
-function selecionarExtensao(ext){
-  _extensaoSel=ext;
-  ['total','parcial'].forEach(e=>{
-    $('extensao-btn-'+e).classList.toggle('selected',e===ext);
-  });
-  $('field-trecho-avenida').style.display=ext==='parcial'?'block':'none';
 }
 
 function setupAutocomplete(){
@@ -1611,17 +1590,8 @@ async function salvarNovoServico(){
   if(!local){alert('Preencha o nome do local.');return;}
   if(!equipe){alert('Selecione a equipe responsável.');return;}
   const obs=$('servico-obs-inicial').value.trim();
-  const dados={tipo,local,equipe,obsInicial:obs||null,status:'aguardando',dataCriacao:new Date().toLocaleDateString('pt-BR'),dataInicio:null,dataFim:null,obs:null};
-  if(tipo==='avenida'){
-    dados.extensao=_extensaoSel;
-    if(_extensaoSel==='parcial'){
-      const trecho=$('servico-trecho-avenida').value.trim();
-      if(!trecho){alert('Informe o trecho da via.');return;}
-      dados.trecho=trecho;
-    }
-  }
   try{
-    await fbAddServico(dados);
+    await fbAddServico({tipo,local,equipe,obsInicial:obs||null,status:'aguardando',dataCriacao:new Date().toLocaleDateString('pt-BR'),dataInicio:null,dataFim:null,obs:null});
     fecharModal('modal-novo-servico');
     showMsg(`✓ Serviço de área registrado para ${equipe}!`);
   }catch(e){showMsg('Erro ao salvar.','danger');}
@@ -2026,11 +1996,6 @@ document.addEventListener('DOMContentLoaded', ()=>{
   ['bairro','avenida','acao'].forEach(t=>{
     const b=$('tipo-btn-'+t);
     if(b) b.addEventListener('click',()=>selecionarTipoServico(t));
-  });
-  // Serviços de área – extensão (total/parcial)
-  ['total','parcial'].forEach(e=>{
-    const b=$('extensao-btn-'+e);
-    if(b) b.addEventListener('click',()=>selecionarExtensao(e));
   });
   setupAutocomplete();
   $('btn-cancelar-novo-servico').addEventListener('click',()=>fecharModal('modal-novo-servico'));
