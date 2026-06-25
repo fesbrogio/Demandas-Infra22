@@ -577,7 +577,7 @@
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, query, orderBy, where, serverTimestamp, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, query, orderBy, serverTimestamp, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 // ══ FIREBASE ══════════════════════════════════════════
 const app = initializeApp({
@@ -692,13 +692,23 @@ onSnapshot(query(colServicos,orderBy("criadoEm","desc")), snap=>{
 });
 
 // Demandas — listener ativado ao entrar no perfil
-function iniciarListenerDemandas(sobertas=false){
+function iniciarListenerDemandas(soEquipe=false){
   if(_unsubDemandas){_unsubDemandas();_unsubDemandas=null;}
-  const q=sobertas
-    ? query(col, where("status","!=","concluído"), orderBy("status"), orderBy("criadoEm","desc"))
-    : query(col, orderBy("criadoEm","desc"));
+  const q=query(col, orderBy("criadoEm","desc"));
   _unsubDemandas=onSnapshot(q, snap=>{
-    _demandas = snap.docs.map(d=>({_id:d.id,...d.data()}));
+    const docs=snap.docs.map(d=>({_id:d.id,...d.data()}));
+    if(soEquipe){
+      // Para equipes: carrega tudo mas remove fotos das concluídas para economizar memória
+      _demandas=docs.map(d=>{
+        if(d.status==='concluído'){
+          const{foto,fotoConclusao,...rest}=d;
+          return rest;
+        }
+        return d;
+      });
+    } else {
+      _demandas=docs;
+    }
     _demandas.sort((a,b)=>{
       if(a.prioridade==='urgente'&&b.prioridade!=='urgente') return -1;
       if(a.prioridade!=='urgente'&&b.prioridade==='urgente') return 1;
@@ -825,7 +835,7 @@ function entrarComo(p){
           <button class="tab" data-sec="servicos"><i class="ti ti-map-2"></i> Serviços</button>
           <button class="tab" data-sec="mapa"><i class="ti ti-map"></i> Mapa</button>`;
     sec='equipe';
-    iniciarListenerDemandas(true); // só não concluídas
+    iniciarListenerDemandas(true); // remove fotos das concluídas
   }
   tabs.innerHTML=html;
   $('header-user-label').textContent=titulo;
