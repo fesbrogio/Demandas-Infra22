@@ -17,8 +17,8 @@
   body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:15px;min-height:100vh}
   .header{background:var(--text);color:#fff;padding:0 16px;height:54px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;gap:10px}
   .header-brand{display:flex;align-items:center;gap:10px;min-width:0}
-  .header-logo{width:32px;height:32px;flex-shrink:0;background:#fff;border-radius:8px;display:flex;align-items:center;justify-content:center}
-  .header-logo i{color:var(--text);font-size:18px}
+  .header-logo{width:36px;height:36px;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+  .header-logo img{width:36px;height:36px;object-fit:contain;filter:drop-shadow(0 1px 2px rgba(0,0,0,.3))}
   .brand-text{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .brand-sub{font-size:10px;opacity:.5;font-family:var(--font-mono)}
   .header-right{display:flex;align-items:center;gap:8px;flex-shrink:0}
@@ -236,7 +236,7 @@
 
 <div class="header">
   <div class="header-brand">
-    <div class="header-logo"><i class="ti ti-building-community"></i></div>
+    <div class="header-logo"><img src="https://fesbrogio.github.io/Demandas-Infra22/Brasão_de_Ribeirão_Preto_svg.png" alt="Brasão de Ribeirão Preto" onerror="this.parentElement.innerHTML='<i class=\'ti ti-building-community\' style=\'color:#fff;font-size:20px\'></i>'"></div>
     <div><div class="brand-text">Secretaria da Infraestrutura</div><div class="brand-sub">Ribeirão Preto – SP</div></div>
   </div>
   <div class="header-right" id="header-right" style="display:none">
@@ -319,7 +319,10 @@
     </div>
 
     <div id="sec-dashboard" class="section">
-      <p class="section-title">Dashboard — Histórico mensal</p>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+        <p class="section-title" style="margin:0">Dashboard — Histórico mensal</p>
+        <button class="btn btn-primary btn-sm" id="btn-abrir-relatorio-executivo"><i class="ti ti-file-analytics"></i> Relatório Executivo</button>
+      </div>
       <div class="mes-selector"><label><i class="ti ti-calendar"></i> Visualizar mês:</label><select id="sel-mes-dash"></select></div>
       <div id="dash-conteudo"></div>
     </div>
@@ -440,6 +443,18 @@
     <div class="modal-actions" style="justify-content:center;gap:12px">
       <button class="btn" id="btn-cancelar-apagar"><i class="ti ti-x"></i> Cancelar</button>
       <button class="btn btn-danger" id="btn-executar-apagar" style="font-size:14px;font-weight:600"><i class="ti ti-trash"></i> Sim, apagar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL RELATÓRIO EXECUTIVO -->
+<div id="modal-relatorio-executivo" class="modal-wrap" style="display:none">
+  <div class="modal modal-lg">
+    <h3><i class="ti ti-chart-line" style="color:var(--green)"></i> Relatório Executivo</h3>
+    <div class="rel-content" id="rel-executivo-conteudo"></div>
+    <div class="modal-actions">
+      <button class="btn" id="btn-fechar-relatorio-executivo">Fechar</button>
+      <button class="btn btn-primary" id="btn-baixar-pdf-executivo"><i class="ti ti-download"></i> Baixar PDF</button>
     </div>
   </div>
 </div>
@@ -1192,13 +1207,7 @@ function renderHistorico(){
   const conc=_demandas.filter(d=>d.status==='concluído');
   popularSelectMes('filtro-mes-historico',conc);
   const mesSel=$('filtro-mes-historico').value;
-  let lista=filtrarPorMes(conc,mesSel,'dataConclusao');
-  // Mais recentes primeiro
-  lista=lista.sort((a,b)=>{
-    const da=a.dataConclusao?a.dataConclusao.split('/').reverse().join(''):'';
-    const db=b.dataConclusao?b.dataConclusao.split('/').reverse().join(''):'';
-    return db.localeCompare(da);
-  });
+  const lista=filtrarPorMes(conc,mesSel,'dataConclusao');
   const el=$('lista-historico');
   if(!lista.length){el.innerHTML='<div class="empty"><i class="ti ti-history"></i>Nenhum serviço concluído ainda</div>';return;}
   el.innerHTML=realtimeBadge()+`<div class="card">${lista.map(d=>`
@@ -1447,19 +1456,11 @@ function statusServicoHtml(s){
 function areaCardHtml(s, opts={}){
   const{podeConcluir=false,podeApagar=false}=opts;
   const cls=s.status==='concluido'?'concluido':s.status==='em-andamento'?'em-andamento':'aguardando';
-  const extensaoTag=s.tipo==='avenida'&&s.extensao==='parcial'
-    ?`<span class="area-tipo-tag" style="background:var(--orange-bg);color:var(--orange);border:1px solid var(--orange-border)"><i class="ti ti-cut" style="font-size:11px"></i> Trecho parcial</span>`
-    :s.tipo==='avenida'&&s.extensao==='total'
-    ?`<span class="area-tipo-tag" style="background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)"><i class="ti ti-arrows-horizontal" style="font-size:11px"></i> Via inteira</span>`
-    :'';
   return`<div class="area-card ${cls}">
     <div class="area-header">
       <div style="flex:1">
-        <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center">${tipoTag(s.tipo)}${extensaoTag}</div>
+        ${tipoTag(s.tipo)}
         <div style="font-size:15px;font-weight:600;margin-top:6px">${s.local}</div>
-        ${s.tipo==='avenida'&&s.extensao==='parcial'&&s.trecho
-          ?`<div style="font-size:13px;color:var(--orange);margin-top:3px;font-weight:500"><i class="ti ti-map-pin" style="font-size:12px"></i> ${s.trecho}</div>`
-          :''}
         <div style="font-size:12px;color:var(--text2);margin-top:4px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
           <span class="tag-equipe">${s.equipe||'—'}</span>
           <span><i class="ti ti-calendar" style="font-size:12px"></i> Criado: ${s.dataCriacao||'—'}</span>
@@ -1802,8 +1803,6 @@ function baixarPDFServicos(){
       const campos=[
         ['Equipe',s.equipe||'—'],
         ['Criado em',s.dataCriacao||'—'],
-        ...(s.tipo==='avenida'?[['Extensão',s.extensao==='parcial'?'Trecho parcial':'Via inteira']]:[]),
-        ...(s.tipo==='avenida'&&s.extensao==='parcial'&&s.trecho?[['Trecho',s.trecho]]:[]),
         ...(s.dataInicio?[['Início',s.dataInicio]]:[]),
         ...(s.dataFim?[['Conclusão',s.dataFim]]:[]),
       ];
@@ -1905,6 +1904,208 @@ async function carregarClima(){
   }
 }
 
+// ══ RELATÓRIO EXECUTIVO ═══════════════════════════════
+function gerarRelatorioExecutivo(){
+  const hoje=new Date().toLocaleDateString('pt-BR');
+  const anoAtual=String(new Date().getFullYear());
+  const todas=todasDemandas();
+  const servsAno=_servicos.filter(s=>{
+    const f=s.dataFim||s.dataInicio||s.dataCriacao||'';
+    return f.includes(anoAtual);
+  });
+
+  // Meses disponíveis (demandas + estatísticas arquivadas)
+  const mesesSet=new Set();
+  todas.forEach(d=>{const m=parseMes(d.data);if(m)mesesSet.add(m);});
+  _estatisticas.forEach(e=>{if(e._id)mesesSet.add(e._id);});
+  const meses=[...mesesSet].filter(m=>m.startsWith(anoAtual)).sort();
+
+  // Preview modal
+  let html=`<strong>Relatório Executivo – Secretaria da Infraestrutura</strong><br>`;
+  html+=`Ribeirão Preto – SP &nbsp;·&nbsp; Gerado em: ${hoje}<br><br>`;
+
+  // Resumo anual
+  const concAno=todas.filter(d=>d.status==='concluído'&&(d.dataConclusao||d.data||'').includes('/'+anoAtual.slice(2)));
+  const urgAno=todas.filter(d=>d.prioridade==='urgente'&&(d.data||'').split('/')[2]===anoAtual);
+  const bairrosAno=servsAno.filter(s=>s.tipo==='bairro'&&s.status==='concluido').length;
+  const avenidasAno=servsAno.filter(s=>s.tipo==='avenida'&&s.status==='concluido').length;
+  const acoesAno=servsAno.filter(s=>s.tipo==='acao'&&s.status==='concluido').length;
+
+  html+=`<strong>══ RESUMO ANUAL ${anoAtual} ══</strong><br>`;
+  html+=`Total de demandas concluídas: ${concAno.length}<br>`;
+  html+=`Demandas urgentes atendidas: ${urgAno.filter(d=>d.status==='concluído').length}<br>`;
+  html+=`Limpezas de bairro concluídas: ${bairrosAno}<br>`;
+  html+=`Avenidas/Ruas concluídas: ${avenidasAno}<br>`;
+  html+=`Ações especiais realizadas: ${acoesAno}<br><br>`;
+
+  // Mês a mês
+  html+=`<strong>══ DETALHAMENTO MÊS A MÊS ══</strong><br><br>`;
+  meses.forEach(m=>{
+    const[ano,mes]=m.split('-');
+    const stat=_estatisticas.find(e=>e._id===m);
+    const demMes=todas.filter(d=>{if(!d.data)return false;const p=d.data.split('/');return p[2]===ano&&p[1]===mes;});
+    const concMes=demMes.filter(d=>d.status==='concluído').length+(stat?.total||0);
+    const urgMes=demMes.filter(d=>d.prioridade==='urgente').length+(stat?.urgentes||0);
+    const servMes=_servicos.filter(s=>{const f=s.dataFim||s.dataInicio||'';const p=f.split('/');return p.length===3&&p[2]===ano&&p[1]===mes;});
+    const bMes=servMes.filter(s=>s.tipo==='bairro'&&s.status==='concluido').length;
+    const aMes=servMes.filter(s=>s.tipo==='avenida'&&s.status==='concluido').length;
+    html+=`<strong>${nomeMes(m).toUpperCase()}</strong><br>`;
+    html+=`  Demandas concluídas: ${concMes} (${urgMes} urgentes)<br>`;
+    if(bMes||aMes) html+=`  Limpezas de área: ${bMes} bairro${bMes!==1?'s':''}, ${aMes} avenida${aMes!==1?'s':''}<br>`;
+    EQUIPES.forEach(eq=>{
+      const n=demMes.filter(d=>d.equipe===eq&&d.status==='concluído').length+(stat?.porEquipe?.[eq]||0);
+      if(n>0) html+=`  ${eq}: ${n} concluída${n!==1?'s':''}<br>`;
+    });
+    html+=`<br>`;
+  });
+
+  $('rel-executivo-conteudo').innerHTML=html;
+  $('modal-relatorio-executivo').style.display='flex';
+}
+
+function baixarPDFExecutivo(){
+  const{jsPDF}=window.jspdf;
+  const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+  const hoje=new Date().toLocaleDateString('pt-BR');
+  const anoAtual=String(new Date().getFullYear());
+  const W=210,M=15,lH=5.5;let y=M;
+  function chk(n=10){if(y+n>284){doc.addPage();y=M;}}
+
+  const todas=todasDemandas();
+  const servsAno=_servicos.filter(s=>{
+    const f=s.dataFim||s.dataInicio||s.dataCriacao||'';
+    return f.includes(anoAtual);
+  });
+
+  // ── Cabeçalho ──
+  doc.setFillColor(26,25,23);doc.rect(0,0,W,32,'F');
+  // Tenta carregar brasão
+  try{
+    const img=new Image();img.src='https://fesbrogio.github.io/Demandas-Infra22/Bras%C3%A3o_de_Ribeir%C3%A3o_Preto_svg.png';
+    doc.addImage(img,'PNG',M,3,24,24);
+  }catch(e){}
+  doc.setTextColor(255,255,255);
+  doc.setFontSize(14);doc.setFont('helvetica','bold');
+  doc.text('Secretaria da Infraestrutura',M+28,12);
+  doc.setFontSize(9);doc.setFont('helvetica','normal');
+  doc.text('Prefeitura Municipal de Ribeirão Preto – SP',M+28,18);
+  doc.text(`Gerado em: ${hoje}`,W-M,18,{align:'right'});
+
+  y=40;
+  // ── Título ──
+  doc.setTextColor(26,25,23);
+  doc.setFontSize(16);doc.setFont('helvetica','bold');
+  doc.text(`Relatório Executivo de Limpeza Urbana – ${anoAtual}`,M,y);y+=5;
+  doc.setDrawColor(26,25,23);doc.setLineWidth(0.5);doc.line(M,y,W-M,y);y+=8;
+
+  // ── Resumo anual ──
+  const concAno=todas.filter(d=>d.status==='concluído');
+  const urgConcAno=concAno.filter(d=>d.prioridade==='urgente').length;
+  const bairrosAno=servsAno.filter(s=>s.tipo==='bairro'&&s.status==='concluido').length;
+  const avenidasAno=servsAno.filter(s=>s.tipo==='avenida'&&s.status==='concluido').length;
+  const acoesAno=servsAno.filter(s=>s.tipo==='acao'&&s.status==='concluido').length;
+  const abertas=_demandas.filter(d=>d.status!=='concluído'&&d.status!=='revisao').length;
+
+  // Cards de resumo
+  const cards=[
+    {label:'Demandas\nConcluídas',val:String(concAno.length),cor:[26,102,64]},
+    {label:'Urgentes\nAtendidas',val:String(urgConcAno),cor:[139,26,26]},
+    {label:'Bairros\nLimpos',val:String(bairrosAno),cor:[74,26,122]},
+    {label:'Avenidas\nConcluídas',val:String(avenidasAno),cor:[26,63,122]},
+    {label:'Ações\nEspeciais',val:String(acoesAno),cor:[122,58,0]},
+    {label:'Em Aberto\nAgora',val:String(abertas),cor:[80,80,80]},
+  ];
+  const cW=(W-M*2-10)/3,cH=22;
+  cards.forEach((c,i)=>{
+    const col=i%3,row=Math.floor(i/3);
+    const cx=M+col*(cW+5),cy=y+row*(cH+4);
+    doc.setFillColor(...c.cor);doc.roundedRect(cx,cy,cW,cH,2,2,'F');
+    doc.setTextColor(255,255,255);
+    doc.setFontSize(18);doc.setFont('helvetica','bold');
+    doc.text(c.val,cx+cW/2,cy+11,{align:'center'});
+    doc.setFontSize(7);doc.setFont('helvetica','normal');
+    const ls=c.label.split('\n');
+    ls.forEach((l,li)=>doc.text(l,cx+cW/2,cy+16+li*4,{align:'center'}));
+  });
+  y+=cH*2+4+12;
+
+  // ── Detalhamento mês a mês ──
+  doc.setDrawColor(210,210,210);doc.line(M,y,W-M,y);y+=6;
+  doc.setTextColor(26,25,23);doc.setFontSize(12);doc.setFont('helvetica','bold');
+  doc.text(`Detalhamento Mensal – ${anoAtual}`,M,y);y+=8;
+
+  const mesesSet=new Set();
+  todas.forEach(d=>{const m=parseMes(d.data);if(m)mesesSet.add(m);});
+  _estatisticas.forEach(e=>{if(e._id)mesesSet.add(e._id);});
+  const meses=[...mesesSet].filter(m=>m.startsWith(anoAtual)).sort();
+
+  meses.forEach(m=>{
+    chk(40);
+    const[ano,mes]=m.split('-');
+    const stat=_estatisticas.find(e=>e._id===m);
+    const demMes=todas.filter(d=>{if(!d.data)return false;const p=d.data.split('/');return p[2]===ano&&p[1]===mes;});
+    const concMes=demMes.filter(d=>d.status==='concluído').length+(stat?.total||0);
+    const urgMes=demMes.filter(d=>d.prioridade==='urgente'&&d.status==='concluído').length+(stat?.urgentes||0);
+    const servMes=_servicos.filter(s=>{const f=s.dataFim||s.dataInicio||'';const p=f.split('/');return p.length===3&&p[2]===ano&&p[1]===mes;});
+    const bMes=servMes.filter(s=>s.tipo==='bairro'&&s.status==='concluido').length;
+    const aMes=servMes.filter(s=>s.tipo==='avenida'&&s.status==='concluido').length;
+    const acMes=servMes.filter(s=>s.tipo==='acao'&&s.status==='concluido').length;
+
+    // Cabeçalho do mês
+    doc.setFillColor(238,236,234);doc.rect(M,y,W-M*2,8,'F');
+    doc.setFontSize(10);doc.setFont('helvetica','bold');doc.setTextColor(26,25,23);
+    doc.text(nomeMes(m).toUpperCase(),M+3,y+5.5);
+    doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(80,80,80);
+    doc.text(`${concMes} demanda${concMes!==1?'s':''} concluída${concMes!==1?'s':''}`,W-M-3,y+5.5,{align:'right'});
+    y+=11;
+
+    // Linha de serviços de área
+    if(bMes||aMes||acMes){
+      doc.setFontSize(8.5);doc.setFont('helvetica','normal');doc.setTextColor(74,26,122);
+      doc.text(`Serviços de área: ${bMes} bairro${bMes!==1?'s':''} · ${aMes} avenida${aMes!==1?'s':''} · ${acMes} ação${acMes!==1?'ões':''}`,M+3,y);y+=lH+1;
+    }
+
+    // Por equipe
+    const equipesCols=[];
+    EQUIPES.forEach(eq=>{
+      const n=demMes.filter(d=>d.equipe===eq&&d.status==='concluído').length+(stat?.porEquipe?.[eq]||0);
+      if(n>0) equipesCols.push(`${eq.replace(' (Retroescavadeira)','')}: ${n}`);
+    });
+    if(equipesCols.length){
+      doc.setFontSize(8);doc.setTextColor(60,60,60);doc.setFont('helvetica','normal');
+      const linhas=doc.splitTextToSize(equipesCols.join('  ·  '),W-M*2-6);
+      doc.text(linhas,M+3,y);y+=linhas.length*lH+1;
+    }
+
+    // Por zona
+    const zonasCols=[];
+    ZONAS.forEach(z=>{
+      const n=demMes.filter(d=>d.zona===z&&d.status==='concluído').length+(stat?.porZona?.[z]||0);
+      if(n>0) zonasCols.push(`${z}: ${n}`);
+    });
+    if(zonasCols.length){
+      doc.setFontSize(8);doc.setTextColor(26,63,122);
+      const linhas=doc.splitTextToSize(zonasCols.join('  ·  '),W-M*2-6);
+      doc.text(linhas,M+3,y);y+=linhas.length*lH+1;
+    }
+
+    // Urgentes
+    if(urgMes>0){
+      doc.setFontSize(8);doc.setTextColor(139,26,26);
+      doc.text(`⚡ ${urgMes} demanda${urgMes!==1?'s':''} urgente${urgMes!==1?'s':''} atendida${urgMes!==1?'s':''}`,M+3,y);y+=lH+1;
+    }
+    y+=4;
+  });
+
+  // ── Rodapé ──
+  chk(12);
+  doc.setDrawColor(210,210,210);doc.line(M,y,W-M,y);y+=5;
+  doc.setFontSize(7.5);doc.setTextColor(150,150,150);doc.setFont('helvetica','italic');
+  doc.text('Documento gerado automaticamente – Sistema de Gestão de Limpeza Urbana / Secretaria da Infraestrutura de Ribeirão Preto',M,y,{maxWidth:W-M*2});
+
+  doc.save(`relatorio_executivo_${anoAtual}_${hoje.replace(/\//g,'-')}.pdf`);
+}
+
 // ══ EVENT LISTENERS ═══════════════════════════════════
 document.addEventListener('DOMContentLoaded', ()=>{
   carregarClima();
@@ -1988,6 +2189,11 @@ document.addEventListener('DOMContentLoaded', ()=>{
 
   // Dashboard
   $('sel-mes-dash').addEventListener('change',renderDashboard);
+
+  // Relatório Executivo
+  $('btn-abrir-relatorio-executivo').addEventListener('click',gerarRelatorioExecutivo);
+  $('btn-fechar-relatorio-executivo').addEventListener('click',()=>fecharModal('modal-relatorio-executivo'));
+  $('btn-baixar-pdf-executivo').addEventListener('click',baixarPDFExecutivo);
 
   // Lightbox
   $('lightbox').addEventListener('click',fecharLightbox);
