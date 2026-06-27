@@ -1447,11 +1447,19 @@ function statusServicoHtml(s){
 function areaCardHtml(s, opts={}){
   const{podeConcluir=false,podeApagar=false}=opts;
   const cls=s.status==='concluido'?'concluido':s.status==='em-andamento'?'em-andamento':'aguardando';
+  const extensaoTag=s.tipo==='avenida'&&s.extensao==='parcial'
+    ?`<span class="area-tipo-tag" style="background:var(--orange-bg);color:var(--orange);border:1px solid var(--orange-border)"><i class="ti ti-cut" style="font-size:11px"></i> Trecho parcial</span>`
+    :s.tipo==='avenida'&&s.extensao==='total'
+    ?`<span class="area-tipo-tag" style="background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)"><i class="ti ti-arrows-horizontal" style="font-size:11px"></i> Via inteira</span>`
+    :'';
   return`<div class="area-card ${cls}">
     <div class="area-header">
       <div style="flex:1">
-        ${tipoTag(s.tipo)}
+        <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center">${tipoTag(s.tipo)}${extensaoTag}</div>
         <div style="font-size:15px;font-weight:600;margin-top:6px">${s.local}</div>
+        ${s.tipo==='avenida'&&s.extensao==='parcial'&&s.trecho
+          ?`<div style="font-size:13px;color:var(--orange);margin-top:3px;font-weight:500"><i class="ti ti-map-pin" style="font-size:12px"></i> ${s.trecho}</div>`
+          :''}
         <div style="font-size:12px;color:var(--text2);margin-top:4px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
           <span class="tag-equipe">${s.equipe||'—'}</span>
           <span><i class="ti ti-calendar" style="font-size:12px"></i> Criado: ${s.dataCriacao||'—'}</span>
@@ -1794,6 +1802,8 @@ function baixarPDFServicos(){
       const campos=[
         ['Equipe',s.equipe||'—'],
         ['Criado em',s.dataCriacao||'—'],
+        ...(s.tipo==='avenida'?[['Extensão',s.extensao==='parcial'?'Trecho parcial':'Via inteira']]:[]),
+        ...(s.tipo==='avenida'&&s.extensao==='parcial'&&s.trecho?[['Trecho',s.trecho]]:[]),
         ...(s.dataInicio?[['Início',s.dataInicio]]:[]),
         ...(s.dataFim?[['Conclusão',s.dataFim]]:[]),
       ];
