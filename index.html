@@ -517,6 +517,17 @@
     <div class="field" id="field-avenida" style="display:none">
       <label>Nome da avenida / rua</label>
       <input type="text" id="servico-local-avenida" placeholder="Ex: Av. Presidente Vargas" autocomplete="off">
+      <div class="field-destaque" style="margin-top:12px">
+        <label><i class="ti ti-ruler-2"></i> Extensão do serviço</label>
+        <select id="servico-avenida-extensao">
+          <option value="inteira">Avenida / rua inteira</option>
+          <option value="trecho">Apenas um trecho</option>
+        </select>
+      </div>
+      <div class="field" id="field-avenida-trecho" style="display:none;margin-top:10px">
+        <label>Qual trecho?</label>
+        <input type="text" id="servico-avenida-trecho-desc" placeholder="Ex: entre a Rua A e a Rua B / nº 100 a 500" autocomplete="off">
+      </div>
     </div>
     <div class="field" id="field-acao" style="display:none">
       <label>Descrição da ação</label>
@@ -1464,6 +1475,8 @@ function areaCardHtml(s, opts={}){
       <div style="flex:1">
         ${tipoTag(s.tipo)}
         <div style="font-size:15px;font-weight:600;margin-top:6px">${s.local}</div>
+        ${s.tipo==='avenida'&&s.extensao==='trecho'&&s.trecho?`<div style="font-size:12px;color:var(--blue);margin-top:3px;display:flex;align-items:center;gap:4px"><i class="ti ti-ruler-2" style="font-size:12px"></i> Trecho: ${s.trecho}</div>`:''}
+        ${s.tipo==='avenida'&&s.extensao==='inteira'?`<div style="font-size:12px;color:var(--text3);margin-top:3px;display:flex;align-items:center;gap:4px"><i class="ti ti-ruler-2" style="font-size:12px"></i> Via inteira</div>`:''}
         <div style="font-size:12px;color:var(--text2);margin-top:4px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
           <span class="tag-equipe">${s.equipe||'—'}</span>
           <span><i class="ti ti-calendar" style="font-size:12px"></i> Criado: ${s.dataCriacao||'—'}</span>
@@ -1550,6 +1563,9 @@ function abrirNovoServico(){
   $('servico-local-bairro').value='';
   $('servico-local-avenida').value='';
   $('servico-local-acao').value='';
+  $('servico-avenida-extensao').value='inteira';
+  $('servico-avenida-trecho-desc').value='';
+  $('field-avenida-trecho').style.display='none';
   $('servico-equipe').value='';
   $('servico-obs-inicial').value='';
   $('autocomplete-lista').style.display='none';
@@ -1594,8 +1610,16 @@ async function salvarNovoServico(){
   if(!local){alert('Preencha o nome do local.');return;}
   if(!equipe){alert('Selecione a equipe responsável.');return;}
   const obs=$('servico-obs-inicial').value.trim();
+  let extensao=null,trecho=null;
+  if(tipo==='avenida'){
+    extensao=$('servico-avenida-extensao').value;
+    if(extensao==='trecho'){
+      trecho=$('servico-avenida-trecho-desc').value.trim();
+      if(!trecho){alert('Descreva qual trecho da avenida será atendido.');return;}
+    }
+  }
   try{
-    await fbAddServico({tipo,local,equipe,obsInicial:obs||null,status:'aguardando',dataCriacao:new Date().toLocaleDateString('pt-BR'),dataInicio:null,dataFim:null,obs:null});
+    await fbAddServico({tipo,local,equipe,obsInicial:obs||null,status:'aguardando',dataCriacao:new Date().toLocaleDateString('pt-BR'),dataInicio:null,dataFim:null,obs:null,extensao,trecho});
     fecharModal('modal-novo-servico');
     showMsg(`✓ Serviço de área registrado para ${equipe}!`);
   }catch(e){showMsg('Erro ao salvar.','danger');}
@@ -1734,6 +1758,7 @@ function gerarRelatorioServicos(){
     Gerado em: ${hoje}<br><br>
     ${_servicos.map((s,i)=>`<div style="margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--border)">
       <strong>${i+1}. ${s.local}</strong> <span style="font-size:12px;color:var(--text2)">[${s.tipo}]</span><br>
+      ${s.tipo==='avenida'?`Extensão: ${s.extensao==='trecho'?`Trecho – ${s.trecho||'—'}`:'Via inteira'}<br>`:''}
       Equipe: ${s.equipe||'—'} · Status: ${s.status}<br>
       ${s.dataInicio?`Início: ${s.dataInicio}`:''} ${s.dataFim?`· Conclusão: ${s.dataFim}`:''}
       ${s.obs?`<br>Obs: ${s.obs}`:''}
@@ -1805,6 +1830,7 @@ function baixarPDFServicos(){
 
       const campos=[
         ['Equipe',s.equipe||'—'],
+        ...(s.tipo==='avenida'?[['Extensão',s.extensao==='trecho'?`Trecho: ${s.trecho||'—'}`:'Via inteira']]:[]),
         ['Criado em',s.dataCriacao||'—'],
         ...(s.dataInicio?[['Início',s.dataInicio]]:[]),
         ...(s.dataFim?[['Conclusão',s.dataFim]]:[]),
@@ -2211,6 +2237,9 @@ document.addEventListener('DOMContentLoaded', ()=>{
     if(b) b.addEventListener('click',()=>selecionarTipoServico(t));
   });
   setupAutocomplete();
+  $('servico-avenida-extensao').addEventListener('change',()=>{
+    $('field-avenida-trecho').style.display=$('servico-avenida-extensao').value==='trecho'?'block':'none';
+  });
   $('btn-cancelar-novo-servico').addEventListener('click',()=>fecharModal('modal-novo-servico'));
   $('btn-salvar-novo-servico').addEventListener('click',salvarNovoServico);
   $('btn-cancelar-exec').addEventListener('click',()=>fecharModal('modal-exec-servico'));
