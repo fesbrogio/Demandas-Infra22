@@ -556,6 +556,28 @@
   </div>
 </div>
 
+<!-- MODAL EDITAR TRECHO DA AVENIDA -->
+<div id="modal-editar-trecho" class="modal-wrap" style="display:none">
+  <div class="modal" style="max-width:440px">
+    <h3><i class="ti ti-ruler-2" style="color:var(--blue)"></i> Trecho da avenida</h3>
+    <div class="field-destaque">
+      <label><i class="ti ti-ruler-2"></i> Extensão do serviço</label>
+      <select id="editar-trecho-extensao">
+        <option value="inteira">Avenida / rua inteira</option>
+        <option value="trecho">Apenas um trecho</option>
+      </select>
+    </div>
+    <div class="field" id="editar-trecho-campo" style="display:none">
+      <label>Qual trecho?</label>
+      <input type="text" id="editar-trecho-desc" placeholder="Ex: entre a Rua A e a Rua B / nº 100 a 500" autocomplete="off">
+    </div>
+    <div class="modal-actions">
+      <button class="btn" id="btn-cancelar-editar-trecho">Cancelar</button>
+      <button class="btn btn-primary" id="btn-salvar-editar-trecho"><i class="ti ti-check"></i> Salvar</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL EXECUTAR SERVIÇO DE ÁREA -->
 <div id="modal-exec-servico" class="modal-wrap" style="display:none">
   <div class="modal" style="max-width:460px;max-height:92vh;overflow-y:auto">
@@ -1493,6 +1515,7 @@ function areaCardHtml(s, opts={}){
     ${s.fotoAcao&&s.tipo==='acao'?`<div style="margin-top:8px"><img src="${s.fotoAcao}" style="max-width:100%;max-height:180px;border-radius:var(--radius);object-fit:cover;cursor:zoom-in;border:1px solid var(--border)" onclick="document.getElementById('lightbox').style.display='flex';document.getElementById('lightbox-img').src='${s.fotoAcao}'" title="Clique para ampliar"></div>`:''}
     <div class="demand-actions">
       ${podeConcluir&&s.status!=='concluido'?`<button class="btn-done" data-exec="${s._id}"><i class="ti ti-calendar-check"></i> ${s.status==='aguardando'?'Iniciar / Concluir':'Registrar conclusão'}</button>`:''}
+      ${podeApagar&&s.tipo==='avenida'?`<button class="btn btn-sm btn-info" data-edit-trecho="${s._id}"><i class="ti ti-ruler-2"></i> ${s.extensao?'Editar trecho':'Definir trecho'}</button>`:''}
       ${podeApagar?`<button class="btn-del" data-del-servico="${s._id}"><i class="ti ti-trash"></i> Apagar</button>`:''}
     </div>
   </div>`;
@@ -1501,6 +1524,7 @@ function areaCardHtml(s, opts={}){
 function bindAreaCards(container){
   container.querySelectorAll('[data-exec]').forEach(b=>b.addEventListener('click',()=>abrirExecServico(b.dataset.exec)));
   container.querySelectorAll('[data-del-servico]').forEach(b=>b.addEventListener('click',()=>deletarServico(b.dataset.delServico)));
+  container.querySelectorAll('[data-edit-trecho]').forEach(b=>b.addEventListener('click',()=>abrirEditarTrecho(b.dataset.editTrecho)));
 }
 
 function renderServicos(){
@@ -1688,6 +1712,29 @@ async function deletarServico(id){
   if(!confirm('Apagar este serviço de área?'))return;
   try{await fbDelServico(id);showMsg('Serviço apagado.');}
   catch(e){showMsg('Erro ao apagar.','danger');}
+}
+
+let _editarTrechoId=null;
+function abrirEditarTrecho(id){
+  _editarTrechoId=id;
+  const s=_servicos.find(x=>x._id===id);
+  $('editar-trecho-extensao').value=s?.extensao||'inteira';
+  $('editar-trecho-desc').value=s?.trecho||'';
+  $('editar-trecho-campo').style.display=$('editar-trecho-extensao').value==='trecho'?'block':'none';
+  $('modal-editar-trecho').style.display='flex';
+}
+async function salvarEditarTrecho(){
+  const extensao=$('editar-trecho-extensao').value;
+  let trecho=null;
+  if(extensao==='trecho'){
+    trecho=$('editar-trecho-desc').value.trim();
+    if(!trecho){alert('Descreva qual trecho da avenida será atendido.');return;}
+  }
+  try{
+    await fbUpdServico(_editarTrechoId,{extensao,trecho});
+    fecharModal('modal-editar-trecho');
+    showMsg('Trecho atualizado!');
+  }catch(e){showMsg('Erro ao salvar.','danger');}
 }
 
 // ══ PDF ═══════════════════════════════════════════════
@@ -2240,6 +2287,11 @@ document.addEventListener('DOMContentLoaded', ()=>{
   $('servico-avenida-extensao').addEventListener('change',()=>{
     $('field-avenida-trecho').style.display=$('servico-avenida-extensao').value==='trecho'?'block':'none';
   });
+  $('editar-trecho-extensao').addEventListener('change',()=>{
+    $('editar-trecho-campo').style.display=$('editar-trecho-extensao').value==='trecho'?'block':'none';
+  });
+  $('btn-cancelar-editar-trecho').addEventListener('click',()=>fecharModal('modal-editar-trecho'));
+  $('btn-salvar-editar-trecho').addEventListener('click',salvarEditarTrecho);
   $('btn-cancelar-novo-servico').addEventListener('click',()=>fecharModal('modal-novo-servico'));
   $('btn-salvar-novo-servico').addEventListener('click',salvarNovoServico);
   $('btn-cancelar-exec').addEventListener('click',()=>fecharModal('modal-exec-servico'));
