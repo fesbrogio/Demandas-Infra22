@@ -1692,11 +1692,19 @@ async function confirmarExecServico(){
   const s=_servicos.find(x=>x._id===_execServicoId);
   // Troca de equipe se estava aguardando
   const novaEquipe=$('exec-campo-equipe').style.display!=='none'?$('exec-equipe').value:null;
-  // Foto para ação especial
+  // Foto para ação especial — lê via FileReader antes de comprimir
   let fotoBase64=s?.fotoAcao||null;
   const fotoInput=$('exec-foto');
   if(s?.tipo==='acao'&&fotoInput?.files[0]){
-    fotoBase64=await comprimirImagem(fotoInput.files[0],800,0.75);
+    fotoBase64=await new Promise((resolve,reject)=>{
+      const r=new FileReader();
+      r.onload=async e=>{
+        try{resolve(await comprimirImagem(e.target.result));}
+        catch(err){reject(err);}
+      };
+      r.onerror=()=>reject(new Error('Erro ao ler foto'));
+      r.readAsDataURL(fotoInput.files[0]);
+    });
   }
   try{
     const upd={dataInicio:brFromISO(inicio),dataFim:fim?brFromISO(fim):null,obs:obs||null,status};
