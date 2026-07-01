@@ -1688,32 +1688,37 @@ async function confirmarExecServico(){
   const fim=$('exec-data-fim').value;
   const obs=$('exec-obs').value.trim();
   if(!inicio){alert('Informe a data de início.');return;}
-  const status=fim?'concluido':'em-andamento';
+  if(!fim){alert('Informe a data de conclusão.');return;}
   const s=_servicos.find(x=>x._id===_execServicoId);
-  // Troca de equipe se estava aguardando
+  const status='concluido';
   const novaEquipe=$('exec-campo-equipe').style.display!=='none'?$('exec-equipe').value:null;
-  // Foto para ação especial — lê via FileReader antes de comprimir
+
+  // Foto para ação especial
   let fotoBase64=s?.fotoAcao||null;
-  const fotoInput=$('exec-foto');
-  if(s?.tipo==='acao'&&fotoInput?.files[0]){
-    fotoBase64=await new Promise((resolve,reject)=>{
-      const r=new FileReader();
-      r.onload=async e=>{
-        try{resolve(await comprimirImagem(e.target.result));}
-        catch(err){reject(err);}
-      };
-      r.onerror=()=>reject(new Error('Erro ao ler foto'));
-      r.readAsDataURL(fotoInput.files[0]);
-    });
+  if(s?.tipo==='acao'){
+    const fotoInput=$('exec-foto');
+    const prev=$('exec-foto-prev');
+    if(prev&&prev.style.display!=='none'&&prev.src){
+      try{fotoBase64=await comprimirImagem(prev.src);}catch(e){/* segue sem foto */}
+    }
   }
+
   try{
-    const upd={dataInicio:brFromISO(inicio),dataFim:fim?brFromISO(fim):null,obs:obs||null,status};
+    const upd={
+      dataInicio:brFromISO(inicio),
+      dataFim:brFromISO(fim),
+      obs:obs||null,
+      status
+    };
     if(novaEquipe) upd.equipe=novaEquipe;
     if(s?.tipo==='acao') upd.fotoAcao=fotoBase64;
     await fbUpdServico(_execServicoId,upd);
     fecharModal('modal-exec-servico');
-    showMsg(status==='concluido'?'Serviço marcado como concluído!':'Data de início registrada!');
-  }catch(e){showMsg('Erro ao salvar.','danger');}
+    showMsg('Serviço marcado como concluído!');
+  }catch(e){
+    console.error(e);
+    showMsg('Erro ao salvar. Verifique a conexão e tente novamente.','danger');
+  }
 }
 
 async function deletarServico(id){
