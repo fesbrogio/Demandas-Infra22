@@ -295,6 +295,10 @@
       </div>
     </div>
 
+    <div id="sec-localizacao" class="section">
+      <div id="localizacao-conteudo"></div>
+    </div>
+
     <div id="sec-gerenciar" class="section">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
         <p class="section-title" style="margin:0">Gerenciar demandas abertas</p>
@@ -766,6 +770,7 @@ function renderAtual(){
   if(secaoAtual==='revisao') renderRevisao();
   if(secaoAtual==='mapa') renderMapa();
   if(secaoAtual==='servicos') renderServicos();
+  if(secaoAtual==='localizacao') renderLocalizacao();
   atualizarBadgeRevisao();
 }
 
@@ -846,6 +851,7 @@ function entrarComo(p){
     titulo='🏢 Secretaria';
     html=`<button class="tab active" data-sec="nova"><i class="ti ti-plus"></i> Nova demanda</button>
           <button class="tab" data-sec="servicos"><i class="ti ti-map-2"></i> Novo Serviço</button>
+          <button class="tab" data-sec="localizacao"><i class="ti ti-map-pin"></i> Equipes</button>
           <button class="tab" data-sec="gerenciar"><i class="ti ti-settings"></i> Gerenciar</button>
           <button class="tab" data-sec="revisao"><i class="ti ti-map-pin-off"></i> Revisão <span id="badge-revisao" class="tab-badge" style="display:none"></span></button>`;
     sec='nova';
@@ -889,7 +895,7 @@ function voltarPerfil(){
 }
 
 function showSection(t){
-  ['nova','gerenciar','revisao','painel','dashboard','historico','equipe','mapa','servicos'].forEach(s=>{
+  ['nova','gerenciar','revisao','painel','dashboard','historico','equipe','mapa','servicos','localizacao'].forEach(s=>{
     const el=$('sec-'+s);if(el)el.classList.remove('active');
   });
   const el=$('sec-'+t);if(el)el.classList.add('active');
@@ -902,6 +908,7 @@ function showSection(t){
   if(t==='dashboard') renderDashboard();
   if(t==='mapa') renderMapa();
   if(t==='servicos') renderServicos();
+  if(t==='localizacao') renderLocalizacao();
 }
 
 // ══ LIGHTBOX ══════════════════════════════════════════
@@ -1183,6 +1190,105 @@ function renderStats(){
     <div class="stat"><div class="stat-num" style="color:var(--amber)">${pend}</div><div class="stat-label">Pendentes</div></div>
     <div class="stat"><div class="stat-num" style="color:var(--blue)">${and}</div><div class="stat-label">Em andamento</div></div>
     <div class="stat"><div class="stat-num" style="color:var(--green)">${conc}</div><div class="stat-label">Concluídas</div></div>`;
+}
+
+// ══ ONDE ESTÃO AS EQUIPES ═════════════════════════════
+function renderLocalizacao(){
+  const el=$('localizacao-conteudo');if(!el)return;
+  const agora=new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+
+  // Equipes 1,2,4,5 — mostrar serviço de área em aberto (aguardando ou em andamento)
+  // Equipe 3 — mostrar última demanda concluída
+  const EQUIPES_SERVICO=['Equipe 1','Equipe 2','Equipe 4','Equipe 5'];
+
+  function infoEquipeServico(nomeEquipe){
+    // Pega serviços ativos (aguardando ou em andamento) da equipe, mais recente primeiro
+    const ativos=_servicos.filter(s=>
+      s.equipe===nomeEquipe && s.status!=='concluido'
+    );
+    if(!ativos.length){
+      // Nenhum serviço ativo — mostra o último concluído
+      const concluidos=_servicos
+        .filter(s=>s.equipe===nomeEquipe && s.status==='concluido')
+        .sort((a,b)=>(b.dataFim||'').localeCompare(a.dataFim||''));
+      if(!concluidos.length) return{tipo:'vazio',texto:'Sem serviços registrados'};
+      const ult=concluidos[0];
+      const label=ult.tipo==='bairro'?'Bairro':ult.tipo==='avenida'?'Av./Rua':'Ação';
+      const trecho=ult.extensao==='trecho'&&ult.trecho?` – ${ult.trecho}`:'';
+      return{tipo:'concluido',texto:`${label}: ${ult.local}${trecho}`,data:ult.dataFim||'—'};
+    }
+    // Tem serviço ativo
+    const s=ativos[0];
+    const label=s.tipo==='bairro'?'🏘️ Bairro':s.tipo==='avenida'?'🛣️ Av./Rua':'⭐ Ação';
+    const trecho=s.extensao==='trecho'&&s.trecho?` – ${s.trecho}`:'';
+    const statusLabel=s.status==='aguardando'?'Aguardando':'Em andamento';
+    return{tipo:'ativo',texto:`${label}: ${s.local}${trecho}`,status:statusLabel,inicio:s.dataInicio||null};
+  }
+
+  function infoEquipe3(){
+    const conc=_demandas
+      .filter(d=>d.equipe==='Equipe 3'&&d.status==='concluído')
+      .sort((a,b)=>{
+        const da=a.dataConclusao||a.data||'';
+        const db=b.dataConclusao||b.data||'';
+        return db.localeCompare(da);
+      });
+    if(!conc.length) return{tipo:'vazio',texto:'Nenhuma demanda concluída ainda'};
+    const d=conc[0];
+    return{tipo:'demanda',endereco:d.endereco,data:d.dataConclusao||d.data||'—',desc:d.descricao};
+  }
+
+  function corTipo(tipo){
+    if(tipo==='ativo') return{bg:'var(--blue-bg)',border:'var(--blue-border)',cor:'var(--blue)',icone:'ti-map-2'};
+    if(tipo==='demanda') return{bg:'var(--green-bg)',border:'var(--green-border)',cor:'var(--green)',icone:'ti-map-pin'};
+    if(tipo==='concluido') return{bg:'var(--surface2)',border:'var(--border)',cor:'var(--text3)',icone:'ti-circle-check'};
+    return{bg:'var(--surface2)',border:'var(--border)',cor:'var(--text3)',icone:'ti-minus'};
+  }
+
+  function cardEquipe(nome,info){
+    const{bg,border,cor,icone}=corTipo(info.tipo);
+    let detalhe='';
+    if(info.tipo==='ativo'){
+      detalhe=`
+        <div style="font-size:15px;font-weight:600;color:var(--text);margin:6px 0 4px">${info.texto}</div>
+        <div style="font-size:12px;color:${cor};display:flex;align-items:center;gap:5px">
+          <i class="ti ti-activity" style="font-size:12px"></i> ${info.status}
+          ${info.inicio?`&nbsp;·&nbsp;<i class="ti ti-calendar" style="font-size:12px"></i> desde ${info.inicio}`:''}
+        </div>`;
+    } else if(info.tipo==='demanda'){
+      detalhe=`
+        <div style="font-size:13px;color:var(--text2);margin:4px 0 2px;font-style:italic">${info.desc}</div>
+        <div style="font-size:15px;font-weight:600;color:var(--text);margin:2px 0 4px">📍 ${info.endereco}</div>
+        <div style="font-size:12px;color:${cor}">✅ Concluída em ${info.data}</div>`;
+    } else if(info.tipo==='concluido'){
+      detalhe=`
+        <div style="font-size:14px;color:var(--text2);margin:6px 0 4px">${info.texto}</div>
+        <div style="font-size:12px;color:var(--text3)">Concluído em ${info.data} · Aguardando novo serviço</div>`;
+    } else {
+      detalhe=`<div style="font-size:13px;color:var(--text3);margin-top:6px">${info.texto}</div>`;
+    }
+    return`<div style="background:${bg};border:1.5px solid ${border};border-radius:var(--radius-lg);padding:14px 16px;margin-bottom:10px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:2px">
+        <i class="ti ${icone}" style="font-size:16px;color:${cor}"></i>
+        <span style="font-size:13px;font-weight:700;color:${cor};text-transform:uppercase;letter-spacing:.04em">${nome}</span>
+      </div>
+      ${detalhe}
+    </div>`;
+  }
+
+  let html=`
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:6px">
+      <p class="section-title" style="margin:0">📍 Onde estão as equipes</p>
+      <span style="font-size:11px;color:var(--text3);font-family:var(--font-mono)">Atualizado às ${agora}</span>
+    </div>
+    ${realtimeBadge()}`;
+
+  EQUIPES_SERVICO.forEach(eq=>{
+    html+=cardEquipe(eq, infoEquipeServico(eq));
+  });
+  html+=cardEquipe('Equipe 3 — última demanda', infoEquipe3());
+
+  el.innerHTML=html;
 }
 
 function renderGerenciar(){
