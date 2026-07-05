@@ -1344,39 +1344,71 @@ function renderLocalizacao(){
   }
 
   function renderHistoricoEquipes(){
-    let html='';
-    ['Equipe 1','Equipe 2','Equipe 4','Equipe 5'].forEach(eq=>{
-      const ultimos=_servicos
+
+    function cardServicoAndamento(s){
+      return`<div style="padding:12px 0;border-bottom:1px solid var(--border)">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap">
+          <div style="font-size:14px;font-weight:600">${s.local}</div>
+          <span class="badge badge-doing">🔄 Em andamento</span>
+        </div>
+        <div style="font-size:12px;color:var(--text2);margin-top:4px;line-height:1.8">
+          <span>${tipoServicoLabel(s)}</span><br>
+          ${s.dataInicio?`<span>🟢 Início: <strong>${s.dataInicio}</strong></span>`:'<span style="color:var(--text3)">Aguardando início</span>'}
+          ${s.obs?`<br><span style="color:var(--text3);font-style:italic">Obs: ${s.obs}</span>`:''}
+          ${s.obsInicial?`<br><span style="color:var(--text3)">Obs. inicial: ${s.obsInicial}</span>`:''}
+        </div>
+      </div>`;
+    }
+
+    function blocoServicos(eq){
+      const emAndamento=_servicos.filter(s=>s.equipe===eq&&s.status!=='concluido');
+      const concluidos=_servicos
         .filter(s=>s.equipe===eq&&s.status==='concluido')
-        .sort((a,b)=>(b.dataFim||'').localeCompare(a.dataFim||''))
-        .slice(0,3);
-      html+=`<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px;margin-bottom:12px">
+        .sort((a,b)=>(b.dataFim||'').localeCompare(a.dataFim||''));
+      const todos=[...emAndamento,...concluidos].slice(0,3);
+      const ultDem=_demandas
+        .filter(d=>d.equipe===eq&&d.status==='concluído')
+        .sort((a,b)=>(b.dataConclusao||b.data||'').localeCompare(a.dataConclusao||a.data||''))[0];
+      return`<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px;margin-bottom:12px">
         <div style="font-size:13px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px;display:flex;align-items:center;gap:6px">
           <i class="ti ti-map-2" style="font-size:14px"></i> ${eq}
         </div>
-        <div style="font-size:11px;color:var(--text3);margin-bottom:10px">Últimos 3 serviços de área concluídos</div>
-        ${ultimos.length
-          ? ultimos.map(s=>cardHistoricoServico(s)).join('')
-          : '<div style="font-size:13px;color:var(--text3);padding:8px 0">Nenhum serviço concluído ainda.</div>'}
+        <div style="font-size:11px;color:var(--text3);margin-bottom:10px">Últimos 3 serviços de área (incluindo em andamento)</div>
+        ${todos.length
+          ? todos.map(s=>s.status==='concluido'?cardHistoricoServico(s):cardServicoAndamento(s)).join('')
+          : '<div style="font-size:13px;color:var(--text3);padding:8px 0">Nenhum serviço registrado ainda.</div>'}
+        ${ultDem?`
+        <div style="margin-top:12px;padding-top:10px;border-top:2px dashed var(--border)">
+          <div style="font-size:11px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;display:flex;align-items:center;gap:5px">
+            <i class="ti ti-clipboard-check" style="font-size:12px"></i> Última demanda concluída
+          </div>
+          ${cardHistoricoDemanda(ultDem)}
+        </div>`:''}
       </div>`;
-    });
-    // Equipe 3 — últimas 5 demandas concluídas
-    const ultDem=_demandas
-      .filter(d=>d.equipe==='Equipe 3'&&d.status==='concluído')
-      .sort((a,b)=>(b.dataConclusao||b.data||'').localeCompare(a.dataConclusao||a.data||''))
-      .slice(0,5);
-    html+=`<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px;margin-bottom:12px">
-      <div style="font-size:13px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px;display:flex;align-items:center;gap:6px">
-        <i class="ti ti-clipboard-list" style="font-size:14px"></i> Equipe 3
-      </div>
-      <div style="font-size:11px;color:var(--text3);margin-bottom:10px">Últimas 5 demandas concluídas</div>
-      ${ultDem.length
-        ? ultDem.map(d=>cardHistoricoDemanda(d)).join('')
-        : '<div style="font-size:13px;color:var(--text3);padding:8px 0">Nenhuma demanda concluída ainda.</div>'}
-    </div>`;
-    return html;
-  }
+    }
 
+    function blocoEquipe3(){
+      const lista=_demandas
+        .filter(d=>d.equipe==='Equipe 3'&&d.status==='concluído')
+        .sort((a,b)=>(b.dataConclusao||b.data||'').localeCompare(a.dataConclusao||a.data||''))
+        .slice(0,5);
+      return`<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px;margin-bottom:12px">
+        <div style="font-size:13px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px;display:flex;align-items:center;gap:6px">
+          <i class="ti ti-clipboard-list" style="font-size:14px"></i> Equipe 3
+        </div>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:10px">Últimas 5 demandas concluídas</div>
+        ${lista.length
+          ? lista.map(d=>cardHistoricoDemanda(d)).join('')
+          : '<div style="font-size:13px;color:var(--text3);padding:8px 0">Nenhuma demanda concluída ainda.</div>'}
+      </div>`;
+    }
+
+    return blocoServicos('Equipe 1')
+      + blocoServicos('Equipe 2')
+      + blocoEquipe3()
+      + blocoServicos('Equipe 4')
+      + blocoServicos('Equipe 5');
+  }
   // ── Monta tela ──
   let html=`
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:6px">
