@@ -1197,9 +1197,9 @@ function renderLocalizacao(){
   const el=$('localizacao-conteudo');if(!el)return;
   const agora=new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
   const hoje=new Date().toLocaleDateString('pt-BR');
+  const abaAtual=el.dataset.aba||'atual';
 
-  const EQUIPES_SERVICO=['Equipe 1','Equipe 2','Equipe 4','Equipe 5'];
-
+  // ── Dados ──
   function infoEquipeServico(nomeEquipe){
     const ativos=_servicos.filter(s=>s.equipe===nomeEquipe&&s.status!=='concluido');
     if(!ativos.length){
@@ -1222,38 +1222,10 @@ function renderLocalizacao(){
   function infoEquipe3(){
     const conc=_demandas
       .filter(d=>d.equipe==='Equipe 3'&&d.status==='concluído')
-      .sort((a,b)=>{
-        const da=a.dataConclusao||a.data||'';
-        const db=b.dataConclusao||b.data||'';
-        return db.localeCompare(da);
-      });
+      .sort((a,b)=>(b.dataConclusao||b.data||'').localeCompare(a.dataConclusao||a.data||''));
     if(!conc.length) return{tipo:'vazio',texto:'Nenhuma demanda concluída ainda'};
     const d=conc[0];
     return{tipo:'demanda',endereco:d.endereco,data:d.dataConclusao||d.data||'—',desc:d.descricao};
-  }
-
-  // Monta texto limpo para copiar no WhatsApp
-  function montarTextoWhatsApp(){
-    const data=hoje, hora=agora;
-    let linhas=[`📋 *Localização das Equipes*`,`🗓️ ${data} às ${hora}`,``];
-    EQUIPES_SERVICO.forEach(eq=>{
-      const info=infoEquipeServico(eq);
-      if(info.tipo==='ativo'){
-        const trecho=info.texto.replace(/^[🏘️🛣️⭐]+\s?/,'');
-        linhas.push(`*${eq}:* ${trecho}`);
-      } else if(info.tipo==='concluido'){
-        linhas.push(`*${eq}:* ${info.texto} _(concluído)_`);
-      } else {
-        linhas.push(`*${eq}:* Sem serviço ativo`);
-      }
-    });
-    const info3=infoEquipe3();
-    if(info3.tipo==='demanda'){
-      linhas.push(`*Equipe 3:* Última demanda – ${info3.endereco}`);
-    } else {
-      linhas.push(`*Equipe 3:* ${info3.texto}`);
-    }
-    return linhas.join('\n');
   }
 
   function corTipo(tipo){
@@ -1294,46 +1266,155 @@ function renderLocalizacao(){
     </div>`;
   }
 
+  function montarTextoWhatsApp(){
+    let linhas=[`📋 *Localização das Equipes*`,`🗓️ ${hoje} às ${agora}`,``];
+    ['Equipe 1','Equipe 2'].forEach(eq=>{
+      const info=infoEquipeServico(eq);
+      if(info.tipo==='ativo') linhas.push(`*${eq}:* ${info.texto.replace(/^[🏘️🛣️⭐]+\s?/,'')}`);
+      else if(info.tipo==='concluido') linhas.push(`*${eq}:* ${info.texto} _(concluído)_`);
+      else linhas.push(`*${eq}:* Sem serviço ativo`);
+    });
+    const info3=infoEquipe3();
+    if(info3.tipo==='demanda') linhas.push(`*Equipe 3:* Última demanda – ${info3.endereco}`);
+    else linhas.push(`*Equipe 3:* ${info3.texto}`);
+    ['Equipe 4','Equipe 5'].forEach(eq=>{
+      const info=infoEquipeServico(eq);
+      if(info.tipo==='ativo') linhas.push(`*${eq}:* ${info.texto.replace(/^[🏘️🛣️⭐]+\s?/,'')}`);
+      else if(info.tipo==='concluido') linhas.push(`*${eq}:* ${info.texto} _(concluído)_`);
+      else linhas.push(`*${eq}:* Sem serviço ativo`);
+    });
+    return linhas.join('\n');
+  }
+
+  // ── Aba: Situação atual ──
+  function renderAtual(){
+    let html='';
+    html+=cardEquipe('Equipe 1', infoEquipeServico('Equipe 1'));
+    html+=cardEquipe('Equipe 2', infoEquipeServico('Equipe 2'));
+    html+=cardEquipe('Equipe 3 — última demanda', infoEquipe3());
+    html+=cardEquipe('Equipe 4', infoEquipeServico('Equipe 4'));
+    html+=cardEquipe('Equipe 5', infoEquipeServico('Equipe 5'));
+    html+=`<button id="btn-copiar-whatsapp" class="btn btn-primary btn-full" style="margin-top:8px;background:#25D366;border-color:#25D366;font-size:14px;padding:13px">
+      <i class="ti ti-brand-whatsapp"></i> Copiar localização das equipes
+    </button>
+    <div id="msg-copiado" style="display:none;text-align:center;font-size:12px;color:var(--green);margin-top:8px;font-family:var(--font-mono)">
+      ✓ Copiado! Agora é só colar no WhatsApp.
+    </div>`;
+    return html;
+  }
+
+  // ── Aba: Histórico ──
+  function tipoServicoLabel(s){
+    const t=s.tipo==='bairro'?'🏘️ Bairro':s.tipo==='avenida'?'🛣️ Av./Rua':'⭐ Ação Especial';
+    const trecho=s.extensao==='trecho'&&s.trecho?` – trecho: ${s.trecho}`:'';
+    return t+trecho;
+  }
+
+  function cardHistoricoServico(s){
+    return`<div style="padding:12px 0;border-bottom:1px solid var(--border)">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap">
+        <div style="font-size:14px;font-weight:600">${s.local}</div>
+        <span class="badge badge-done">✅ Concluído</span>
+      </div>
+      <div style="font-size:12px;color:var(--text2);margin-top:4px;line-height:1.8">
+        <span>${tipoServicoLabel(s)}</span><br>
+        ${s.dataInicio?`<span>🟢 Início: <strong>${s.dataInicio}</strong></span> &nbsp;·&nbsp; `:''}
+        ${s.dataFim?`<span>🏁 Conclusão: <strong>${s.dataFim}</strong></span>`:''}
+        ${s.obs?`<br><span style="color:var(--text3);font-style:italic">Obs: ${s.obs}</span>`:''}
+        ${s.obsInicial?`<br><span style="color:var(--text3)">Obs. inicial: ${s.obsInicial}</span>`:''}
+      </div>
+    </div>`;
+  }
+
+  function cardHistoricoDemanda(d){
+    return`<div style="padding:12px 0;border-bottom:1px solid var(--border)">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap">
+        <div style="font-size:14px;font-weight:600">${d.descricao}</div>
+        ${d.prioridade==='urgente'?'<span class="badge badge-urgente">⚡ URGENTE</span>':''}
+      </div>
+      <div style="font-size:12px;color:var(--text2);margin-top:4px;line-height:1.8">
+        <span><i class="ti ti-map-pin" style="font-size:12px"></i> ${d.endereco}</span><br>
+        <span><i class="ti ti-user" style="font-size:12px"></i> ${d.solicitante}</span><br>
+        ${d.zona?`<span class="tag-zona">${d.zona}</span> &nbsp;`:''}
+        <span>📅 Aberta: ${d.data} ${d.hora}</span><br>
+        <span>✅ Concluída: <strong>${d.dataConclusao||'—'}</strong></span>
+        ${d.observacao?`<br><span style="color:var(--text3);font-style:italic">Obs: ${d.observacao}</span>`:''}
+      </div>
+    </div>`;
+  }
+
+  function renderHistoricoEquipes(){
+    let html='';
+    ['Equipe 1','Equipe 2','Equipe 4','Equipe 5'].forEach(eq=>{
+      const ultimos=_servicos
+        .filter(s=>s.equipe===eq&&s.status==='concluido')
+        .sort((a,b)=>(b.dataFim||'').localeCompare(a.dataFim||''))
+        .slice(0,3);
+      html+=`<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px;margin-bottom:12px">
+        <div style="font-size:13px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px;display:flex;align-items:center;gap:6px">
+          <i class="ti ti-map-2" style="font-size:14px"></i> ${eq}
+        </div>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:10px">Últimos 3 serviços de área concluídos</div>
+        ${ultimos.length
+          ? ultimos.map(s=>cardHistoricoServico(s)).join('')
+          : '<div style="font-size:13px;color:var(--text3);padding:8px 0">Nenhum serviço concluído ainda.</div>'}
+      </div>`;
+    });
+    // Equipe 3 — últimas 5 demandas concluídas
+    const ultDem=_demandas
+      .filter(d=>d.equipe==='Equipe 3'&&d.status==='concluído')
+      .sort((a,b)=>(b.dataConclusao||b.data||'').localeCompare(a.dataConclusao||a.data||''))
+      .slice(0,5);
+    html+=`<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px;margin-bottom:12px">
+      <div style="font-size:13px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px;display:flex;align-items:center;gap:6px">
+        <i class="ti ti-clipboard-list" style="font-size:14px"></i> Equipe 3
+      </div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:10px">Últimas 5 demandas concluídas</div>
+      ${ultDem.length
+        ? ultDem.map(d=>cardHistoricoDemanda(d)).join('')
+        : '<div style="font-size:13px;color:var(--text3);padding:8px 0">Nenhuma demanda concluída ainda.</div>'}
+    </div>`;
+    return html;
+  }
+
+  // ── Monta tela ──
   let html=`
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:6px">
-      <p class="section-title" style="margin:0">📍 Onde estão as equipes</p>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:6px">
+      <p class="section-title" style="margin:0">📍 Equipes</p>
       <span style="font-size:11px;color:var(--text3);font-family:var(--font-mono)">Atualizado às ${agora}</span>
     </div>
-    ${realtimeBadge()}`;
-
-  EQUIPES_SERVICO.forEach(eq=>{
-    html+=cardEquipe(eq, infoEquipeServico(eq));
-  });
-  html+=cardEquipe('Equipe 3 — última demanda', infoEquipe3());
-
-  // Botão copiar para WhatsApp
-  html+=`<button id="btn-copiar-whatsapp" class="btn btn-primary btn-full" style="margin-top:8px;background:#25D366;border-color:#25D366;font-size:14px;padding:13px">
-    <i class="ti ti-brand-whatsapp"></i> Copiar localização das equipes
-  </button>
-  <div id="msg-copiado" style="display:none;text-align:center;font-size:12px;color:var(--green);margin-top:8px;font-family:var(--font-mono)">
-    ✓ Copiado! Agora é só colar no WhatsApp.
-  </div>`;
+    ${realtimeBadge()}
+    <div class="area-sec-tabs" style="margin-bottom:16px">
+      <button class="area-sec-tab ${abaAtual==='atual'?'active':''}" data-loc-aba="atual"><i class="ti ti-map-pin" style="font-size:13px"></i> Situação atual</button>
+      <button class="area-sec-tab ${abaAtual==='historico'?'active':''}" data-loc-aba="historico"><i class="ti ti-history" style="font-size:13px"></i> Histórico</button>
+    </div>
+    ${abaAtual==='atual'?renderAtual():renderHistoricoEquipes()}
+  `;
 
   el.innerHTML=html;
 
-  $('btn-copiar-whatsapp').addEventListener('click',()=>{
-    const texto=montarTextoWhatsApp();
-    navigator.clipboard.writeText(texto).then(()=>{
-      const msg=$('msg-copiado');
-      msg.style.display='block';
-      setTimeout(()=>msg.style.display='none',3000);
-    }).catch(()=>{
-      // Fallback para navegadores sem clipboard API
-      const ta=document.createElement('textarea');
-      ta.value=texto;ta.style.position='fixed';ta.style.opacity='0';
-      document.body.appendChild(ta);ta.select();
-      document.execCommand('copy');
-      document.body.removeChild(ta);
-      const msg=$('msg-copiado');
-      msg.style.display='block';
-      setTimeout(()=>msg.style.display='none',3000);
-    });
+  // Bind abas
+  el.querySelectorAll('[data-loc-aba]').forEach(btn=>{
+    btn.addEventListener('click',()=>{el.dataset.aba=btn.dataset.locAba;renderLocalizacao();});
   });
+
+  // Bind botão WhatsApp (só existe na aba atual)
+  const btnWpp=$('btn-copiar-whatsapp');
+  if(btnWpp){
+    btnWpp.addEventListener('click',()=>{
+      const texto=montarTextoWhatsApp();
+      navigator.clipboard.writeText(texto).then(()=>{
+        const msg=$('msg-copiado');msg.style.display='block';
+        setTimeout(()=>msg.style.display='none',3000);
+      }).catch(()=>{
+        const ta=document.createElement('textarea');
+        ta.value=texto;ta.style.position='fixed';ta.style.opacity='0';
+        document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);
+        const msg=$('msg-copiado');msg.style.display='block';
+        setTimeout(()=>msg.style.display='none',3000);
+      });
+    });
+  }
 }
 
 function renderGerenciar(){
