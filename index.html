@@ -1196,20 +1196,15 @@ function renderStats(){
 function renderLocalizacao(){
   const el=$('localizacao-conteudo');if(!el)return;
   const agora=new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+  const hoje=new Date().toLocaleDateString('pt-BR');
 
-  // Equipes 1,2,4,5 — mostrar serviço de área em aberto (aguardando ou em andamento)
-  // Equipe 3 — mostrar última demanda concluída
   const EQUIPES_SERVICO=['Equipe 1','Equipe 2','Equipe 4','Equipe 5'];
 
   function infoEquipeServico(nomeEquipe){
-    // Pega serviços ativos (aguardando ou em andamento) da equipe, mais recente primeiro
-    const ativos=_servicos.filter(s=>
-      s.equipe===nomeEquipe && s.status!=='concluido'
-    );
+    const ativos=_servicos.filter(s=>s.equipe===nomeEquipe&&s.status!=='concluido');
     if(!ativos.length){
-      // Nenhum serviço ativo — mostra o último concluído
       const concluidos=_servicos
-        .filter(s=>s.equipe===nomeEquipe && s.status==='concluido')
+        .filter(s=>s.equipe===nomeEquipe&&s.status==='concluido')
         .sort((a,b)=>(b.dataFim||'').localeCompare(a.dataFim||''));
       if(!concluidos.length) return{tipo:'vazio',texto:'Sem serviços registrados'};
       const ult=concluidos[0];
@@ -1217,7 +1212,6 @@ function renderLocalizacao(){
       const trecho=ult.extensao==='trecho'&&ult.trecho?` – ${ult.trecho}`:'';
       return{tipo:'concluido',texto:`${label}: ${ult.local}${trecho}`,data:ult.dataFim||'—'};
     }
-    // Tem serviço ativo
     const s=ativos[0];
     const label=s.tipo==='bairro'?'🏘️ Bairro':s.tipo==='avenida'?'🛣️ Av./Rua':'⭐ Ação';
     const trecho=s.extensao==='trecho'&&s.trecho?` – ${s.trecho}`:'';
@@ -1236,6 +1230,30 @@ function renderLocalizacao(){
     if(!conc.length) return{tipo:'vazio',texto:'Nenhuma demanda concluída ainda'};
     const d=conc[0];
     return{tipo:'demanda',endereco:d.endereco,data:d.dataConclusao||d.data||'—',desc:d.descricao};
+  }
+
+  // Monta texto limpo para copiar no WhatsApp
+  function montarTextoWhatsApp(){
+    const data=hoje, hora=agora;
+    let linhas=[`📋 *Localização das Equipes*`,`🗓️ ${data} às ${hora}`,``];
+    EQUIPES_SERVICO.forEach(eq=>{
+      const info=infoEquipeServico(eq);
+      if(info.tipo==='ativo'){
+        const trecho=info.texto.replace(/^[🏘️🛣️⭐]+\s?/,'');
+        linhas.push(`*${eq}:* ${trecho}`);
+      } else if(info.tipo==='concluido'){
+        linhas.push(`*${eq}:* ${info.texto} _(concluído)_`);
+      } else {
+        linhas.push(`*${eq}:* Sem serviço ativo`);
+      }
+    });
+    const info3=infoEquipe3();
+    if(info3.tipo==='demanda'){
+      linhas.push(`*Equipe 3:* Última demanda – ${info3.endereco}`);
+    } else {
+      linhas.push(`*Equipe 3:* ${info3.texto}`);
+    }
+    return linhas.join('\n');
   }
 
   function corTipo(tipo){
@@ -1288,7 +1306,34 @@ function renderLocalizacao(){
   });
   html+=cardEquipe('Equipe 3 — última demanda', infoEquipe3());
 
+  // Botão copiar para WhatsApp
+  html+=`<button id="btn-copiar-whatsapp" class="btn btn-primary btn-full" style="margin-top:8px;background:#25D366;border-color:#25D366;font-size:14px;padding:13px">
+    <i class="ti ti-brand-whatsapp"></i> Copiar localização das equipes
+  </button>
+  <div id="msg-copiado" style="display:none;text-align:center;font-size:12px;color:var(--green);margin-top:8px;font-family:var(--font-mono)">
+    ✓ Copiado! Agora é só colar no WhatsApp.
+  </div>`;
+
   el.innerHTML=html;
+
+  $('btn-copiar-whatsapp').addEventListener('click',()=>{
+    const texto=montarTextoWhatsApp();
+    navigator.clipboard.writeText(texto).then(()=>{
+      const msg=$('msg-copiado');
+      msg.style.display='block';
+      setTimeout(()=>msg.style.display='none',3000);
+    }).catch(()=>{
+      // Fallback para navegadores sem clipboard API
+      const ta=document.createElement('textarea');
+      ta.value=texto;ta.style.position='fixed';ta.style.opacity='0';
+      document.body.appendChild(ta);ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      const msg=$('msg-copiado');
+      msg.style.display='block';
+      setTimeout(()=>msg.style.display='none',3000);
+    });
+  });
 }
 
 function renderGerenciar(){
