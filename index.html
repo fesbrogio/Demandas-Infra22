@@ -784,6 +784,7 @@ function realtimeBadge(){return`<div class="realtime-badge"><span class="realtim
 function horasAbertas(d){if(!d.criadoEm)return 0;const ts=d.criadoEm.seconds?d.criadoEm.seconds*1000:Date.now();return(Date.now()-ts)/3600000}
 function labelTempo(h){return h<24?`${Math.floor(h)}h aberta`:`${Math.floor(h/24)}d aberta`}
 function diasAtras(dataStr){if(!dataStr)return 999;const[d,m,a]=dataStr.split('/');return Math.floor((Date.now()-new Date(+a,+m-1,+d).getTime())/86400000)}
+function tsBR(dataStr){if(!dataStr)return 0;const p=dataStr.split('/');if(p.length!==3)return 0;const[d,m,a]=p;return new Date(+a,+m-1,+d).getTime()}
 
 async function comprimirImagem(src,maxPx=800,quality=0.75){
   return new Promise(resolve=>{
@@ -1205,7 +1206,7 @@ function renderLocalizacao(){
     if(!ativos.length){
       const concluidos=_servicos
         .filter(s=>s.equipe===nomeEquipe&&s.status==='concluido')
-        .sort((a,b)=>(b.dataFim||'').localeCompare(a.dataFim||''));
+        .sort((a,b)=>tsBR(b.dataFim)-tsBR(a.dataFim));
       if(!concluidos.length) return{tipo:'vazio',texto:'Sem serviços registrados'};
       const ult=concluidos[0];
       const label=ult.tipo==='bairro'?'Bairro':ult.tipo==='avenida'?'Av./Rua':'Ação';
@@ -1222,7 +1223,7 @@ function renderLocalizacao(){
   function infoEquipe3(){
     const conc=_demandas
       .filter(d=>d.equipe==='Equipe 3'&&d.status==='concluído')
-      .sort((a,b)=>(b.dataConclusao||b.data||'').localeCompare(a.dataConclusao||a.data||''));
+      .sort((a,b)=>tsBR(b.dataConclusao||b.data)-tsBR(a.dataConclusao||a.data));
     if(!conc.length) return{tipo:'vazio',texto:'Nenhuma demanda concluída ainda'};
     const d=conc[0];
     return{tipo:'demanda',endereco:d.endereco,data:d.dataConclusao||d.data||'—',desc:d.descricao};
@@ -1364,7 +1365,7 @@ function renderLocalizacao(){
       const emAndamento=_servicos.filter(s=>s.equipe===eq&&s.status!=='concluido');
       const concluidos=_servicos
         .filter(s=>s.equipe===eq&&s.status==='concluido')
-        .sort((a,b)=>(b.dataFim||'').localeCompare(a.dataFim||''));
+        .sort((a,b)=>tsBR(b.dataFim)-tsBR(a.dataFim));
       const todos=[...emAndamento,...concluidos].slice(0,3);
       const ultDem=_demandas
         .filter(d=>d.equipe===eq&&d.status==='concluído')
@@ -1390,7 +1391,7 @@ function renderLocalizacao(){
     function blocoEquipe3(){
       const lista=_demandas
         .filter(d=>d.equipe==='Equipe 3'&&d.status==='concluído')
-        .sort((a,b)=>(b.dataConclusao||b.data||'').localeCompare(a.dataConclusao||a.data||''))
+        .sort((a,b)=>tsBR(b.dataConclusao||b.data)-tsBR(a.dataConclusao||a.data))
         .slice(0,5);
       return`<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px;margin-bottom:12px">
         <div style="font-size:13px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px;display:flex;align-items:center;gap:6px">
@@ -1778,7 +1779,7 @@ function areaCardHtml(s, opts={}){
     ${s.obs?`<div style="font-size:12px;color:var(--text2);margin-top:6px;background:var(--amber-bg);border:1px solid var(--amber-border);border-radius:var(--radius);padding:8px 10px"><i class="ti ti-message"></i> <strong>Obs. da equipe:</strong> ${s.obs}</div>`:''}
     ${s.fotoAcao&&s.tipo==='acao'?`<div style="margin-top:8px"><img src="${s.fotoAcao}" style="max-width:100%;max-height:180px;border-radius:var(--radius);object-fit:cover;cursor:zoom-in;border:1px solid var(--border)" onclick="document.getElementById('lightbox').style.display='flex';document.getElementById('lightbox-img').src='${s.fotoAcao}'" title="Clique para ampliar"></div>`:''}
     <div class="demand-actions">
-      ${podeConcluir&&s.status!=='concluido'?`<button class="btn-done" data-exec="${s._id}"><i class="ti ti-calendar-check"></i> ${s.status==='aguardando'?'Iniciar / Concluir':'Registrar conclusão'}</button>`:''}
+      ${podeConcluir&&s.status!=='concluido'?`<button class="btn-done" data-exec="${s._id}"><i class="ti ti-calendar-check"></i> ${s.status==='aguardando'?'Iniciar serviço':'Registrar conclusão'}</button>`:''}
       ${podeApagar&&s.tipo==='avenida'?`<button class="btn btn-sm btn-info" data-edit-trecho="${s._id}"><i class="ti ti-ruler-2"></i> ${s.extensao?'Editar trecho':'Definir trecho'}</button>`:''}
       ${podeApagar?`<button class="btn-del" data-del-servico="${s._id}"><i class="ti ti-trash"></i> Apagar</button>`:''}
     </div>
@@ -1952,9 +1953,8 @@ async function confirmarExecServico(){
   const fim=$('exec-data-fim').value;
   const obs=$('exec-obs').value.trim();
   if(!inicio){alert('Informe a data de início.');return;}
-  if(!fim){alert('Informe a data de conclusão.');return;}
   const s=_servicos.find(x=>x._id===_execServicoId);
-  const status='concluido';
+  const status = fim ? 'concluido' : 'em-andamento';
   const novaEquipe=$('exec-campo-equipe').style.display!=='none'?$('exec-equipe').value:null;
 
   // Foto para ação especial
@@ -1970,7 +1970,7 @@ async function confirmarExecServico(){
   try{
     const upd={
       dataInicio:brFromISO(inicio),
-      dataFim:brFromISO(fim),
+      dataFim: fim ? brFromISO(fim) : null,
       obs:obs||null,
       status
     };
@@ -1978,7 +1978,7 @@ async function confirmarExecServico(){
     if(s?.tipo==='acao') upd.fotoAcao=fotoBase64;
     await fbUpdServico(_execServicoId,upd);
     fecharModal('modal-exec-servico');
-    showMsg('Serviço marcado como concluído!');
+    showMsg(status==='concluido' ? 'Serviço marcado como concluído!' : 'Serviço iniciado com sucesso!');
   }catch(e){
     console.error(e);
     showMsg('Erro ao salvar. Verifique a conexão e tente novamente.','danger');
