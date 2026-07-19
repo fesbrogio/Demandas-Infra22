@@ -1768,6 +1768,8 @@ function renderMapa(){
   // Botão de localização
   const btnLoc=document.getElementById('btn-minha-localizacao');
   if(btnLoc) btnLoc.onclick=mostrarLocalizacaoUsuario;
+  const avisoEl=document.getElementById('mapa-aviso-sem-coord');
+  if(avisoEl) avisoEl.remove();
   if(!lista.length){setTimeout(()=>_mapaInstance.invalidateSize(),100);return;}
 
   function plotarMarcador(d,lat,lng){
@@ -1778,7 +1780,10 @@ function renderMapa(){
     _mapaMarkers.push(marker);
   }
 
-  // Demandas que já têm coordenada salva aparecem na hora, sem chamada de rede
+  // O mapa só exibe demandas que já têm coordenada salva no Firestore — instantâneo,
+  // sem nenhuma chamada de rede. A coordenada é gravada uma única vez, ao criar a
+  // demanda (ou ao corrigir o endereço na revisão). Demandas antigas que ainda não
+  // têm coordenada precisam da ferramenta de migração (migrar-coordenadas.html).
   const comCoord=lista.filter(d=>typeof d.lat==='number'&&typeof d.lng==='number');
   const semCoord=lista.filter(d=>!(typeof d.lat==='number'&&typeof d.lng==='number'));
 
@@ -1787,30 +1792,12 @@ function renderMapa(){
   if(bounds.length>1) _mapaInstance.fitBounds(bounds,{padding:[30,30]});
   else if(bounds.length===1) _mapaInstance.setView(bounds[0],16);
 
-  // Demandas antigas sem coordenada: busca em segundo plano, uma por vez (~1/s),
-  // e salva no Firestore para nunca mais precisar buscar de novo.
   if(semCoord.length){
-    const tokenDesteRender=++_mapaRenderToken;
-    let idx=0;
-    function proximo(){
-      if(tokenDesteRender!==_mapaRenderToken||!_mapaInstance) return;
-      if(idx>=semCoord.length) return;
-      const d=semCoord[idx++];
-      const q=encodeURIComponent(d.endereco+', Ribeirão Preto, SP, Brasil');
-      fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${q}&limit=1`)
-        .then(r=>r.json()).then(data=>{
-          if(tokenDesteRender!==_mapaRenderToken||!_mapaInstance) return;
-          if(data&&data[0]){
-            const lat=parseFloat(data[0].lat),lng=parseFloat(data[0].lon);
-            if(!isNaN(lat)&&!isNaN(lng)){
-              plotarMarcador(d,lat,lng);
-              fbUpd(d._id,{lat,lng}).catch(()=>{});
-            }
-          }
-        }).catch(()=>{})
-        .finally(()=>{setTimeout(proximo,1100);});
-    }
-    proximo();
+    const aviso=document.createElement('p');
+    aviso.id='mapa-aviso-sem-coord';
+    aviso.style.cssText='font-size:12px;color:var(--amber);text-align:center;margin-top:8px;background:var(--amber-bg);border:1px solid var(--amber-border);border-radius:var(--radius);padding:8px 10px';
+    aviso.innerHTML=`<i class="ti ti-map-pin-off"></i> ${semCoord.length} demanda${semCoord.length>1?'s':''} sem localização no mapa ainda (endereço não geocodificado).`;
+    $('mapa-container').insertAdjacentElement('afterend',aviso);
   }
 
   setTimeout(()=>_mapaInstance.invalidateSize(),100);
