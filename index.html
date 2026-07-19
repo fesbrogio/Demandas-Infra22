@@ -732,7 +732,7 @@ const ZONAS = ['Zona Norte','Zona Sul','Zona Leste','Zona Oeste','Centro'];
 // ══ ESTADO ════════════════════════════════════════════
 let perfil='', equipeAtual='', checkId=null, revisaoId=null, _dadosPendentes=null;
 let _demandas=[], _estatisticas=[], _servicos=[];
-let _charts={}, _mapaInstance=null, _mapaMarkers=[];
+let _charts={}, _mapaInstance=null, _mapaMarkers=[], _mapaRenderToken=0;
 let secaoAtual='', _execServicoId=null, _tipoServicoSel='bairro';
 
 // ══ FIREBASE LISTENERS ════════════════════════════════
@@ -895,6 +895,7 @@ function entrarComo(p){
 
 function voltarPerfil(){
   perfil='';equipeAtual='';secaoAtual='';
+  _mapaRenderToken++; // interrompe qualquer fila de geocodificação do mapa em andamento
   Object.values(_charts).forEach(c=>c.destroy());_charts={};
   if(_mapaInstance){_mapaInstance.remove();_mapaInstance=null;_mapaMarkers=[];_marcadorUsuario=null;_circuloUsuario=null;}
   $('tela-perfil').style.display='block';
@@ -1015,8 +1016,12 @@ async function geocodificarBairro(endereco, docId){
     if(!data||!data[0])return;
     const addr=data[0].address;
     const bairro=addr.suburb||addr.neighbourhood||addr.quarter||addr.city_district||addr.village||null;
-    if(bairro){
-      await fbUpd(docId,{bairroDetectado:bairro});
+    const lat=parseFloat(data[0].lat), lng=parseFloat(data[0].lon);
+    const upd={};
+    if(bairro) upd.bairroDetectado=bairro;
+    if(!isNaN(lat)&&!isNaN(lng)){upd.lat=lat;upd.lng=lng;}
+    if(Object.keys(upd).length){
+      await fbUpd(docId,upd);
     }
   }catch(e){/* silencioso — não impacta o fluxo */}
 }
@@ -1086,7 +1091,12 @@ async function reenviarDemanda(){
   if(prev.style.display!=='none'&&prev.src&&$('revisao-foto').files?.length) foto=await comprimirImagem(prev.src);
   const dados={solicitante:sol,endereco:end,descricao:desc,status:'em andamento',naoEncontrado:false};
   if(foto)dados.foto=foto;
-  try{await fbUpd(revisaoId,dados);fecharModal('modal-revisao');showMsg('Demanda corrigida e reenviada!');}
+  try{
+    await fbUpd(revisaoId,dados);
+    geocodificarBairro(end, revisaoId);
+    fecharModal('modal-revisao');
+    showMsg('Demanda corrigida e reenviada!');
+  }
   catch(e){showMsg('Erro ao reenviar.','danger');}
 }
 async function apagarDemandaRevisao(){
@@ -1759,22 +1769,50 @@ function renderMapa(){
   const btnLoc=document.getElementById('btn-minha-localizacao');
   if(btnLoc) btnLoc.onclick=mostrarLocalizacaoUsuario;
   if(!lista.length){setTimeout(()=>_mapaInstance.invalidateSize(),100);return;}
+
+  function plotarMarcador(d,lat,lng){
+    const cor=d.prioridade==='urgente'?'#e05555':'#1a3f7a';
+    const icone=L.divIcon({html:`<div style="width:16px;height:16px;background:${cor};border-radius:50%;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4)"></div>`,className:'',iconSize:[16,16],iconAnchor:[8,8]});
+    const marker=L.marker([lat,lng],{icon:icone}).addTo(_mapaInstance);
+    marker.bindPopup(`<div style="font-family:sans-serif;font-size:13px;min-width:180px"><strong>${d.prioridade==='urgente'?'⚡ ':''}${d.descricao}</strong><br><span style="color:#666;font-size:12px">${d.endereco}</span><br><span style="color:#666;font-size:12px">${d.zona||''} · ${d.data}</span>${d.prioridade==='urgente'?'<br><span style="color:#e05555;font-weight:600;font-size:12px">⚡ URGENTE</span>':''}</div>`);
+    _mapaMarkers.push(marker);
+  }
+
+  // Demandas que já têm coordenada salva aparecem na hora, sem chamada de rede
+  const comCoord=lista.filter(d=>typeof d.lat==='number'&&typeof d.lng==='number');
+  const semCoord=lista.filter(d=>!(typeof d.lat==='number'&&typeof d.lng==='number'));
+
   const bounds=[];
-  lista.forEach(d=>{
-    const q=encodeURIComponent(d.endereco+', Ribeirão Preto, SP, Brasil');
-    fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${q}&limit=1`)
-      .then(r=>r.json()).then(data=>{
-        if(!data||!data[0])return;
-        const lat=parseFloat(data[0].lat),lng=parseFloat(data[0].lon);
-        const cor=d.prioridade==='urgente'?'#e05555':'#1a3f7a';
-        const icone=L.divIcon({html:`<div style="width:16px;height:16px;background:${cor};border-radius:50%;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4)"></div>`,className:'',iconSize:[16,16],iconAnchor:[8,8]});
-        const marker=L.marker([lat,lng],{icon:icone}).addTo(_mapaInstance);
-        marker.bindPopup(`<div style="font-family:sans-serif;font-size:13px;min-width:180px"><strong>${d.prioridade==='urgente'?'⚡ ':''}${d.descricao}</strong><br><span style="color:#666;font-size:12px">${d.endereco}</span><br><span style="color:#666;font-size:12px">${d.zona||''} · ${d.data}</span>${d.prioridade==='urgente'?'<br><span style="color:#e05555;font-weight:600;font-size:12px">⚡ URGENTE</span>':''}</div>`);
-        _mapaMarkers.push(marker);bounds.push([lat,lng]);
-        if(bounds.length>1)_mapaInstance.fitBounds(bounds,{padding:[30,30]});
-        else _mapaInstance.setView([lat,lng],16);
-      }).catch(()=>{});
-  });
+  comCoord.forEach(d=>{plotarMarcador(d,d.lat,d.lng);bounds.push([d.lat,d.lng]);});
+  if(bounds.length>1) _mapaInstance.fitBounds(bounds,{padding:[30,30]});
+  else if(bounds.length===1) _mapaInstance.setView(bounds[0],16);
+
+  // Demandas antigas sem coordenada: busca em segundo plano, uma por vez (~1/s),
+  // e salva no Firestore para nunca mais precisar buscar de novo.
+  if(semCoord.length){
+    const tokenDesteRender=++_mapaRenderToken;
+    let idx=0;
+    function proximo(){
+      if(tokenDesteRender!==_mapaRenderToken||!_mapaInstance) return;
+      if(idx>=semCoord.length) return;
+      const d=semCoord[idx++];
+      const q=encodeURIComponent(d.endereco+', Ribeirão Preto, SP, Brasil');
+      fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${q}&limit=1`)
+        .then(r=>r.json()).then(data=>{
+          if(tokenDesteRender!==_mapaRenderToken||!_mapaInstance) return;
+          if(data&&data[0]){
+            const lat=parseFloat(data[0].lat),lng=parseFloat(data[0].lon);
+            if(!isNaN(lat)&&!isNaN(lng)){
+              plotarMarcador(d,lat,lng);
+              fbUpd(d._id,{lat,lng}).catch(()=>{});
+            }
+          }
+        }).catch(()=>{})
+        .finally(()=>{setTimeout(proximo,1100);});
+    }
+    proximo();
+  }
+
   setTimeout(()=>_mapaInstance.invalidateSize(),100);
 }
 
