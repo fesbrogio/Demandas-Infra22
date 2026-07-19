@@ -262,6 +262,7 @@
       <button class="perfil-btn equipe-btn" data-equipe="4"><i class="ti ti-users"></i> Equipe 4</button>
       <button class="perfil-btn equipe-btn" data-equipe="5"><i class="ti ti-users"></i> Equipe 5</button>
       <button class="perfil-btn equipe-btn" data-equipe="6"><i class="ti ti-bulldozer"></i> Equipe 6 (Retroescavadeira)</button>
+      <button class="perfil-btn equipe-btn" data-equipe="esal"><i class="ti ti-truck"></i> Demandas ESAL</button>
     </div>
     <!-- Card de Clima -->
     <div id="clima-card" class="clima-card">
@@ -289,7 +290,7 @@
         <div class="field"><label>Prioridade</label><select id="prioridade"><option value="normal">Normal</option><option value="urgente">⚡ Urgente</option></select></div>
         <div class="divider"></div>
         <div class="field-destaque"><label><i class="ti ti-map"></i> Zona da cidade</label><select id="zona-nova"><option value="">— Selecione a zona —</option><option value="Zona Norte">Zona Norte</option><option value="Zona Sul">Zona Sul</option><option value="Zona Leste">Zona Leste</option><option value="Zona Oeste">Zona Oeste</option><option value="Centro">Centro</option></select><div class="hint"><i class="ti ti-info-circle"></i> Região onde o serviço será executado</div></div>
-        <div class="field-destaque"><label><i class="ti ti-users"></i> Equipe responsável</label><select id="equipe-nova"><option value="">— Selecione a equipe —</option><option value="Equipe 1">Equipe 1</option><option value="Equipe 2">Equipe 2</option><option value="Equipe 3">Equipe 3</option><option value="Equipe 4">Equipe 4</option><option value="Equipe 5">Equipe 5</option><option value="Equipe 6 (Retroescavadeira)">Equipe 6 (Retroescavadeira)</option></select><div class="hint"><i class="ti ti-info-circle"></i> Equipe que vai executar o serviço</div></div>
+        <div class="field-destaque"><label><i class="ti ti-users"></i> Equipe responsável</label><select id="equipe-nova"><option value="">— Selecione a equipe —</option><option value="Equipe 1">Equipe 1</option><option value="Equipe 2">Equipe 2</option><option value="Equipe 3">Equipe 3</option><option value="Equipe 4">Equipe 4</option><option value="Equipe 5">Equipe 5</option><option value="Equipe 6 (Retroescavadeira)">Equipe 6 (Retroescavadeira)</option><option value="Demandas ESAL">Demandas ESAL</option></select><div class="hint"><i class="ti ti-info-circle"></i> Equipe que vai executar o serviço</div></div>
         <div class="field"><label>Foto do local (opcional)</label><input type="file" id="foto" accept="image/*"><img id="foto-preview" style="display:none" class="photo-preview" alt="Prévia"></div>
         <button class="btn btn-primary btn-full" id="btn-enviar-demanda"><i class="ti ti-send"></i> Enviar demanda</button>
       </div>
@@ -316,7 +317,7 @@
       <div class="stats" id="stats-box"></div>
       <div class="filter-row">
         <select id="filtro-status"><option value="">Todos os status</option><option value="pendente">Pendente</option><option value="em andamento">Em andamento</option><option value="concluído">Concluído</option></select>
-        <select id="filtro-equipe-painel"><option value="">Todas as equipes</option><option value="Equipe 1">Equipe 1</option><option value="Equipe 2">Equipe 2</option><option value="Equipe 3">Equipe 3</option><option value="Equipe 4">Equipe 4</option><option value="Equipe 5">Equipe 5</option><option value="Equipe 6 (Retroescavadeira)">Equipe 6</option></select>
+        <select id="filtro-equipe-painel"><option value="">Todas as equipes</option><option value="Equipe 1">Equipe 1</option><option value="Equipe 2">Equipe 2</option><option value="Equipe 3">Equipe 3</option><option value="Equipe 4">Equipe 4</option><option value="Equipe 5">Equipe 5</option><option value="Equipe 6 (Retroescavadeira)">Equipe 6</option><option value="Demandas ESAL">Demandas ESAL</option></select>
         <select id="filtro-zona-painel"><option value="">Todas as zonas</option><option value="Zona Norte">Zona Norte</option><option value="Zona Sul">Zona Sul</option><option value="Zona Leste">Zona Leste</option><option value="Zona Oeste">Zona Oeste</option><option value="Centro">Centro</option></select>
       </div>
       <div id="lista-painel"></div>
@@ -725,7 +726,7 @@ const BAIRROS_RP = [
 const SENHA = 'infra22';
 const HORAS_ALERTA = 168;
 const LIMITE_DUPLICADO = 20;
-const EQUIPES = ['Equipe 1','Equipe 2','Equipe 3','Equipe 4','Equipe 5','Equipe 6 (Retroescavadeira)'];
+const EQUIPES = ['Equipe 1','Equipe 2','Equipe 3','Equipe 4','Equipe 5','Equipe 6 (Retroescavadeira)','Demandas ESAL'];
 const ZONAS = ['Zona Norte','Zona Sul','Zona Leste','Zona Oeste','Centro'];
 
 // ══ ESTADO ════════════════════════════════════════════
@@ -863,6 +864,12 @@ function entrarComo(p){
           <button class="tab" data-sec="dashboard"><i class="ti ti-chart-bar"></i> Dashboard</button>
           <button class="tab" data-sec="historico"><i class="ti ti-history"></i> Concluídas / PDF</button>`;
     sec='painel';
+  } else if(p==='equipeesal'){
+    equipeAtual='Demandas ESAL';
+    titulo='🚛 Demandas ESAL';
+    html=`<button class="tab active" data-sec="equipe"><i class="ti ti-clipboard-list"></i> Minhas demandas</button>
+          <button class="tab" data-sec="mapa"><i class="ti ti-map"></i> Mapa</button>`;
+    sec='equipe';
   } else {
     const num=p.replace('equipe','');
     equipeAtual=num==='6'?'Equipe 6 (Retroescavadeira)':`Equipe ${num}`;
@@ -1229,6 +1236,15 @@ function renderLocalizacao(){
     return{tipo:'demanda',endereco:d.endereco,data:d.dataConclusao||d.data||'—',desc:d.descricao};
   }
 
+  function infoEquipeESAL(){
+    const conc=_demandas
+      .filter(d=>d.equipe==='Demandas ESAL'&&d.status==='concluído')
+      .sort((a,b)=>tsBR(b.dataConclusao||b.data)-tsBR(a.dataConclusao||a.data));
+    if(!conc.length) return{tipo:'vazio',texto:'Nenhuma demanda concluída ainda'};
+    const d=conc[0];
+    return{tipo:'demanda',endereco:d.endereco,data:d.dataConclusao||d.data||'—',desc:d.descricao};
+  }
+
   function corTipo(tipo){
     if(tipo==='ativo') return{bg:'var(--blue-bg)',border:'var(--blue-border)',cor:'var(--blue)',icone:'ti-map-2'};
     if(tipo==='demanda') return{bg:'var(--green-bg)',border:'var(--green-border)',cor:'var(--green)',icone:'ti-map-pin'};
@@ -1284,6 +1300,9 @@ function renderLocalizacao(){
       else if(info.tipo==='concluido') linhas.push(`*${eq}:* ${info.texto} _(concluído)_`);
       else linhas.push(`*${eq}:* Sem serviço ativo`);
     });
+    const infoESAL=infoEquipeESAL();
+    if(infoESAL.tipo==='demanda') linhas.push(`*Demandas ESAL:* Última coleta – ${infoESAL.endereco}`);
+    else linhas.push(`*Demandas ESAL:* ${infoESAL.texto}`);
     return linhas.join('\n');
   }
 
@@ -1295,6 +1314,7 @@ function renderLocalizacao(){
     html+=cardEquipe('Equipe 3 — última demanda', infoEquipe3());
     html+=cardEquipe('Equipe 4', infoEquipeServico('Equipe 4'));
     html+=cardEquipe('Equipe 5', infoEquipeServico('Equipe 5'));
+    html+=cardEquipe('Demandas ESAL — última coleta', infoEquipeESAL());
     html+=`<button id="btn-copiar-whatsapp" class="btn btn-primary btn-full" style="margin-top:8px;background:#25D366;border-color:#25D366;font-size:14px;padding:13px">
       <i class="ti ti-brand-whatsapp"></i> Copiar localização das equipes
     </button>
@@ -1404,11 +1424,28 @@ function renderLocalizacao(){
       </div>`;
     }
 
+    function blocoEquipeESAL(){
+      const lista=_demandas
+        .filter(d=>d.equipe==='Demandas ESAL'&&d.status==='concluído')
+        .sort((a,b)=>tsBR(b.dataConclusao||b.data)-tsBR(a.dataConclusao||a.data))
+        .slice(0,10);
+      return`<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px;margin-bottom:12px">
+        <div style="font-size:13px;font-weight:700;color:var(--purple);text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px;display:flex;align-items:center;gap:6px">
+          <i class="ti ti-truck" style="font-size:14px"></i> Demandas ESAL
+        </div>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:10px">Últimas 10 demandas concluídas</div>
+        ${lista.length
+          ? lista.map(d=>cardHistoricoDemanda(d)).join('')
+          : '<div style="font-size:13px;color:var(--text3);padding:8px 0">Nenhuma demanda concluída ainda.</div>'}
+      </div>`;
+    }
+
     return blocoServicos('Equipe 1')
       + blocoServicos('Equipe 2')
       + blocoEquipe3()
       + blocoServicos('Equipe 4')
-      + blocoServicos('Equipe 5');
+      + blocoServicos('Equipe 5')
+      + blocoEquipeESAL();
   }
   // ── Monta tela ──
   let html=`
@@ -1569,8 +1606,8 @@ function renderDashboard(){
     const porEquipe=EQUIPES.map(e=>concFiltro.filter(d=>d.equipe===e).length+(stat?.porEquipe?.[e]||0));
     const porZona=ZONAS.map(z=>concFiltro.filter(d=>d.zona===z).length+(stat?.porZona?.[z]||0));
     const abertasEq=EQUIPES.map(e=>aberFiltro.filter(d=>d.equipe===e).length);
-    const eqLabels=['Eq.1','Eq.2','Eq.3','Eq.4','Eq.5','Eq.6'];
-    const cores=['#1a6640','#1a3f7a','#7a4f00','#4a1a7a','#7a3a00','#2a5f5a'];
+    const eqLabels=['Eq.1','Eq.2','Eq.3','Eq.4','Eq.5','Eq.6','ESAL'];
+    const cores=['#1a6640','#1a3f7a','#7a4f00','#4a1a7a','#7a3a00','#2a5f5a','#4a5568'];
 
     // Bairros – mês selecionado
     const bairroHtml=renderBairrosFreq(concFiltro, _servicos.filter(s=>{
@@ -1603,8 +1640,8 @@ function renderDashboard(){
   const porEquipeTodos=EQUIPES.map(e=>concFiltro.filter(d=>d.equipe===e).length);
   const porZonaTodos=ZONAS.map(z=>concFiltro.filter(d=>d.zona===z).length);
   const abertasEqTodos=EQUIPES.map(e=>aberFiltro.filter(d=>d.equipe===e).length);
-  const eqLabels=['Eq.1','Eq.2','Eq.3','Eq.4','Eq.5','Eq.6'];
-  const cores=['#1a6640','#1a3f7a','#7a4f00','#4a1a7a','#7a3a00','#2a5f5a'];
+  const eqLabels=['Eq.1','Eq.2','Eq.3','Eq.4','Eq.5','Eq.6','ESAL'];
+  const cores=['#1a6640','#1a3f7a','#7a4f00','#4a1a7a','#7a3a00','#2a5f5a','#4a5568'];
   const servsAno=_servicos.filter(s=>{const f=s.dataFim||s.dataInicio||'';return f.includes(anoAtual);});
   const bairroHtml=renderBairrosFreq(concFiltro, servsAno, anoAtual);
 
