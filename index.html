@@ -1555,7 +1555,8 @@ function renderHistorico(){
   const conc=_demandas.filter(d=>d.status==='concluído');
   popularSelectMes('filtro-mes-historico',conc);
   const mesSel=$('filtro-mes-historico').value;
-  const lista=filtrarPorMes(conc,mesSel,'dataConclusao');
+  let lista=filtrarPorMes(conc,mesSel,'dataConclusao');
+  lista=lista.slice().sort((a,b)=>tsBR(b.dataConclusao||b.data)-tsBR(a.dataConclusao||a.data));
   const el=$('lista-historico');
   if(!lista.length){el.innerHTML='<div class="empty"><i class="ti ti-history"></i>Nenhum serviço concluído ainda</div>';return;}
   el.innerHTML=realtimeBadge()+`<div class="card">${lista.map(d=>`
