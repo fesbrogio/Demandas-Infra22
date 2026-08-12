@@ -630,7 +630,7 @@
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, query, orderBy, serverTimestamp, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, query, where, orderBy, serverTimestamp, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 // ══ FIREBASE ══════════════════════════════════════════
 const app = initializeApp({
@@ -731,18 +731,29 @@ const ZONAS = ['Zona Norte','Zona Sul','Zona Leste','Zona Oeste','Centro'];
 
 // ══ ESTADO ════════════════════════════════════════════
 let perfil='', equipeAtual='', checkId=null, revisaoId=null, _dadosPendentes=null;
-let _demandas=[], _estatisticas=[], _servicos=[];
+let _demandas=[], _demandasConcluidas=[], _estatisticas=[], _servicos=[];
+const STATUS_ATIVOS = ['pendente','em andamento','revisao'];
 let _charts={}, _mapaInstance=null, _mapaMarkers=[], _mapaRenderToken=0;
 let secaoAtual='', _execServicoId=null, _tipoServicoSel='bairro';
 
 // ══ FIREBASE LISTENERS ════════════════════════════════
-onSnapshot(query(col,orderBy("criadoEm","desc")), snap=>{
+// Demandas ativas: carregam primeiro e liberam a tela rapidamente (é o que a
+// maioria das telas do dia a dia usa — Nova, Gerenciar, Equipe, Revisão, Mapa).
+onSnapshot(query(col, where("status","in",STATUS_ATIVOS), orderBy("criadoEm","desc")), snap=>{
   _demandas = snap.docs.map(d=>({_id:d.id,...d.data()}));
   _demandas.sort((a,b)=>{
     if(a.prioridade==='urgente'&&b.prioridade!=='urgente') return -1;
     if(a.prioridade!=='urgente'&&b.prioridade==='urgente') return 1;
     return 0;
   });
+  renderAtual();
+});
+// Demandas concluídas: carregam em segundo plano, sem travar a tela inicial.
+// Alimentam Painel, Histórico, Dashboard, Relatório Executivo, Localização das
+// Equipes e o aviso de "atendimentos anteriores" nos cards — nada deixa de
+// aparecer, só chega um instante depois.
+onSnapshot(query(col, where("status","==","concluído"), orderBy("criadoEm","desc")), snap=>{
+  _demandasConcluidas = snap.docs.map(d=>({_id:d.id,...d.data()}));
   renderAtual();
 });
 onSnapshot(query(colStats,orderBy("mesISO","asc")), snap=>{
@@ -786,6 +797,8 @@ function horasAbertas(d){if(!d.criadoEm)return 0;const ts=d.criadoEm.seconds?d.c
 function labelTempo(h){return h<24?`${Math.floor(h)}h aberta`:`${Math.floor(h/24)}d aberta`}
 function diasAtras(dataStr){if(!dataStr)return 999;const[d,m,a]=dataStr.split('/');return Math.floor((Date.now()-new Date(+a,+m-1,+d).getTime())/86400000)}
 function tsBR(dataStr){if(!dataStr)return 0;const p=dataStr.split('/');if(p.length!==3)return 0;const[d,m,a]=p;return new Date(+a,+m-1,+d).getTime()}
+// Junta ativas + concluídas — usar sempre que a tela precisar do histórico completo
+function todasDemandasCombinadas(){return [..._demandas, ..._demandasConcluidas]}
 
 async function comprimirImagem(src,maxPx=800,quality=0.75){
   return new Promise(resolve=>{
@@ -929,7 +942,7 @@ function historicoDemanda(endereco, idAtual){
   // Busca qualquer demanda concluída no mesmo endereço (sem limite de data)
   const{rua,numero}=extrairRuaNumero(endereco);
   if(!rua||rua.length<4)return[];
-  return _demandas.filter(d=>{
+  return _demandasConcluidas.filter(d=>{
     if(d._id===idAtual)return false;
     if(d.status!=='concluído')return false;
     const{rua:rD,numero:nD}=extrairRuaNumero(d.endereco||'');
@@ -1107,7 +1120,7 @@ async function apagarDemandaRevisao(){
 
 // ══ APAGAR CONCLUÍDAS ════════════════════════════════
 function abrirApagarConcluidas(){
-  const conc=_demandas.filter(d=>d.status==='concluído');
+  const conc=_demandasConcluidas;
   if(!conc.length){alert('Não há demandas concluídas para apagar.');return;}
   popularSelectMes('filtro-mes-apagar',conc);
   $('modal-confirmar-apagar').style.display='flex';
@@ -1115,7 +1128,7 @@ function abrirApagarConcluidas(){
 async function executarApagarConcluidas(){
   fecharModal('modal-confirmar-apagar');
   const mesSel=$('filtro-mes-apagar').value;
-  let conc=_demandas.filter(d=>d.status==='concluído');
+  let conc=_demandasConcluidas;
   if(mesSel) conc=filtrarPorMes(conc,mesSel,'dataConclusao');
   if(!conc.length){showMsg('Nenhuma demanda no período.','danger');return;}
   // Salva estatísticas
@@ -1202,9 +1215,9 @@ function bindCards(container){
 function renderStats(){
   const pend=_demandas.filter(d=>d.status==='pendente').length;
   const and=_demandas.filter(d=>d.status==='em andamento').length;
-  const conc=_demandas.filter(d=>d.status==='concluído').length;
+  const conc=_demandasConcluidas.length;
   $('stats-box').innerHTML=`
-    <div class="stat"><div class="stat-num">${_demandas.length}</div><div class="stat-label">Total</div></div>
+    <div class="stat"><div class="stat-num">${_demandas.length+_demandasConcluidas.length}</div><div class="stat-label">Total</div></div>
     <div class="stat"><div class="stat-num" style="color:var(--amber)">${pend}</div><div class="stat-label">Pendentes</div></div>
     <div class="stat"><div class="stat-num" style="color:var(--blue)">${and}</div><div class="stat-label">Em andamento</div></div>
     <div class="stat"><div class="stat-num" style="color:var(--green)">${conc}</div><div class="stat-label">Concluídas</div></div>`;
@@ -1238,8 +1251,8 @@ function renderLocalizacao(){
   }
 
   function infoEquipe3(){
-    const conc=_demandas
-      .filter(d=>d.equipe==='Equipe 3'&&d.status==='concluído')
+    const conc=_demandasConcluidas
+      .filter(d=>d.equipe==='Equipe 3')
       .sort((a,b)=>tsBR(b.dataConclusao||b.data)-tsBR(a.dataConclusao||a.data));
     if(!conc.length) return{tipo:'vazio',texto:'Nenhuma demanda concluída ainda'};
     const d=conc[0];
@@ -1247,8 +1260,8 @@ function renderLocalizacao(){
   }
 
   function infoEquipeESAL(){
-    const conc=_demandas
-      .filter(d=>d.equipe==='Demandas ESAL'&&d.status==='concluído')
+    const conc=_demandasConcluidas
+      .filter(d=>d.equipe==='Demandas ESAL')
       .sort((a,b)=>tsBR(b.dataConclusao||b.data)-tsBR(a.dataConclusao||a.data));
     if(!conc.length) return{tipo:'vazio',texto:'Nenhuma demanda concluída ainda'};
     const d=conc[0];
@@ -1397,8 +1410,8 @@ function renderLocalizacao(){
         .filter(s=>s.equipe===eq&&s.status==='concluido')
         .sort((a,b)=>tsBR(b.dataFim)-tsBR(a.dataFim));
       const todos=[...emAndamento,...concluidos].slice(0,3);
-      const ultDem=_demandas
-        .filter(d=>d.equipe===eq&&d.status==='concluído')
+      const ultDem=_demandasConcluidas
+        .filter(d=>d.equipe===eq)
         .sort((a,b)=>(b.dataConclusao||b.data||'').localeCompare(a.dataConclusao||a.data||''))[0];
       return`<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px;margin-bottom:12px">
         <div style="font-size:13px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px;display:flex;align-items:center;gap:6px">
@@ -1419,8 +1432,8 @@ function renderLocalizacao(){
     }
 
     function blocoEquipe3(){
-      const lista=_demandas
-        .filter(d=>d.equipe==='Equipe 3'&&d.status==='concluído')
+      const lista=_demandasConcluidas
+        .filter(d=>d.equipe==='Equipe 3')
         .sort((a,b)=>tsBR(b.dataConclusao||b.data)-tsBR(a.dataConclusao||a.data))
         .slice(0,5);
       return`<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px;margin-bottom:12px">
@@ -1435,8 +1448,8 @@ function renderLocalizacao(){
     }
 
     function blocoEquipeESAL(){
-      const lista=_demandas
-        .filter(d=>d.equipe==='Demandas ESAL'&&d.status==='concluído')
+      const lista=_demandasConcluidas
+        .filter(d=>d.equipe==='Demandas ESAL')
         .sort((a,b)=>tsBR(b.dataConclusao||b.data)-tsBR(a.dataConclusao||a.data))
         .slice(0,10);
       return`<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px;margin-bottom:12px">
@@ -1516,7 +1529,7 @@ function renderRevisao(){
 function renderPainel(){
   renderStats();
   const fs=$('filtro-status').value,fe=$('filtro-equipe-painel').value,fz=$('filtro-zona-painel').value;
-  let lista=[..._demandas];
+  let lista=todasDemandasCombinadas();
   if(fs)lista=lista.filter(d=>d.status===fs);
   if(fe)lista=lista.filter(d=>d.equipe===fe);
   if(fz)lista=lista.filter(d=>d.zona===fz);
@@ -1552,7 +1565,7 @@ function renderEquipe(){
 }
 
 function renderHistorico(){
-  const conc=_demandas.filter(d=>d.status==='concluído');
+  const conc=_demandasConcluidas;
   popularSelectMes('filtro-mes-historico',conc);
   const mesSel=$('filtro-mes-historico').value;
   let lista=filtrarPorMes(conc,mesSel,'dataConclusao');
@@ -1584,7 +1597,7 @@ function renderDashboard(){
 
   // Popula select de meses + opção "Todos"
   const meses=new Set();
-  _demandas.forEach(d=>{const m=parseMes(d.data);if(m)meses.add(m);});
+  todasDemandasCombinadas().forEach(d=>{const m=parseMes(d.data);if(m)meses.add(m);});
   _estatisticas.forEach(e=>{if(e._id)meses.add(e._id);});
   const todos=[...meses].sort().reverse();
   const atual=sel.value;
@@ -1601,14 +1614,14 @@ function renderDashboard(){
   if(!mesISO){
     // Todos os meses do ano atual
     labelTitulo=`Visão geral – ${anoAtual}`;
-    demFiltro=_demandas.filter(d=>{if(!d.data)return false;const p=d.data.split('/');return p[2]===anoAtual;});
+    demFiltro=todasDemandasCombinadas().filter(d=>{if(!d.data)return false;const p=d.data.split('/');return p[2]===anoAtual;});
     concFiltro=demFiltro.filter(d=>d.status==='concluído');
     aberFiltro=demFiltro.filter(d=>d.status!=='concluído');
   } else {
     const[ano,mes]=mesISO.split('-');
     labelTitulo=nomeMes(mesISO);
     const stat=_estatisticas.find(e=>e._id===mesISO);
-    demFiltro=_demandas.filter(d=>{if(!d.data)return false;const p=d.data.split('/');return p.length===3&&p[2]===ano&&p[1]===mes;});
+    demFiltro=todasDemandasCombinadas().filter(d=>{if(!d.data)return false;const p=d.data.split('/');return p.length===3&&p[2]===ano&&p[1]===mes;});
     concFiltro=demFiltro.filter(d=>d.status==='concluído');
     aberFiltro=demFiltro.filter(d=>d.status!=='concluído');
     // adiciona estatísticas arquivadas
@@ -2080,7 +2093,7 @@ async function salvarEditarTrecho(){
 // ══ PDF ═══════════════════════════════════════════════
 function gerarRelatorio(){
   const mesSel=$('filtro-mes-historico').value;
-  let conc=_demandas.filter(d=>d.status==='concluído');
+  let conc=_demandasConcluidas;
   conc=filtrarPorMes(conc,mesSel,'dataConclusao');
   if(!conc.length){alert('Não há demandas concluídas para gerar relatório.');return;}
   const hoje=new Date().toLocaleDateString('pt-BR');
@@ -2090,7 +2103,7 @@ function gerarRelatorio(){
 
 function baixarPDF(){
   const mesSel=$('filtro-mes-historico').value;
-  let conc=_demandas.filter(d=>d.status==='concluído');
+  let conc=_demandasConcluidas;
   conc=filtrarPorMes(conc,mesSel,'dataConclusao');
   if(!conc.length)return;
   const{jsPDF}=window.jspdf;
@@ -2321,7 +2334,7 @@ async function carregarClima(){
 }
 
 // ══ RELATÓRIO EXECUTIVO ═══════════════════════════════
-function todasDemandas(){return [..._demandas];}
+function todasDemandas(){return todasDemandasCombinadas();}
 
 function gerarRelatorioExecutivo(){
   const hoje=new Date().toLocaleDateString('pt-BR');
