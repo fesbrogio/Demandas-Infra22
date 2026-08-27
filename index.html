@@ -1610,23 +1610,45 @@ function renderDashboard(){
   const anoAtual=String(new Date().getFullYear());
 
   // ── Dados filtrados ──
+  // IMPORTANTE: "Concluídas" deve contar pelo mês em que a demanda foi
+  // CONCLUÍDA (dataConclusao), não pelo mês em que foi aberta (data).
+  // "Em aberto" continua usando a data de abertura, pois ainda não têm conclusão.
+  const _todasDash=todasDemandasCombinadas();
   let demFiltro, concFiltro, aberFiltro, labelTitulo;
   if(!mesISO){
     // Todos os meses do ano atual
     labelTitulo=`Visão geral – ${anoAtual}`;
-    demFiltro=todasDemandasCombinadas().filter(d=>{if(!d.data)return false;const p=d.data.split('/');return p[2]===anoAtual;});
-    concFiltro=demFiltro.filter(d=>d.status==='concluído');
-    aberFiltro=demFiltro.filter(d=>d.status!=='concluído');
+    concFiltro=_todasDash.filter(d=>{
+      if(d.status!=='concluído')return false;
+      const m=parseMes(d.dataConclusao||d.data);
+      return m&&m.startsWith(anoAtual+'-');
+    });
+    aberFiltro=_todasDash.filter(d=>{
+      if(d.status==='concluído')return false;
+      if(!d.data)return false;
+      const p=d.data.split('/');
+      return p.length===3&&p[2]===anoAtual;
+    });
+    demFiltro=[...concFiltro,...aberFiltro];
   } else {
     const[ano,mes]=mesISO.split('-');
     labelTitulo=nomeMes(mesISO);
     const stat=_estatisticas.find(e=>e._id===mesISO);
-    demFiltro=todasDemandasCombinadas().filter(d=>{if(!d.data)return false;const p=d.data.split('/');return p.length===3&&p[2]===ano&&p[1]===mes;});
-    concFiltro=demFiltro.filter(d=>d.status==='concluído');
-    aberFiltro=demFiltro.filter(d=>d.status!=='concluído');
+    concFiltro=_todasDash.filter(d=>{
+      if(d.status!=='concluído')return false;
+      const m=parseMes(d.dataConclusao||d.data);
+      return m===mesISO;
+    });
+    aberFiltro=_todasDash.filter(d=>{
+      if(d.status==='concluído')return false;
+      if(!d.data)return false;
+      const p=d.data.split('/');
+      return p.length===3&&p[2]===ano&&p[1]===mes;
+    });
+    demFiltro=[...concFiltro,...aberFiltro];
     // adiciona estatísticas arquivadas
     const totalConc=concFiltro.length+(stat?.total||0);
-    const totalUrg=demFiltro.filter(d=>d.prioridade==='urgente').length+(stat?.urgentes||0);
+    const totalUrg=concFiltro.filter(d=>d.prioridade==='urgente').length+(stat?.urgentes||0);
     const porEquipe=EQUIPES.map(e=>concFiltro.filter(d=>d.equipe===e).length+(stat?.porEquipe?.[e]||0));
     const porZona=ZONAS.map(z=>concFiltro.filter(d=>d.zona===z).length+(stat?.porZona?.[z]||0));
     const abertasEq=EQUIPES.map(e=>aberFiltro.filter(d=>d.equipe===e).length);
