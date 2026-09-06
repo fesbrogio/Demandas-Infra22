@@ -1,0 +1,42 @@
+name: Notificar eventos por Telegram
+
+on:
+  # Roda todo dia às 10:00 UTC = 07:00 em Ribeirão Preto (Brasil não usa mais
+  # horário de verão desde 2019, então esse horário fica fixo o ano todo).
+  schedule:
+    - cron: "0 10 * * *"
+  # Permite rodar manualmente pela aba "Actions" do GitHub, útil para testar.
+  workflow_dispatch: {}
+
+# Necessário para o passo de "manutenção" abaixo, que faz um commit leve
+# só para o GitHub não desativar este agendamento por inatividade do repositório
+# (GitHub desativa workflows agendados após 60 dias sem nenhum commit).
+permissions:
+  contents: write
+
+jobs:
+  notificar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout do repositório
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Verificar eventos de amanhã e enviar avisos no Telegram
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+        run: node scripts/notificar-telegram.mjs
+
+      - name: Manter o workflow agendado ativo
+        run: |
+          mkdir -p .github/keepalive
+          echo "Última verificação: $(date -u '+%Y-%m-%d %H:%M UTC')" > .github/keepalive/ultima-execucao.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .github/keepalive/ultima-execucao.txt
+          git diff --staged --quiet || git commit -m "chore: manter workflow agendado ativo"
+          git push
