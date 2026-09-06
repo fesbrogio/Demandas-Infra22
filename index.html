@@ -292,6 +292,18 @@
         <div class="field-destaque"><label><i class="ti ti-map"></i> Zona da cidade</label><select id="zona-nova"><option value="">— Selecione a zona —</option><option value="Zona Norte">Zona Norte</option><option value="Zona Sul">Zona Sul</option><option value="Zona Leste">Zona Leste</option><option value="Zona Oeste">Zona Oeste</option><option value="Centro">Centro</option></select><div class="hint"><i class="ti ti-info-circle"></i> Região onde o serviço será executado</div></div>
         <div class="field-destaque"><label><i class="ti ti-users"></i> Equipe responsável</label><select id="equipe-nova"><option value="">— Selecione a equipe —</option><option value="Equipe 1">Equipe 1</option><option value="Equipe 2">Equipe 2</option><option value="Equipe 3">Equipe 3</option><option value="Equipe 4">Equipe 4</option><option value="Equipe 5">Equipe 5</option><option value="Equipe 6 (Retroescavadeira)">Equipe 6 (Retroescavadeira)</option><option value="Demandas ESAL">Demandas ESAL</option></select><div class="hint"><i class="ti ti-info-circle"></i> Equipe que vai executar o serviço</div></div>
         <div class="field"><label>Foto do local (opcional)</label><input type="file" id="foto" accept="image/*"><img id="foto-preview" style="display:none" class="photo-preview" alt="Prévia"></div>
+        <div class="divider"></div>
+        <div class="field">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:500;color:var(--text)">
+            <input type="checkbox" id="marcar-data-nova" style="width:auto;cursor:pointer">
+            <span><i class="ti ti-calendar-event"></i> Marcar data do evento</span>
+          </label>
+          <div class="hint" style="margin-top:4px"><i class="ti ti-info-circle"></i> Envia um aviso automático no Telegram 1 dia antes da data marcada</div>
+        </div>
+        <div class="field" id="campo-data-evento-nova" style="display:none">
+          <label>Data do evento</label>
+          <input type="date" id="data-evento-nova">
+        </div>
         <button class="btn btn-primary btn-full" id="btn-enviar-demanda"><i class="ti ti-send"></i> Enviar demanda</button>
       </div>
     </div>
@@ -991,12 +1003,15 @@ async function enviarDemanda(){
   const zona=$('zona-nova').value;
   const equipe=$('equipe-nova').value;
   const prev=$('foto-preview');
+  const marcarData=$('marcar-data-nova').checked;
+  const dataEventoISO=$('data-evento-nova').value;
   if(!sol||!end||!desc){alert('Preencha solicitante, endereço e descrição.');return;}
   if(!zona){alert('Selecione a zona da cidade.');return;}
   if(!equipe){alert('Selecione a equipe responsável.');return;}
+  if(marcarData&&!dataEventoISO){alert('Informe a data do evento, ou desmarque "Marcar data do evento".');return;}
   let foto=null;
   if(prev.style.display!=='none'&&prev.src) foto=await comprimirImagem(prev.src);
-  _dadosPendentes={solicitante:sol,endereco:end,descricao:desc,prioridade:prio,zona,foto,status:'em andamento',equipe,data:new Date().toLocaleDateString('pt-BR'),hora:new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),dataConclusao:null,fotoConclusao:null,naoEncontrado:false};
+  _dadosPendentes={solicitante:sol,endereco:end,descricao:desc,prioridade:prio,zona,foto,status:'em andamento',equipe,data:new Date().toLocaleDateString('pt-BR'),hora:new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),dataConclusao:null,fotoConclusao:null,naoEncontrado:false,marcarData,dataEvento:marcarData?dataEventoISO:null,notificadoEvento:false};
   const similares=verificarDuplicados(end);
   if(similares.length){
     $('duplicado-lista').innerHTML=similares.map(d=>`<div style="padding:6px 0;border-bottom:1px solid var(--amber-border)"><strong>${d.descricao}</strong><br>📍 ${d.endereco}<br><span style="color:var(--text2)">há ${diasAtras(d.data)} dia(s) · ${d.equipe||'—'}</span></div>`).join('');
@@ -1015,6 +1030,7 @@ async function salvarDemanda(){
     ['solicitante','endereco','descricao'].forEach(id=>$(id).value='');
     $('prioridade').value='normal';$('zona-nova').value='';$('equipe-nova').value='';
     $('foto-preview').style.display='none';$('foto-preview').src='';$('foto').value='';
+    $('marcar-data-nova').checked=false;$('campo-data-evento-nova').style.display='none';$('data-evento-nova').value='';
     showMsg(`✓ Demanda registrada para ${_dadosPendentes.equipe} – ${_dadosPendentes.zona}!`);
     _dadosPendentes=null;
   }catch(e){showMsg('Erro ao salvar.','danger');}
@@ -1048,6 +1064,18 @@ async function atribuir(id,equipe){
 async function atualizarZona(id,zona){
   try{await fbUpd(id,{zona});}
   catch(e){showMsg('Erro ao atualizar zona.','danger');}
+}
+
+async function salvarDataEvento(id,btnEl){
+  const input=btnEl.closest('.alocar-box').querySelector('.data-evento-input');
+  const novaData=input.value;
+  if(!novaData){alert('Informe uma data válida.');return;}
+  try{
+    // Reseta notificadoEvento: se a data mudou (evento adiado/antecipado), o aviso
+    // deve valer para a nova data, então "esquecemos" que já avisamos antes.
+    await fbUpd(id,{dataEvento:novaData,notificadoEvento:false});
+    showMsg('Data do evento atualizada! O aviso será enviado 1 dia antes da nova data.');
+  }catch(e){showMsg('Erro ao atualizar a data do evento.','danger');}
 }
 
 // ══ DELETAR ═══════════════════════════════════════════
@@ -1178,6 +1206,7 @@ function cardHtml(d,opts={}){
         ${d.prioridade==='urgente'?'<span class="badge badge-urgente">⚡ URGENTE</span>':''}
         ${atrasada?`<span class="badge badge-atrasada">⏰ ${labelTempo(h)}</span>`:''}
         ${d.zona?`<span class="badge badge-zona">${d.zona}</span>`:''}
+        ${d.marcarData&&d.dataEvento?`<span class="badge" style="background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-border)"><i class="ti ti-calendar-event" style="font-size:11px"></i> ${brFromISO(d.dataEvento)}</span>`:''}
       </div>
     </div>
     <div class="demand-meta">
@@ -1193,6 +1222,14 @@ function cardHtml(d,opts={}){
     ${mostrarRevisao?`<div class="revisao-box"><div class="revisao-label"><i class="ti ti-map-pin-off"></i> Endereço não encontrado</div><p style="font-size:13px;color:var(--red);font-style:italic">A ${d.equipe||'equipe'} não localizou este endereço.</p></div>`:''}
     ${(()=>{const hist=historicoDemanda(d.endereco,d._id);return hist.length?htmlHistorico(hist):'';})()}
     ${mostrarAlocar?alocarHtml(d):''}
+    ${mostrarAlocar&&d.marcarData?`<div class="alocar-box" style="background:var(--blue-bg);border-color:var(--blue-border)">
+      <div class="alocar-label" style="color:var(--blue)"><i class="ti ti-calendar-event"></i> Data do evento (aviso Telegram 1 dia antes)</div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <input type="date" class="data-evento-input" value="${d.dataEvento||''}" style="flex:1;min-width:140px;padding:9px 10px;border:1px solid var(--blue-border);border-radius:var(--radius);font-size:14px;background:#fff">
+        <button class="btn btn-sm btn-info" data-salvar-data-evento="${d._id}"><i class="ti ti-check"></i> Salvar</button>
+      </div>
+      <div style="font-size:11px;color:var(--text3);margin-top:6px">${d.notificadoEvento?'✓ Aviso já enviado para esta data':'Aviso ainda não enviado'}</div>
+    </div>`:''}
     <div class="demand-actions">
       ${mostrarCheck?`<button class="btn-done" data-check="${d._id}"><i class="ti ti-camera"></i> Concluir com foto e data</button>`:''}
       ${mostrarNaoEncontrado?`<button class="btn-nao-encontrado" data-nao="${d._id}"><i class="ti ti-map-pin-off"></i> Local não encontrado</button>`:''}
@@ -1210,6 +1247,7 @@ function bindCards(container){
   container.querySelectorAll('.alocar-select').forEach(sel=>sel.addEventListener('change',()=>atribuir(sel.dataset.id,sel.value)));
   container.querySelectorAll('.zona-select').forEach(sel=>sel.addEventListener('change',()=>atualizarZona(sel.dataset.zonaId,sel.value)));
   container.querySelectorAll('.photo-preview[data-src]').forEach(img=>img.addEventListener('click',()=>abrirLightbox(img.dataset.src)));
+  container.querySelectorAll('[data-salvar-data-evento]').forEach(b=>b.addEventListener('click',()=>salvarDataEvento(b.dataset.salvarDataEvento,b)));
 }
 
 function renderStats(){
@@ -2588,6 +2626,9 @@ document.addEventListener('DOMContentLoaded', ()=>{
   // Nova demanda
   $('btn-enviar-demanda').addEventListener('click',enviarDemanda);
   $('foto').addEventListener('change',()=>previewFoto($('foto'),'foto-preview'));
+  $('marcar-data-nova').addEventListener('change',()=>{
+    $('campo-data-evento-nova').style.display=$('marcar-data-nova').checked?'block':'none';
+  });
   // Histórico de endereço no formulário nova demanda
   let _debounceEnd=null;
   $('endereco').addEventListener('input',()=>{
