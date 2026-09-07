@@ -103,9 +103,10 @@ async function enviarMensagemTelegram(chatId, texto) {
   });
   if (!res.ok) {
     console.error(`❌ Falha ao enviar para chat_id ${chatId}: ${res.status} ${await res.text()}`);
-  } else {
-    console.log(`✓ Mensagem enviada para chat_id ${chatId}`);
+    return false;
   }
+  console.log(`✓ Mensagem enviada para chat_id ${chatId}`);
+  return true;
 }
 
 function montarMensagem(doc) {
@@ -148,11 +149,20 @@ async function main() {
 
   for (const doc of pendentes) {
     const mensagem = montarMensagem(doc);
+    // Só marca como notificado se PELO MENOS UM envio realmente funcionou.
+    // Se todos falharem (ex: token inválido), a demanda continua pendente
+    // e será tentada de novo na próxima execução do workflow.
+    let algumSucesso = false;
     for (const chatId of chatIds) {
-      await enviarMensagemTelegram(chatId, mensagem);
+      const ok = await enviarMensagemTelegram(chatId, mensagem);
+      if (ok) algumSucesso = true;
     }
-    await marcarComoNotificado(doc.name);
-    console.log(`✓ Aviso processado: ${campo(doc, "descricao")}`);
+    if (algumSucesso) {
+      await marcarComoNotificado(doc.name);
+      console.log(`✓ Aviso processado: ${campo(doc, "descricao")}`);
+    } else {
+      console.error(`❌ Nenhum envio funcionou para: ${campo(doc, "descricao")} — será tentado novamente na próxima execução.`);
+    }
   }
 }
 
