@@ -579,7 +579,7 @@
     </div>
     <div class="field">
       <label>Observação inicial (opcional)</label>
-      <textarea id="servico-obs-inicial" placeholder="Ex: Ação de reintegração de posse de área pública…" style="min-height:60px"></textarea>
+      <textarea id="servico-obs-inicial" placeholder="Ex: Ação de reintegração de posse de área pública" style="min-height:60px"></textarea>
     </div>
     <div class="modal-actions">
       <button class="btn" id="btn-cancelar-novo-servico">Cancelar</button>
@@ -2031,6 +2031,12 @@ function selecionarTipoServico(tipo){
     $('tipo-btn-'+t).classList.toggle('selected',t===tipo);
     const f=$('field-'+t);if(f)f.style.display=t===tipo?'block':'none';
   });
+  const placeholdersObs={
+    bairro:'Ex: Priorizar ruas internas do bairro…',
+    avenida:'Ex: Atenção especial ao canteiro central…',
+    acao:'Ex: Ação de reintegração de posse de área pública'
+  };
+  $('servico-obs-inicial').placeholder=placeholdersObs[tipo]||'';
 }
 
 function setupAutocomplete(){
