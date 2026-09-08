@@ -564,6 +564,17 @@
           <span><i class="ti ti-bulldozer"></i> Necessita da retroescavadeira?</span>
         </label>
       </div>
+      <div class="field" style="margin-top:12px">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:500;color:var(--text)">
+          <input type="checkbox" id="marcar-data-servico" style="width:18px;height:18px;flex-shrink:0;cursor:pointer;-webkit-appearance:checkbox;appearance:auto;accent-color:var(--text)">
+          <span><i class="ti ti-calendar-event"></i> Marcar data do evento</span>
+        </label>
+        <div class="hint" style="margin-top:4px"><i class="ti ti-info-circle"></i> Envia um aviso automático no Telegram 1 dia antes da data marcada</div>
+      </div>
+      <div class="field" id="campo-data-evento-servico" style="display:none">
+        <label>Data do evento</label>
+        <input type="date" id="data-evento-servico">
+      </div>
     </div>
     <div class="field-destaque">
       <label><i class="ti ti-users"></i> Equipe responsável</label>
@@ -1918,6 +1929,7 @@ function areaCardHtml(s, opts={}){
         <div style="font-size:12px;color:var(--text2);margin-top:4px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
           <span class="tag-equipe">${s.equipe||'—'}</span>
           <span><i class="ti ti-calendar" style="font-size:12px"></i> Criado: ${s.dataCriacao||'—'}</span>
+          ${s.marcarData&&s.dataEvento?`<span class="badge" style="background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-border)"><i class="ti ti-calendar-event" style="font-size:11px"></i> ${brFromISO(s.dataEvento)}</span>`:''}
         </div>
       </div>
       <div style="flex-shrink:0">${statusServicoHtml(s.status)}</div>
@@ -1934,6 +1946,14 @@ function areaCardHtml(s, opts={}){
       ${s.fotoAntes?`<div style="flex:1;min-width:120px"><div style="font-size:11px;color:var(--text3);margin-bottom:4px;font-weight:600">ANTES</div><img src="${s.fotoAntes}" class="photo-preview" data-src="${s.fotoAntes}" alt="Antes" style="margin-top:0;max-height:160px;width:100%"></div>`:''}
       ${s.fotoAcao?`<div style="flex:1;min-width:120px"><div style="font-size:11px;color:var(--text3);margin-bottom:4px;font-weight:600">DEPOIS</div><img src="${s.fotoAcao}" class="photo-preview" data-src="${s.fotoAcao}" alt="Depois" style="margin-top:0;max-height:160px;width:100%"></div>`:''}
     </div>`:''}
+    ${podeApagar&&s.marcarData?`<div class="alocar-box" style="background:var(--blue-bg);border-color:var(--blue-border)">
+      <div class="alocar-label" style="color:var(--blue)"><i class="ti ti-calendar-event"></i> Data do evento (aviso Telegram 1 dia antes)</div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <input type="date" class="data-evento-input" value="${s.dataEvento||''}" style="flex:1;min-width:140px;padding:9px 10px;border:1px solid var(--blue-border);border-radius:var(--radius);font-size:14px;background:#fff">
+        <button class="btn btn-sm btn-info" data-salvar-data-evento-servico="${s._id}"><i class="ti ti-check"></i> Salvar</button>
+      </div>
+      <div style="font-size:11px;color:var(--text3);margin-top:6px">${s.notificadoEvento?'✓ Aviso já enviado para esta data':'Aviso ainda não enviado'}</div>
+    </div>`:''}
     <div class="demand-actions">
       ${podeConcluir&&s.status!=='concluido'?`<button class="btn-done" data-exec="${s._id}"><i class="ti ti-calendar-check"></i> ${s.status==='aguardando'?'Iniciar serviço':'Registrar conclusão'}</button>`:''}
       ${podeApagar&&s.tipo==='avenida'?`<button class="btn btn-sm btn-info" data-edit-trecho="${s._id}"><i class="ti ti-ruler-2"></i> ${s.extensao?'Editar trecho':'Definir trecho'}</button>`:''}
@@ -1947,6 +1967,17 @@ function bindAreaCards(container){
   container.querySelectorAll('[data-del-servico]').forEach(b=>b.addEventListener('click',()=>deletarServico(b.dataset.delServico)));
   container.querySelectorAll('[data-edit-trecho]').forEach(b=>b.addEventListener('click',()=>abrirEditarTrecho(b.dataset.editTrecho)));
   container.querySelectorAll('.photo-preview[data-src]').forEach(img=>img.addEventListener('click',()=>abrirLightbox(img.dataset.src)));
+  container.querySelectorAll('[data-salvar-data-evento-servico]').forEach(b=>b.addEventListener('click',()=>salvarDataEventoServico(b.dataset.salvarDataEventoServico,b)));
+}
+
+async function salvarDataEventoServico(id,btnEl){
+  const input=btnEl.closest('.alocar-box').querySelector('.data-evento-input');
+  const novaData=input.value;
+  if(!novaData){alert('Informe uma data válida.');return;}
+  try{
+    await fbUpdServico(id,{dataEvento:novaData,notificadoEvento:false});
+    showMsg('Data do evento atualizada! O aviso será enviado 1 dia antes da nova data.');
+  }catch(e){showMsg('Erro ao atualizar a data do evento.','danger');}
 }
 
 function renderServicos(){
@@ -2019,6 +2050,9 @@ function abrirNovoServico(){
   $('servico-acao-foto-antes-prev').style.display='none';
   $('servico-acao-foto-antes-prev').src='';
   $('servico-acao-retro').checked=false;
+  $('marcar-data-servico').checked=false;
+  $('campo-data-evento-servico').style.display='none';
+  $('data-evento-servico').value='';
   $('autocomplete-lista').style.display='none';
   selecionarTipoServico('bairro');
   $('modal-novo-servico').style.display='flex';
@@ -2075,16 +2109,19 @@ async function salvarNovoServico(){
       if(!trecho){alert('Descreva qual trecho da avenida será atendido.');return;}
     }
   }
-  // Campos exclusivos da Ação Especial: endereço, foto do antes e necessidade de retroescavadeira.
-  let enderecoAcao=null,fotoAntes=null,necessitaRetroescavadeira=false;
+  // Campos exclusivos da Ação Especial: endereço, foto do antes, retroescavadeira e data do evento.
+  let enderecoAcao=null,fotoAntes=null,necessitaRetroescavadeira=false,marcarData=false,dataEventoISO=null;
   if(tipo==='acao'){
     enderecoAcao=$('servico-acao-endereco').value.trim()||null;
     const prevAntes=$('servico-acao-foto-antes-prev');
     if(prevAntes.style.display!=='none'&&prevAntes.src) fotoAntes=await comprimirImagem(prevAntes.src);
     necessitaRetroescavadeira=$('servico-acao-retro').checked;
+    marcarData=$('marcar-data-servico').checked;
+    dataEventoISO=$('data-evento-servico').value;
+    if(marcarData&&!dataEventoISO){alert('Informe a data do evento, ou desmarque "Marcar data do evento".');return;}
   }
   try{
-    await fbAddServico({tipo,local,equipe,obsInicial:obs||null,status:'aguardando',dataCriacao:new Date().toLocaleDateString('pt-BR'),dataInicio:null,dataFim:null,obs:null,extensao,trecho,enderecoAcao,fotoAntes,necessitaRetroescavadeira});
+    await fbAddServico({tipo,local,equipe,obsInicial:obs||null,status:'aguardando',dataCriacao:new Date().toLocaleDateString('pt-BR'),dataInicio:null,dataFim:null,obs:null,extensao,trecho,enderecoAcao,fotoAntes,necessitaRetroescavadeira,marcarData,dataEvento:marcarData?dataEventoISO:null,notificadoEvento:false});
     fecharModal('modal-novo-servico');
     showMsg(`✓ Serviço de área registrado para ${equipe}!`);
   }catch(e){showMsg('Erro ao salvar.','danger');}
@@ -2677,6 +2714,9 @@ document.addEventListener('DOMContentLoaded', ()=>{
   $('foto').addEventListener('change',()=>previewFoto($('foto'),'foto-preview'));
   $('marcar-data-nova').addEventListener('change',()=>{
     $('campo-data-evento-nova').style.display=$('marcar-data-nova').checked?'block':'none';
+  });
+  $('marcar-data-servico').addEventListener('change',()=>{
+    $('campo-data-evento-servico').style.display=$('marcar-data-servico').checked?'block':'none';
   });
   // Histórico de endereço no formulário nova demanda
   let _debounceEnd=null;
