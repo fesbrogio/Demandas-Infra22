@@ -1,5 +1,6 @@
 // ══════════════════════════════════════════════════════════════════════════
-// Notifica no Telegram as demandas com "Marcar data" cujo evento é amanhã.
+// Notifica no Telegram as demandas E ações especiais com "Marcar data" cujo
+// evento é amanhã.
 //
 // Não precisa de nenhuma credencial de serviço do Firebase: as regras do
 // Firestore deste projeto estão abertas até 01/01/2027 (allow read, write),
@@ -47,10 +48,12 @@ function campo(doc, nome) {
   return null;
 }
 
-async function buscarDemandasComData() {
+// Busca documentos com marcarData == true em qualquer coleção (demandas ou
+// servicos_area) — mesma consulta, só muda o nome da coleção.
+async function buscarComData(collectionId) {
   const query = {
     structuredQuery: {
-      from: [{ collectionId: "demandas" }],
+      from: [{ collectionId }],
       where: {
         fieldFilter: {
           field: { fieldPath: "marcarData" },
@@ -66,7 +69,7 @@ async function buscarDemandasComData() {
     body: JSON.stringify(query),
   });
   if (!res.ok) {
-    throw new Error(`Falha ao consultar Firestore (demandas): ${res.status} ${await res.text()}`);
+    throw new Error(`Falha ao consultar Firestore (${collectionId}): ${res.status} ${await res.text()}`);
   }
   const linhas = await res.json();
   return linhas.filter((l) => l.document).map((l) => l.document);
@@ -109,12 +112,13 @@ async function enviarMensagemTelegram(chatId, texto) {
   return true;
 }
 
-function montarMensagem(doc) {
+// Mensagem para uma DEMANDA (coleção "demandas").
+function montarMensagemDemanda(doc) {
   const g = (nome) => campo(doc, nome) || "—";
   const dataEvento = campo(doc, "dataEvento");
   const urgente = campo(doc, "prioridade") === "urgente";
   return (
-    `📅 <b>Evento marcado para amanhã (${isoParaBR(dataEvento)})</b>\n\n` +
+    `📅 <b>DEMANDA — Evento marcado para amanhã (${isoParaBR(dataEvento)})</b>\n\n` +
     `<b>${g("descricao")}</b>\n\n` +
     `📍 <b>Endereço:</b> ${g("endereco")}\n` +
     `🗺️ <b>Zona:</b> ${g("zona")}\n` +
@@ -125,12 +129,41 @@ function montarMensagem(doc) {
   );
 }
 
+// Mensagem para uma AÇÃO ESPECIAL (coleção "servicos_area", tipo "acao").
+// Deixa claro logo no início que é uma AÇÃO, não uma demanda — são coisas
+// diferentes — e traz todas as informações cadastradas na ação.
+function montarMensagemAcao(doc) {
+  const g = (nome) => campo(doc, nome) || "—";
+  const dataEvento = campo(doc, "dataEvento");
+  const endereco = campo(doc, "enderecoAcao");
+  const obsInicial = campo(doc, "obsInicial");
+  const retro = campo(doc, "necessitaRetroescavadeira");
+  return (
+    `⭐ <b>AÇÃO ESPECIAL — Evento marcado para amanhã (${isoParaBR(dataEvento)})</b>\n\n` +
+    `<b>${g("local")}</b>\n\n` +
+    `${endereco ? `📍 <b>Endereço:</b> ${endereco}\n` : ""}` +
+    `👷 <b>Equipe:</b> ${g("equipe")}\n` +
+    `${retro ? "🚜 <b>Necessita retroescavadeira</b>\n" : ""}` +
+    `${obsInicial ? `📝 <b>Observação inicial:</b> ${obsInicial}\n` : ""}` +
+    `🗓️ <b>Criada em:</b> ${g("dataCriacao")}`
+  );
+}
+
 async function main() {
   const amanha = amanhaISO();
   console.log(`Verificando eventos marcados para ${amanha}...`);
 
-  const demandas = await buscarDemandasComData();
-  const pendentes = demandas.filter((doc) => {
+  const [demandas, acoes] = await Promise.all([
+    buscarComData("demandas"),
+    buscarComData("servicos_area"),
+  ]);
+
+  const candidatos = [
+    ...demandas.map((doc) => ({ doc, origem: "demanda" })),
+    ...acoes.map((doc) => ({ doc, origem: "acao" })),
+  ];
+
+  const pendentes = candidatos.filter(({ doc }) => {
     const dataEvento = campo(doc, "dataEvento");
     const jaNotificado = campo(doc, "notificadoEvento");
     return dataEvento === amanha && !jaNotificado;
@@ -147,11 +180,12 @@ async function main() {
     return;
   }
 
-  for (const doc of pendentes) {
-    const mensagem = montarMensagem(doc);
+  for (const { doc, origem } of pendentes) {
+    const mensagem = origem === "acao" ? montarMensagemAcao(doc) : montarMensagemDemanda(doc);
+    const label = origem === "acao" ? campo(doc, "local") : campo(doc, "descricao");
     // Só marca como notificado se PELO MENOS UM envio realmente funcionou.
-    // Se todos falharem (ex: token inválido), a demanda continua pendente
-    // e será tentada de novo na próxima execução do workflow.
+    // Se todos falharem (ex: token inválido), o item continua pendente
+    // e será tentado de novo na próxima execução do workflow.
     let algumSucesso = false;
     for (const chatId of chatIds) {
       const ok = await enviarMensagemTelegram(chatId, mensagem);
@@ -159,9 +193,9 @@ async function main() {
     }
     if (algumSucesso) {
       await marcarComoNotificado(doc.name);
-      console.log(`✓ Aviso processado: ${campo(doc, "descricao")}`);
+      console.log(`✓ Aviso processado (${origem}): ${label}`);
     } else {
-      console.error(`❌ Nenhum envio funcionou para: ${campo(doc, "descricao")} — será tentado novamente na próxima execução.`);
+      console.error(`❌ Nenhum envio funcionou para (${origem}): ${label} — será tentado novamente na próxima execução.`);
     }
   }
 }
@@ -170,3 +204,4 @@ main().catch((err) => {
   console.error("Erro fatal:", err);
   process.exit(1);
 });
+
