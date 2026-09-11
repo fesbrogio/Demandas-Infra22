@@ -97,6 +97,8 @@
   .demand-card.atrasada{border-left:4px solid #d97706}
   .demand-card.revisao{border-left:4px solid #e05555;background:#fff8f8}
   .demand-card.urgente .demand-title::before{content:'⚡ '}
+  .evento-banner{background:var(--purple-bg);border:2px solid var(--purple);color:var(--purple);border-radius:var(--radius);padding:10px 13px;font-size:13px;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:8px;line-height:1.4}
+  .evento-banner i{font-size:16px;flex-shrink:0}
   .demand-header{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:8px}
   .demand-title{font-size:14px;font-weight:600;flex:1;line-height:1.4}
   .demand-badges{display:flex;flex-direction:column;gap:4px;align-items:flex-end;flex-shrink:0}
@@ -1291,6 +1293,7 @@ function cardHtml(d,opts={}){
   const atrasada=d.status!=='concluído'&&d.status!=='revisao'&&h>=HORAS_ALERTA;
   const cls=d.status==='revisao'?'revisao':d.prioridade==='urgente'?'urgente':atrasada?'atrasada':'';
   return`<div class="demand-card ${cls}" data-id="${d._id}">
+    ${d.marcarData&&d.dataEvento&&d.status!=='concluído'?`<div class="evento-banner"><i class="ti ti-calendar-event"></i> EVENTO — executar somente em <u>${brFromISO(d.dataEvento)}</u>${d.prioridade==='urgente'?' (mesmo estando marcada como urgente)':''}</div>`:''}
     <div class="demand-header">
       <span class="demand-title">${d.descricao}</span>
       <div class="demand-badges">
