@@ -404,6 +404,20 @@
   </div>
 </div>
 
+<!-- MODAL SENHA – EDITAR FOTOS DE DEMANDA CONCLUÍDA -->
+<div id="modal-senha-corrigir" class="modal-wrap" style="display:none">
+  <div class="modal">
+    <h3><i class="ti ti-lock" style="color:var(--amber)"></i> Confirmar edição de fotos</h3>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:16px">Editar fotos de uma demanda já concluída exige senha de confirmação.</p>
+    <div class="field"><label>Senha</label><input type="password" id="input-senha-corrigir" placeholder="••••••••"></div>
+    <div class="modal-erro" id="msg-senha-corrigir-erro"><i class="ti ti-alert-circle"></i> Senha incorreta.</div>
+    <div class="modal-actions">
+      <button class="btn" id="btn-cancelar-senha-corrigir">Cancelar</button>
+      <button class="btn btn-primary" id="btn-confirmar-senha-corrigir"><i class="ti ti-login"></i> Confirmar</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL CHECK -->
 <div id="modal-check" class="modal-wrap" style="display:none">
   <div class="modal" style="max-height:92vh;overflow-y:auto">
@@ -414,6 +428,30 @@
     <div class="modal-actions">
       <button class="btn" id="btn-cancelar-check">Cancelar</button>
       <button class="btn btn-primary" id="btn-confirmar-check"><i class="ti ti-check"></i> Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL EDITAR FOTOS DE DEMANDA CONCLUÍDA -->
+<div id="modal-editar-fotos" class="modal-wrap" style="display:none">
+  <div class="modal" style="max-height:92vh;overflow-y:auto">
+    <h3><i class="ti ti-photo-edit" style="color:var(--blue)"></i> Editar fotos</h3>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:16px">Escolha uma nova foto só para o que precisa ser corrigido. O que não for alterado continua como está.</p>
+    <div class="field">
+      <label>Foto do antes</label>
+      <img id="editar-fotos-antes-atual" style="display:none" class="photo-preview" alt="Antes atual">
+      <input type="file" id="editar-fotos-antes-novo" accept="image/*" style="margin-top:8px">
+      <img id="editar-fotos-antes-novo-prev" style="display:none" class="photo-preview" alt="Antes novo">
+    </div>
+    <div class="field">
+      <label>Foto do depois (conclusão)</label>
+      <img id="editar-fotos-depois-atual" style="display:none" class="photo-preview" alt="Depois atual">
+      <input type="file" id="editar-fotos-depois-novo" accept="image/*" style="margin-top:8px">
+      <img id="editar-fotos-depois-novo-prev" style="display:none" class="photo-preview" alt="Depois novo">
+    </div>
+    <div class="modal-actions">
+      <button class="btn" id="btn-cancelar-editar-fotos">Cancelar</button>
+      <button class="btn btn-primary" id="btn-salvar-editar-fotos"><i class="ti ti-check"></i> Salvar alterações</button>
     </div>
   </div>
 </div>
@@ -762,6 +800,7 @@ const BAIRROS_RP = [
 
 // ══ CONFIG ════════════════════════════════════════════
 const SENHA = 'infra22';
+const SENHA_CORRIGIR = 'corrigir';
 const HORAS_ALERTA = 168;
 const LIMITE_DUPLICADO = 20;
 const EQUIPES = ['Equipe 1','Equipe 2','Equipe 3','Equipe 4','Equipe 5','Equipe 6 (Retroescavadeira)','Demandas ESAL'];
@@ -1128,6 +1167,41 @@ async function confirmarCheck(){
     await fbUpd(checkId,{status:'concluído',dataConclusao:new Date(data+'T12:00:00').toLocaleDateString('pt-BR'),fotoConclusao:foto,observacao:obs||null});
     fecharModal('modal-check');showMsg('Demanda marcada como concluída!');
   }catch(e){showMsg('Erro ao salvar.','danger');}
+}
+
+// ══ EDITAR FOTOS DE DEMANDA CONCLUÍDA ═════════════════
+let _editarFotosId=null;
+let _editarFotosIdPendente=null;
+function pedirSenhaEditarFotos(id){
+  _editarFotosIdPendente=id;
+  $('input-senha-corrigir').value='';$('msg-senha-corrigir-erro').style.display='none';
+  $('modal-senha-corrigir').style.display='flex';
+  setTimeout(()=>$('input-senha-corrigir').focus(),150);
+}
+function abrirEditarFotosConcluida(id){
+  _editarFotosId=id;
+  const d=_demandasConcluidas.find(x=>x._id===id);
+  if(!d)return;
+  const antesAtual=$('editar-fotos-antes-atual'),depoisAtual=$('editar-fotos-depois-atual');
+  if(d.foto){antesAtual.src=d.foto;antesAtual.style.display='block';}else{antesAtual.style.display='none';antesAtual.src='';}
+  if(d.fotoConclusao){depoisAtual.src=d.fotoConclusao;depoisAtual.style.display='block';}else{depoisAtual.style.display='none';depoisAtual.src='';}
+  $('editar-fotos-antes-novo').value='';$('editar-fotos-antes-novo-prev').style.display='none';$('editar-fotos-antes-novo-prev').src='';
+  $('editar-fotos-depois-novo').value='';$('editar-fotos-depois-novo-prev').style.display='none';$('editar-fotos-depois-novo-prev').src='';
+  $('modal-editar-fotos').style.display='flex';
+}
+async function salvarEditarFotos(){
+  const prevAntes=$('editar-fotos-antes-novo-prev'),prevDepois=$('editar-fotos-depois-novo-prev');
+  const temAntes=prevAntes.style.display!=='none'&&prevAntes.src;
+  const temDepois=prevDepois.style.display!=='none'&&prevDepois.src;
+  if(!temAntes&&!temDepois){alert('Escolha ao menos uma foto nova para salvar.');return;}
+  const upd={};
+  try{
+    if(temAntes) upd.foto=await comprimirImagem(prevAntes.src);
+    if(temDepois) upd.fotoConclusao=await comprimirImagem(prevDepois.src);
+    await fbUpd(_editarFotosId,upd);
+    fecharModal('modal-editar-fotos');
+    showMsg('Fotos atualizadas com sucesso!');
+  }catch(e){showMsg('Erro ao salvar as fotos.','danger');}
 }
 
 // ══ NÃO ENCONTRADO ════════════════════════════════════
@@ -1651,8 +1725,12 @@ function renderHistorico(){
         ${d.foto?`<div style="flex:1;min-width:120px"><div style="font-size:11px;color:var(--text3);margin-bottom:4px;font-weight:600">ANTES</div><img src="${d.foto}" class="photo-preview" data-src="${d.foto}" alt="Antes" style="margin-top:0;max-height:140px;width:100%"></div>`:''}
         ${d.fotoConclusao?`<div style="flex:1;min-width:120px"><div style="font-size:11px;color:var(--text3);margin-bottom:4px;font-weight:600">DEPOIS</div><img src="${d.fotoConclusao}" class="photo-preview" data-src="${d.fotoConclusao}" alt="Depois" style="margin-top:0;max-height:140px;width:100%"></div>`:''}
       </div>
+      <div style="margin-top:10px">
+        <button class="btn btn-sm btn-info" data-editar-fotos="${d._id}"><i class="ti ti-photo-edit"></i> Editar fotos</button>
+      </div>
     </div>`).join('')}</div>`;
   el.querySelectorAll('.photo-preview[data-src]').forEach(img=>img.addEventListener('click',()=>abrirLightbox(img.dataset.src)));
+  el.querySelectorAll('[data-editar-fotos]').forEach(b=>b.addEventListener('click',()=>pedirSenhaEditarFotos(b.dataset.editarFotos)));
 }
 
 // ══ DASHBOARD ═════════════════════════════════════════
@@ -2740,6 +2818,20 @@ document.addEventListener('DOMContentLoaded', ()=>{
   $('btn-cancelar-check').addEventListener('click',()=>fecharModal('modal-check'));
   $('btn-confirmar-check').addEventListener('click',confirmarCheck);
   $('check-foto').addEventListener('change',()=>previewFoto($('check-foto'),'check-foto-prev'));
+  $('btn-cancelar-editar-fotos').addEventListener('click',()=>fecharModal('modal-editar-fotos'));
+  $('btn-salvar-editar-fotos').addEventListener('click',salvarEditarFotos);
+  $('editar-fotos-antes-novo').addEventListener('change',()=>previewFoto($('editar-fotos-antes-novo'),'editar-fotos-antes-novo-prev'));
+  $('editar-fotos-depois-novo').addEventListener('change',()=>previewFoto($('editar-fotos-depois-novo'),'editar-fotos-depois-novo-prev'));
+  $('btn-cancelar-senha-corrigir').addEventListener('click',()=>fecharModal('modal-senha-corrigir'));
+  $('btn-confirmar-senha-corrigir').addEventListener('click',()=>{
+    if($('input-senha-corrigir').value===SENHA_CORRIGIR){
+      fecharModal('modal-senha-corrigir');
+      abrirEditarFotosConcluida(_editarFotosIdPendente);
+    } else {
+      $('msg-senha-corrigir-erro').style.display='flex';$('input-senha-corrigir').value='';$('input-senha-corrigir').focus();
+    }
+  });
+  $('input-senha-corrigir').addEventListener('keydown',e=>{if(e.key==='Enter')$('btn-confirmar-senha-corrigir').click();});
 
   // Não encontrado
   $('btn-cancelar-nao-encontrado').addEventListener('click',()=>fecharModal('modal-nao-encontrado'));
