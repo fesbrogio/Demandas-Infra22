@@ -435,18 +435,15 @@
 <!-- MODAL EDITAR FOTOS DE DEMANDA CONCLUÍDA -->
 <div id="modal-editar-fotos" class="modal-wrap" style="display:none">
   <div class="modal" style="max-height:92vh;overflow-y:auto">
-    <h3><i class="ti ti-photo-edit" style="color:var(--blue)"></i> Editar fotos</h3>
-    <p style="font-size:13px;color:var(--text2);margin-bottom:16px">Escolha uma nova foto só para o que precisa ser corrigido. O que não for alterado continua como está.</p>
+    <h3><i class="ti ti-photo-edit" style="color:var(--blue)"></i> Editar foto de conclusão</h3>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:16px">Escolha a nova foto que comprova a conclusão do serviço.</p>
     <div class="field">
-      <label>Foto do antes</label>
-      <img id="editar-fotos-antes-atual" style="display:none" class="photo-preview" alt="Antes atual">
-      <input type="file" id="editar-fotos-antes-novo" accept="image/*" style="margin-top:8px">
-      <img id="editar-fotos-antes-novo-prev" style="display:none" class="photo-preview" alt="Antes novo">
+      <label>Foto do depois (conclusão) — atual</label>
+      <img id="editar-fotos-depois-atual" style="display:none" class="photo-preview" alt="Depois atual">
     </div>
     <div class="field">
-      <label>Foto do depois (conclusão)</label>
-      <img id="editar-fotos-depois-atual" style="display:none" class="photo-preview" alt="Depois atual">
-      <input type="file" id="editar-fotos-depois-novo" accept="image/*" style="margin-top:8px">
+      <label>Nova foto</label>
+      <input type="file" id="editar-fotos-depois-novo" accept="image/*">
       <img id="editar-fotos-depois-novo-prev" style="display:none" class="photo-preview" alt="Depois novo">
     </div>
     <div class="modal-actions">
@@ -1182,26 +1179,21 @@ function abrirEditarFotosConcluida(id){
   _editarFotosId=id;
   const d=_demandasConcluidas.find(x=>x._id===id);
   if(!d)return;
-  const antesAtual=$('editar-fotos-antes-atual'),depoisAtual=$('editar-fotos-depois-atual');
-  if(d.foto){antesAtual.src=d.foto;antesAtual.style.display='block';}else{antesAtual.style.display='none';antesAtual.src='';}
+  const depoisAtual=$('editar-fotos-depois-atual');
   if(d.fotoConclusao){depoisAtual.src=d.fotoConclusao;depoisAtual.style.display='block';}else{depoisAtual.style.display='none';depoisAtual.src='';}
-  $('editar-fotos-antes-novo').value='';$('editar-fotos-antes-novo-prev').style.display='none';$('editar-fotos-antes-novo-prev').src='';
   $('editar-fotos-depois-novo').value='';$('editar-fotos-depois-novo-prev').style.display='none';$('editar-fotos-depois-novo-prev').src='';
   $('modal-editar-fotos').style.display='flex';
 }
 async function salvarEditarFotos(){
-  const prevAntes=$('editar-fotos-antes-novo-prev'),prevDepois=$('editar-fotos-depois-novo-prev');
-  const temAntes=prevAntes.style.display!=='none'&&prevAntes.src;
+  const prevDepois=$('editar-fotos-depois-novo-prev');
   const temDepois=prevDepois.style.display!=='none'&&prevDepois.src;
-  if(!temAntes&&!temDepois){alert('Escolha ao menos uma foto nova para salvar.');return;}
-  const upd={};
+  if(!temDepois){alert('Escolha a nova foto de conclusão para salvar.');return;}
   try{
-    if(temAntes) upd.foto=await comprimirImagem(prevAntes.src);
-    if(temDepois) upd.fotoConclusao=await comprimirImagem(prevDepois.src);
-    await fbUpd(_editarFotosId,upd);
+    const fotoConclusao=await comprimirImagem(prevDepois.src);
+    await fbUpd(_editarFotosId,{fotoConclusao});
     fecharModal('modal-editar-fotos');
-    showMsg('Fotos atualizadas com sucesso!');
-  }catch(e){showMsg('Erro ao salvar as fotos.','danger');}
+    showMsg('Foto de conclusão atualizada com sucesso!');
+  }catch(e){showMsg('Erro ao salvar a foto.','danger');}
 }
 
 // ══ NÃO ENCONTRADO ════════════════════════════════════
@@ -2820,7 +2812,6 @@ document.addEventListener('DOMContentLoaded', ()=>{
   $('check-foto').addEventListener('change',()=>previewFoto($('check-foto'),'check-foto-prev'));
   $('btn-cancelar-editar-fotos').addEventListener('click',()=>fecharModal('modal-editar-fotos'));
   $('btn-salvar-editar-fotos').addEventListener('click',salvarEditarFotos);
-  $('editar-fotos-antes-novo').addEventListener('change',()=>previewFoto($('editar-fotos-antes-novo'),'editar-fotos-antes-novo-prev'));
   $('editar-fotos-depois-novo').addEventListener('change',()=>previewFoto($('editar-fotos-depois-novo'),'editar-fotos-depois-novo-prev'));
   $('btn-cancelar-senha-corrigir').addEventListener('click',()=>fecharModal('modal-senha-corrigir'));
   $('btn-confirmar-senha-corrigir').addEventListener('click',()=>{
