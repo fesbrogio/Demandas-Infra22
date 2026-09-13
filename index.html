@@ -604,12 +604,12 @@
       <div class="field" style="margin-top:12px">
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:500;color:var(--text)">
           <input type="checkbox" id="marcar-data-servico" style="width:18px;height:18px;flex-shrink:0;cursor:pointer;-webkit-appearance:checkbox;appearance:auto;accent-color:var(--text)">
-          <span><i class="ti ti-calendar-event"></i> Marcar data do evento</span>
+          <span><i class="ti ti-calendar-event"></i> Marcar data da ação</span>
         </label>
-        <div class="hint" style="margin-top:4px"><i class="ti ti-info-circle"></i> Envia um aviso automático no Telegram 1 dia antes da data marcada</div>
+        <div class="hint" style="margin-top:4px"><i class="ti ti-info-circle"></i> Aviso automático no Telegram 1 dia antes — a ação é executada no próprio dia marcado</div>
       </div>
       <div class="field" id="campo-data-evento-servico" style="display:none">
-        <label>Data do evento</label>
+        <label>Data da ação</label>
         <input type="date" id="data-evento-servico">
       </div>
     </div>
@@ -1293,7 +1293,7 @@ function cardHtml(d,opts={}){
   const atrasada=d.status!=='concluído'&&d.status!=='revisao'&&h>=HORAS_ALERTA;
   const cls=d.status==='revisao'?'revisao':d.prioridade==='urgente'?'urgente':atrasada?'atrasada':'';
   return`<div class="demand-card ${cls}" data-id="${d._id}">
-    ${d.marcarData&&d.dataEvento&&d.status!=='concluído'?`<div class="evento-banner"><i class="ti ti-calendar-event"></i> EVENTO — executar somente em <u>${brFromISO(d.dataEvento)}</u>${d.prioridade==='urgente'?' (mesmo estando marcada como urgente)':''}</div>`:''}
+    ${d.marcarData&&d.dataEvento&&d.status!=='concluído'?`<div class="evento-banner"><i class="ti ti-calendar-event"></i> EVENTO em <u>${brFromISO(d.dataEvento)}</u> — serviço deve estar pronto até <u>${diaAnteriorBR(d.dataEvento)}</u> (um dia antes)${d.prioridade==='urgente'?', mesmo estando marcada como urgente':''}</div>`:''}
     <div class="demand-header">
       <span class="demand-title">${d.descricao}</span>
       <div class="demand-badges">
@@ -1993,6 +1993,7 @@ function areaCardHtml(s, opts={}){
   const{podeConcluir=false,podeApagar=false}=opts;
   const cls=s.status==='concluido'?'concluido':s.status==='em-andamento'?'em-andamento':'aguardando';
   return`<div class="area-card ${cls}">
+    ${s.marcarData&&s.dataEvento&&s.status!=='concluido'?`<div class="evento-banner"><i class="ti ti-star"></i> AÇÃO marcada para <u>${brFromISO(s.dataEvento)}</u> — executar neste dia</div>`:''}
     <div class="area-header">
       <div style="flex:1">
         ${tipoTag(s.tipo)}
@@ -2020,7 +2021,7 @@ function areaCardHtml(s, opts={}){
       ${s.fotoAcao?`<div style="flex:1;min-width:120px"><div style="font-size:11px;color:var(--text3);margin-bottom:4px;font-weight:600">DEPOIS</div><img src="${s.fotoAcao}" class="photo-preview" data-src="${s.fotoAcao}" alt="Depois" style="margin-top:0;max-height:160px;width:100%"></div>`:''}
     </div>`:''}
     ${podeApagar&&s.marcarData?`<div class="alocar-box" style="background:var(--blue-bg);border-color:var(--blue-border)">
-      <div class="alocar-label" style="color:var(--blue)"><i class="ti ti-calendar-event"></i> Data do evento (aviso Telegram 1 dia antes)</div>
+      <div class="alocar-label" style="color:var(--blue)"><i class="ti ti-calendar-event"></i> Data da ação (aviso Telegram 1 dia antes)</div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <input type="date" class="data-evento-input" value="${s.dataEvento||''}" style="flex:1;min-width:140px;padding:9px 10px;border:1px solid var(--blue-border);border-radius:var(--radius);font-size:14px;background:#fff">
         <button class="btn btn-sm btn-info" data-salvar-data-evento-servico="${s._id}"><i class="ti ti-check"></i> Salvar</button>
@@ -2049,8 +2050,8 @@ async function salvarDataEventoServico(id,btnEl){
   if(!novaData){alert('Informe uma data válida.');return;}
   try{
     await fbUpdServico(id,{dataEvento:novaData,notificadoEvento:false});
-    showMsg('Data do evento atualizada! O aviso será enviado 1 dia antes da nova data.');
-  }catch(e){showMsg('Erro ao atualizar a data do evento.','danger');}
+    showMsg('Data da ação atualizada! O aviso será enviado 1 dia antes.');
+  }catch(e){showMsg('Erro ao atualizar a data da ação.','danger');}
 }
 
 function renderServicos(){
@@ -2191,7 +2192,7 @@ async function salvarNovoServico(){
     necessitaRetroescavadeira=$('servico-acao-retro').checked;
     marcarData=$('marcar-data-servico').checked;
     dataEventoISO=$('data-evento-servico').value;
-    if(marcarData&&!dataEventoISO){alert('Informe a data do evento, ou desmarque "Marcar data do evento".');return;}
+    if(marcarData&&!dataEventoISO){alert('Informe a data da ação, ou desmarque "Marcar data da ação".');return;}
   }
   try{
     await fbAddServico({tipo,local,equipe,obsInicial:obs||null,status:'aguardando',dataCriacao:new Date().toLocaleDateString('pt-BR'),dataInicio:null,dataFim:null,obs:null,extensao,trecho,enderecoAcao,fotoAntes,necessitaRetroescavadeira,marcarData,dataEvento:marcarData?dataEventoISO:null,notificadoEvento:false});
@@ -2232,6 +2233,16 @@ function isoFromBR(br){
 }
 function brFromISO(iso){
   if(!iso)return'';const p=iso.split('-');return p.length===3?`${p[2]}/${p[1]}/${p[0]}`:'';
+}
+// Retorna, em formato BR, o dia anterior a uma data ISO (usado no aviso de
+// Demandas-evento: o serviço precisa estar pronto ATÉ o dia anterior ao evento).
+function diaAnteriorBR(iso){
+  if(!iso)return'';
+  const[y,m,d]=iso.split('-').map(Number);
+  const dt=new Date(y,m-1,d);
+  dt.setDate(dt.getDate()-1);
+  const yy=dt.getFullYear(),mm=String(dt.getMonth()+1).padStart(2,'0'),dd=String(dt.getDate()).padStart(2,'0');
+  return`${dd}/${mm}/${yy}`;
 }
 
 async function confirmarExecServico(){
