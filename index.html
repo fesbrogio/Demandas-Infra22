@@ -1364,17 +1364,35 @@ function renderLocalizacao(){
   const abaAtual=el.dataset.aba||'atual';
 
   // ── Dados ──
+  // Compara a demanda concluída mais recente de uma equipe com o serviço de
+  // área concluído mais recente, e retorna qual das duas aconteceu por último.
+  // Isso cobre equipes que fazem tanto serviços de área quanto demandas
+  // avulsas (ex: equipes reforçando o volume de demandas quando não têm
+  // bairro/avenida em aberto).
+  function ultimaDemandaConcluida(nomeEquipe){
+    const conc=_demandasConcluidas
+      .filter(d=>d.equipe===nomeEquipe)
+      .sort((a,b)=>tsBR(b.dataConclusao||b.data)-tsBR(a.dataConclusao||a.data));
+    return conc[0]||null;
+  }
+
   function infoEquipeServico(nomeEquipe){
     const ativos=_servicos.filter(s=>s.equipe===nomeEquipe&&s.status!=='concluido');
     if(!ativos.length){
       const concluidos=_servicos
         .filter(s=>s.equipe===nomeEquipe&&s.status==='concluido')
         .sort((a,b)=>tsBR(b.dataFim)-tsBR(a.dataFim));
-      if(!concluidos.length) return{tipo:'vazio',texto:'Sem serviços registrados'};
-      const ult=concluidos[0];
-      const label=ult.tipo==='bairro'?'Bairro':ult.tipo==='avenida'?'Av./Rua':'Ação';
-      const trecho=ult.extensao==='trecho'&&ult.trecho?` – ${ult.trecho}`:'';
-      return{tipo:'concluido',texto:`${label}: ${ult.local}${trecho}`,data:ult.dataFim||'—'};
+      const ultServico=concluidos[0]||null;
+      const ultDemanda=ultimaDemandaConcluida(nomeEquipe);
+      if(!ultServico&&!ultDemanda) return{tipo:'vazio',texto:'Sem serviços ou demandas registrados'};
+      const tsServico=ultServico?tsBR(ultServico.dataFim):-1;
+      const tsDemanda=ultDemanda?tsBR(ultDemanda.dataConclusao||ultDemanda.data):-1;
+      if(tsDemanda>tsServico){
+        return{tipo:'demanda',endereco:ultDemanda.endereco,data:ultDemanda.dataConclusao||ultDemanda.data||'—',desc:ultDemanda.descricao};
+      }
+      const label=ultServico.tipo==='bairro'?'Bairro':ultServico.tipo==='avenida'?'Av./Rua':'Ação';
+      const trecho=ultServico.extensao==='trecho'&&ultServico.trecho?` – ${ultServico.trecho}`:'';
+      return{tipo:'concluido',texto:`${label}: ${ultServico.local}${trecho}`,data:ultServico.dataFim||'—'};
     }
     const s=ativos[0];
     const label=s.tipo==='bairro'?'🏘️ Bairro':s.tipo==='avenida'?'🛣️ Av./Rua':'⭐ Ação';
