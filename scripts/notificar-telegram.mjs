@@ -38,6 +38,20 @@ function isoParaBR(iso) {
   return `${d}/${m}/${y}`;
 }
 
+// Dia anterior a uma data ISO, em formato BR — usado na mensagem de Demanda,
+// já que o serviço precisa estar pronto ATÉ o dia anterior ao evento (diferente
+// da Ação Especial, que é executada no próprio dia marcado).
+function diaAnteriorBR(iso) {
+  if (!iso) return "—";
+  const [y, m, d] = iso.split("-").map(Number);
+  const dt = new Date(y, m - 1, d);
+  dt.setDate(dt.getDate() - 1);
+  const yy = dt.getFullYear();
+  const mm = String(dt.getMonth() + 1).padStart(2, "0");
+  const dd = String(dt.getDate()).padStart(2, "0");
+  return `${dd}/${mm}/${yy}`;
+}
+
 // Lê um campo de um documento no formato "fields" da API REST do Firestore.
 function campo(doc, nome) {
   const v = doc.fields?.[nome];
@@ -113,12 +127,15 @@ async function enviarMensagemTelegram(chatId, texto) {
 }
 
 // Mensagem para uma DEMANDA (coleção "demandas").
+// A demanda-evento precisa estar CONCLUÍDA até o dia ANTERIOR ao evento —
+// diferente da Ação Especial, que é executada no próprio dia marcado.
 function montarMensagemDemanda(doc) {
   const g = (nome) => campo(doc, nome) || "—";
   const dataEvento = campo(doc, "dataEvento");
   const urgente = campo(doc, "prioridade") === "urgente";
   return (
-    `📅 <b>DEMANDA — Evento marcado para amanhã (${isoParaBR(dataEvento)})</b>\n\n` +
+    `📅 <b>DEMANDA-EVENTO para ${isoParaBR(dataEvento)}</b>\n` +
+    `⚠️ <b>Serviço deve estar pronto até ${diaAnteriorBR(dataEvento)} (um dia antes do evento)</b>\n\n` +
     `<b>${g("descricao")}</b>\n\n` +
     `📍 <b>Endereço:</b> ${g("endereco")}\n` +
     `🗺️ <b>Zona:</b> ${g("zona")}\n` +
@@ -131,7 +148,8 @@ function montarMensagemDemanda(doc) {
 
 // Mensagem para uma AÇÃO ESPECIAL (coleção "servicos_area", tipo "acao").
 // Deixa claro logo no início que é uma AÇÃO, não uma demanda — são coisas
-// diferentes — e traz todas as informações cadastradas na ação.
+// diferentes — e que a execução acontece NO PRÓPRIO DIA marcado (diferente
+// da demanda-evento, que precisa estar pronta um dia antes).
 function montarMensagemAcao(doc) {
   const g = (nome) => campo(doc, nome) || "—";
   const dataEvento = campo(doc, "dataEvento");
@@ -139,7 +157,8 @@ function montarMensagemAcao(doc) {
   const obsInicial = campo(doc, "obsInicial");
   const retro = campo(doc, "necessitaRetroescavadeira");
   return (
-    `⭐ <b>AÇÃO ESPECIAL — Evento marcado para amanhã (${isoParaBR(dataEvento)})</b>\n\n` +
+    `⭐ <b>AÇÃO ESPECIAL marcada para ${isoParaBR(dataEvento)}</b>\n` +
+    `📌 <b>Executar neste dia</b> (aviso enviado com 1 dia de antecedência)\n\n` +
     `<b>${g("local")}</b>\n\n` +
     `${endereco ? `📍 <b>Endereço:</b> ${endereco}\n` : ""}` +
     `👷 <b>Equipe:</b> ${g("equipe")}\n` +
