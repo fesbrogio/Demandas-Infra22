@@ -862,6 +862,11 @@ const ZONAS = ['Zona Norte','Zona Sul','Zona Leste','Zona Oeste','Centro'];
 // ══ ESTADO ════════════════════════════════════════════
 let perfil='', equipeAtual='', checkId=null, revisaoId=null, _dadosPendentes=null;
 let _demandas=[], _demandasConcluidas=[], _estatisticas=[], _servicos=[];
+// Índice de demandas concluídas por rua (normalizada), reconstruído uma única vez
+// sempre que _demandasConcluidas muda — evita que cada card ativo tenha que
+// varrer TODAS as centenas de concluídas pra achar "atendimentos anteriores"
+// no mesmo endereço (ver historicoDemanda mais abaixo).
+let _indicePorRua = new Map();
 const STATUS_ATIVOS = ['pendente','em andamento','revisao'];
 let _charts={}, _mapaInstance=null, _mapaMarkers=[], _mapaRenderToken=0;
 let secaoAtual='', _execServicoId=null, _tipoServicoSel='bairro';
@@ -887,6 +892,15 @@ onSnapshot(query(col, where("status","in",STATUS_ATIVOS), orderBy("criadoEm","de
 let _concluidasCarregadas=false;
 onSnapshot(query(col, where("status","==","concluído"), orderBy("criadoEm","desc")), snap=>{
   _demandasConcluidas = snap.docs.map(d=>({_id:d.id,...d.data()}));
+  // Reconstrói o índice por rua UMA VEZ aqui (custo O(n), uma passada), em vez de
+  // cada card ativo varrer as concluídas inteiras toda vez que a tela desenha.
+  _indicePorRua = new Map();
+  _demandasConcluidas.forEach(d=>{
+    const{rua}=extrairRuaNumero(d.endereco||'');
+    if(!rua||rua.length<4)return;
+    if(!_indicePorRua.has(rua)) _indicePorRua.set(rua,[]);
+    _indicePorRua.get(rua).push(d);
+  });
   _concluidasCarregadas=true;
   renderDependentesDeConcluidas();
 });
@@ -1194,14 +1208,16 @@ function fecharLightbox(){$('lightbox').style.display='none';$('lightbox-img').s
 
 // ══ DUPLICADOS ════════════════════════════════════════
 function historicoDemanda(endereco, idAtual){
-  // Busca qualquer demanda concluída no mesmo endereço (sem limite de data)
+  // Busca qualquer demanda concluída no mesmo endereço (sem limite de data).
+  // Usa o índice por rua (construído uma vez quando as concluídas chegam) em vez
+  // de varrer todas as centenas de concluídas a cada card — só olha o punhado
+  // que já sabe estar na mesma rua.
   const{rua,numero}=extrairRuaNumero(endereco);
   if(!rua||rua.length<4)return[];
-  return _demandasConcluidas.filter(d=>{
+  const candidatas=_indicePorRua.get(rua)||[];
+  return candidatas.filter(d=>{
     if(d._id===idAtual)return false;
-    if(d.status!=='concluído')return false;
-    const{rua:rD,numero:nD}=extrairRuaNumero(d.endereco||'');
-    if(rD!==rua)return false;
+    const{numero:nD}=extrairRuaNumero(d.endereco||'');
     if(numero&&nD&&Math.abs(numero-nD)>LIMITE_DUPLICADO)return false;
     return true;
   }).sort((a,b)=>diasAtras(a.dataConclusao||a.data)-diasAtras(b.dataConclusao||b.data));
