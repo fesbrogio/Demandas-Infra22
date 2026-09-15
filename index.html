@@ -228,6 +228,21 @@
   .hist-end-titulo{font-size:11px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.06em;margin-bottom:7px;display:flex;align-items:center;gap:5px}
   .hist-end-item{padding:5px 0;border-bottom:1px solid var(--blue-border);line-height:1.6}
   .hist-end-item:last-child{border-bottom:none;padding-bottom:0}
+  /* ── Calendário de eventos ── */
+  .btn-calendario-inicial{width:100%;justify-content:center;gap:8px;margin:16px 0;background:var(--purple-bg);border:1.5px solid var(--purple-border);color:var(--purple);font-weight:600;font-size:14px;padding:13px}
+  .btn-calendario-inicial:hover{background:#e5d8f5}
+  .calendario-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+  .calendario-mes-label{font-size:15px;font-weight:600;text-transform:capitalize}
+  .calendario-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+  .calendario-dow{font-size:10px;font-weight:600;color:var(--text3);text-align:center;padding:4px 0;text-transform:uppercase}
+  .calendario-dia{aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:var(--radius);cursor:pointer;font-size:13px;border:1px solid transparent;background:var(--bg);transition:border-color .15s}
+  .calendario-dia:hover{border-color:var(--border2)}
+  .calendario-dia.vazio{visibility:hidden;cursor:default}
+  .calendario-dia.tem-evento{background:var(--purple-bg);color:var(--purple);font-weight:700}
+  .calendario-dia.selecionado{outline:2px solid var(--purple);outline-offset:1px}
+  .calendario-dia.hoje{border-color:var(--text2);font-weight:700}
+  .calendario-dia .ponto{width:5px;height:5px;border-radius:50%;background:var(--purple);margin-top:1px}
+  .calendario-detalhe{margin-top:16px;border-top:1px solid var(--border);padding-top:14px}
   @keyframes fadeIn{from{opacity:0}to{opacity:1}}
   @keyframes slideUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
   @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
@@ -266,6 +281,7 @@
       <button class="perfil-btn equipe-btn" data-equipe="6"><i class="ti ti-bulldozer"></i> Equipe 6 (Retroescavadeira)</button>
       <button class="perfil-btn equipe-btn" data-equipe="esal"><i class="ti ti-truck"></i> Demandas ESAL</button>
     </div>
+    <button class="btn btn-calendario-inicial" id="btn-calendario-inicial"><i class="ti ti-calendar"></i> Calendário de eventos e ações</button>
     <!-- Card de Clima -->
     <div id="clima-card" class="clima-card">
       <div class="clima-loading"><i class="ti ti-cloud"></i> Carregando previsão do tempo…</div>
@@ -451,6 +467,23 @@
     <div class="modal-actions">
       <button class="btn" id="btn-cancelar-editar-fotos">Cancelar</button>
       <button class="btn btn-primary" id="btn-salvar-editar-fotos"><i class="ti ti-check"></i> Salvar alterações</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CALENDÁRIO DE EVENTOS -->
+<div id="modal-calendario" class="modal-wrap" style="display:none">
+  <div class="modal modal-lg" style="max-width:460px">
+    <h3><i class="ti ti-calendar" style="color:var(--purple)"></i> Calendário de eventos e ações</h3>
+    <div class="calendario-nav">
+      <button class="btn btn-sm" id="btn-cal-mes-anterior"><i class="ti ti-chevron-left"></i></button>
+      <span class="calendario-mes-label" id="calendario-mes-label"></span>
+      <button class="btn btn-sm" id="btn-cal-mes-proximo"><i class="ti ti-chevron-right"></i></button>
+    </div>
+    <div class="calendario-grid" id="calendario-grid"></div>
+    <div id="calendario-detalhe" class="calendario-detalhe"></div>
+    <div class="modal-actions">
+      <button class="btn" id="btn-fechar-calendario">Fechar</button>
     </div>
   </div>
 </div>
@@ -875,6 +908,111 @@ function diasAtras(dataStr){if(!dataStr)return 999;const[d,m,a]=dataStr.split('/
 function tsBR(dataStr){if(!dataStr)return 0;const p=dataStr.split('/');if(p.length!==3)return 0;const[d,m,a]=p;return new Date(+a,+m-1,+d).getTime()}
 // Junta ativas + concluídas — usar sempre que a tela precisar do histórico completo
 function todasDemandasCombinadas(){return [..._demandas, ..._demandasConcluidas]}
+
+// ══ CALENDÁRIO DE EVENTOS (Demandas-evento + Ações) ═══
+let _calMesAtual=new Date(new Date().getFullYear(),new Date().getMonth(),1);
+let _calDiaSelecionado=null;
+
+function eventosDoDia(iso){
+  const eventos=[];
+  todasDemandasCombinadas().forEach(d=>{
+    if(d.marcarData&&d.dataEvento===iso) eventos.push({tipo:'demanda',obj:d});
+  });
+  _servicos.forEach(s=>{
+    if(s.tipo==='acao'&&s.marcarData&&s.dataEvento===iso) eventos.push({tipo:'acao',obj:s});
+  });
+  return eventos;
+}
+
+function diasComEventoNoMes(ano,mes){
+  const prefixo=`${ano}-${String(mes).padStart(2,'0')}-`;
+  const dias=new Set();
+  todasDemandasCombinadas().forEach(d=>{if(d.marcarData&&d.dataEvento&&d.dataEvento.startsWith(prefixo))dias.add(d.dataEvento);});
+  _servicos.forEach(s=>{if(s.tipo==='acao'&&s.marcarData&&s.dataEvento&&s.dataEvento.startsWith(prefixo))dias.add(s.dataEvento);});
+  return dias;
+}
+
+function abrirCalendario(){
+  _calMesAtual=new Date(new Date().getFullYear(),new Date().getMonth(),1);
+  _calDiaSelecionado=null;
+  $('modal-calendario').style.display='flex';
+  renderCalendario();
+}
+
+function mudarMesCalendario(delta){
+  _calMesAtual=new Date(_calMesAtual.getFullYear(),_calMesAtual.getMonth()+delta,1);
+  _calDiaSelecionado=null;
+  renderCalendario();
+}
+
+function selecionarDiaCalendario(iso){
+  _calDiaSelecionado=(_calDiaSelecionado===iso)?null:iso;
+  renderCalendario();
+}
+
+function renderCalendario(){
+  const ano=_calMesAtual.getFullYear(),mes=_calMesAtual.getMonth()+1;
+  const label=_calMesAtual.toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+  $('calendario-mes-label').textContent=label.charAt(0).toUpperCase()+label.slice(1);
+  const diasComEvento=diasComEventoNoMes(ano,mes);
+  const primeiroDiaSemana=new Date(ano,mes-1,1).getDay();
+  const totalDias=new Date(ano,mes,0).getDate();
+  const hojeISO=new Date().toISOString().split('T')[0];
+  const dow=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+  let html=dow.map(d=>`<div class="calendario-dow">${d}</div>`).join('');
+  for(let i=0;i<primeiroDiaSemana;i++) html+=`<div class="calendario-dia vazio"></div>`;
+  for(let dia=1;dia<=totalDias;dia++){
+    const iso=`${ano}-${String(mes).padStart(2,'0')}-${String(dia).padStart(2,'0')}`;
+    const temEvento=diasComEvento.has(iso);
+    const classes=['calendario-dia'];
+    if(temEvento)classes.push('tem-evento');
+    if(iso===_calDiaSelecionado)classes.push('selecionado');
+    if(iso===hojeISO)classes.push('hoje');
+    html+=`<div class="${classes.join(' ')}" data-dia-cal="${iso}">${dia}${temEvento?'<div class="ponto"></div>':''}</div>`;
+  }
+  $('calendario-grid').innerHTML=html;
+  $('calendario-grid').querySelectorAll('[data-dia-cal]').forEach(el=>el.addEventListener('click',()=>selecionarDiaCalendario(el.dataset.diaCal)));
+  renderDetalheDiaCalendario();
+}
+
+function renderDetalheDiaCalendario(){
+  const el=$('calendario-detalhe');
+  if(!_calDiaSelecionado){el.innerHTML='<p style="font-size:13px;color:var(--text3);text-align:center;padding:8px 0">Clique em um dia marcado (roxo) para ver os detalhes.</p>';return;}
+  const eventos=eventosDoDia(_calDiaSelecionado);
+  if(!eventos.length){el.innerHTML=`<p style="font-size:13px;color:var(--text3);text-align:center;padding:8px 0">Nenhum evento em ${brFromISO(_calDiaSelecionado)}.</p>`;return;}
+  el.innerHTML=`<div style="font-size:13px;font-weight:600;margin-bottom:10px">${eventos.length} evento${eventos.length>1?'s':''} em ${brFromISO(_calDiaSelecionado)}</div>`+eventos.map(resumoEventoCalendario).join('');
+}
+
+function resumoEventoCalendario(ev){
+  if(ev.tipo==='demanda'){
+    const d=ev.obj;
+    return`<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin-bottom:8px">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;flex-wrap:wrap">
+        <span class="badge" style="background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-border)">📅 DEMANDA</span>
+        ${d.prioridade==='urgente'?'<span class="badge badge-urgente">⚡ URGENTE</span>':''}
+      </div>
+      <div style="font-size:14px;font-weight:600;margin-bottom:4px">${d.descricao}</div>
+      <div style="font-size:12px;color:var(--text2);line-height:1.8">
+        📍 ${d.endereco}<br>
+        👷 ${d.equipe||'—'} &nbsp;·&nbsp; 🗺️ ${d.zona||'—'}<br>
+        <span style="color:var(--purple);font-weight:600">⚠️ Deve estar pronto até ${diaAnteriorBR(d.dataEvento)}</span>
+      </div>
+    </div>`;
+  }
+  const s=ev.obj;
+  return`<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin-bottom:8px">
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+      <span class="badge" style="background:var(--purple-bg);color:var(--purple);border:1px solid var(--purple-border)">⭐ AÇÃO</span>
+    </div>
+    <div style="font-size:14px;font-weight:600;margin-bottom:4px">${s.local}</div>
+    <div style="font-size:12px;color:var(--text2);line-height:1.8">
+      ${s.enderecoAcao?`📍 ${s.enderecoAcao}<br>`:''}
+      👷 ${s.equipe||'—'}<br>
+      ${s.necessitaRetroescavadeira?'🚜 Necessita retroescavadeira<br>':''}
+      <span style="color:var(--purple);font-weight:600">📌 Executar neste dia</span>
+    </div>
+  </div>`;
+}
 
 async function comprimirImagem(src,maxPx=800,quality=0.75){
   return new Promise(resolve=>{
@@ -2798,6 +2936,12 @@ document.addEventListener('DOMContentLoaded', ()=>{
   document.querySelectorAll('.equipe-btn').forEach(btn=>{
     btn.addEventListener('click',()=>entrarComo('equipe'+btn.dataset.equipe));
   });
+
+  // Calendário de eventos (tela inicial)
+  $('btn-calendario-inicial').addEventListener('click',abrirCalendario);
+  $('btn-fechar-calendario').addEventListener('click',()=>fecharModal('modal-calendario'));
+  $('btn-cal-mes-anterior').addEventListener('click',()=>mudarMesCalendario(-1));
+  $('btn-cal-mes-proximo').addEventListener('click',()=>mudarMesCalendario(1));
 
   // Voltar
   $('btn-voltar-header').addEventListener('click',voltarPerfil);
