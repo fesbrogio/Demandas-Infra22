@@ -857,13 +857,17 @@ onSnapshot(query(col, where("status","in",STATUS_ATIVOS), orderBy("criadoEm","de
   });
   renderAtual();
 });
-// Demandas concluídas: carregam em segundo plano, sem travar a tela inicial.
-// Alimentam Painel, Histórico, Dashboard, Relatório Executivo, Localização das
-// Equipes e o aviso de "atendimentos anteriores" nos cards — nada deixa de
-// aparecer, só chega um instante depois.
+// Demandas concluídas: são centenas, cada uma com fotos embutidas (base64), então
+// esse é o download mais pesado do app. Ele roda em segundo plano e NÃO deve
+// travar as telas que só precisam das demandas ativas (Equipe, Gerenciar, etc.).
+// Por isso, quando esse pacote chega, só redesenhamos as telas que realmente
+// dependem das concluídas — em vez de redesenhar tudo e fazer a tela da equipe
+// esperar por um download que ela nem usa.
+let _concluidasCarregadas=false;
 onSnapshot(query(col, where("status","==","concluído"), orderBy("criadoEm","desc")), snap=>{
   _demandasConcluidas = snap.docs.map(d=>({_id:d.id,...d.data()}));
-  renderAtual();
+  _concluidasCarregadas=true;
+  renderDependentesDeConcluidas();
 });
 onSnapshot(query(colStats,orderBy("mesISO","asc")), snap=>{
   _estatisticas = snap.docs.map(d=>({_id:d.id,...d.data()}));
@@ -871,7 +875,7 @@ onSnapshot(query(colStats,orderBy("mesISO","asc")), snap=>{
 });
 onSnapshot(query(colServicos,orderBy("criadoEm","desc")), snap=>{
   _servicos = snap.docs.map(d=>({_id:d.id,...d.data()}));
-  if(secaoAtual==='servicos') renderServicos();
+  if(secaoAtual==='servicos'||secaoAtual==='localizacao') renderAtual();
 });
 
 const fbAdd = data => addDoc(col,{...data,criadoEm:serverTimestamp()});
@@ -883,6 +887,9 @@ const fbUpdServico = (id,data) => updateDoc(doc(db,"servicos_area",id),data);
 const fbDelServico = id => deleteDoc(doc(db,"servicos_area",id));
 
 // ══ RENDER ATUAL ══════════════════════════════════════
+// Redesenha a tela aberta. Chamada assim que as demandas ATIVAS chegam — que
+// são poucas e leves — para a tela aparecer rápido, sem esperar o download
+// pesado das concluídas.
 function renderAtual(){
   if(secaoAtual==='painel') renderPainel();
   if(secaoAtual==='historico') renderHistorico();
@@ -893,6 +900,19 @@ function renderAtual(){
   if(secaoAtual==='servicos') renderServicos();
   if(secaoAtual==='localizacao') renderLocalizacao();
   atualizarBadgeRevisao();
+}
+// Redesenha SÓ as telas cujo conteúdo depende das demandas concluídas (o pacote
+// pesado). Rodada quando esse pacote termina de baixar, em segundo plano — as
+// telas que só usam demandas ativas já apareceram antes e não são tocadas aqui.
+function renderDependentesDeConcluidas(){
+  if(secaoAtual==='painel') renderPainel();
+  if(secaoAtual==='historico') renderHistorico();
+  if(secaoAtual==='localizacao') renderLocalizacao();
+  // Equipe e Gerenciar mostram um aviso de "atendimentos anteriores neste
+  // endereço", que usa as concluídas — então redesenhamos uma vez quando elas
+  // chegam, para o aviso aparecer (a lista principal já estava visível antes).
+  if(secaoAtual==='equipe') renderEquipe();
+  if(secaoAtual==='gerenciar') renderGerenciar();
 }
 
 // ══ UTILS ══════════════════════════════════════════════
