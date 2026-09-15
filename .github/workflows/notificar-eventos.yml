@@ -1,13 +1,16 @@
 name: Notificar eventos por Telegram
 
 on:
-  # Roda todo dia às 09:33 UTC = 06:33 em Ribeirão Preto (Brasil não usa mais
+  # Roda todo dia às 06:33 UTC = 03:33 em Ribeirão Preto (Brasil não usa mais
   # horário de verão desde 2019, então esse horário fica fixo o ano todo).
-  # Minuto "quebrado" (33) de propósito: evitar o topo da hora (ex: 0 10 * * *)
-  # reduz a chance de atraso, já que rodar em cima da hora é o horário de
-  # maior congestionamento no agendador do GitHub Actions.
+  # PALIATIVO: adiantamos bastante o horário porque o agendador do GitHub
+  # Actions tem mostrado atrasos de 3 a 6 horas consistentemente (não é mais
+  # só o "atraso ocasional" da documentação) — rodar de madrugada dá margem
+  # pro aviso ainda chegar antes do expediente começar, mesmo com atraso.
+  # Isso é uma medida provisória; o plano é migrar para um disparo externo
+  # (via cron-job.org chamando a API do GitHub) para ter horário confiável.
   schedule:
-    - cron: "33 9 * * *"
+    - cron: "33 6 * * *"
   # Permite rodar manualmente pela aba "Actions" do GitHub, útil para testar.
   workflow_dispatch: {}
 
