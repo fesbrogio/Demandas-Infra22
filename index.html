@@ -2726,9 +2726,9 @@ async function baixarPDFServicos(){
 
   // Agrupar por tipo
   const grupos=[
-    {label:'🏘️  Limpeza de Bairros',tipo:'bairro'},
-    {label:'🛣️  Avenidas e Ruas',tipo:'avenida'},
-    {label:'⭐  Ações Especiais',tipo:'acao'}
+    {label:'Limpeza de Bairros',tipo:'bairro'},
+    {label:'Avenidas e Ruas',tipo:'avenida'},
+    {label:'Ações Especiais',tipo:'acao'}
   ];
 
   grupos.forEach(g=>{
@@ -3053,7 +3053,7 @@ async function baixarPDFExecutivo(){
     // Urgentes
     if(urgMes>0){
       doc.setFontSize(8);doc.setTextColor(139,26,26);
-      doc.text(`⚡ ${urgMes} demanda${urgMes!==1?'s':''} urgente${urgMes!==1?'s':''} atendida${urgMes!==1?'s':''}`,M+3,y);y+=lH+1;
+      doc.text(`${urgMes} demanda${urgMes!==1?'s':''} urgente${urgMes!==1?'s':''} atendida${urgMes!==1?'s':''}`,M+3,y);y+=lH+1;
     }
     y+=4;
   });
