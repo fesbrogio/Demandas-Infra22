@@ -1410,6 +1410,7 @@ async function confirmarCheck(){
         endereco:original.endereco||null,
         zona:original.zona||null,
         equipe:original.equipe||null,
+        equipeApoio:original.equipeApoio||null,
         prioridade:original.prioridade||null,
         solicitante:original.solicitante||null,
         data:original.data||null,
@@ -1572,6 +1573,7 @@ function cardHtml(d,opts={}){
         ${atrasada?`<span class="badge badge-atrasada">⏰ ${labelTempo(h)}</span>`:''}
         ${d.zona?`<span class="badge badge-zona">${d.zona}</span>`:''}
         ${d.marcarData&&d.dataEvento?`<span class="badge" style="background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-border)"><i class="ti ti-calendar-event" style="font-size:11px"></i> ${brFromISO(d.dataEvento)}</span>`:''}
+        ${d.equipeApoio?`<span class="badge" style="background:var(--orange-bg);color:var(--orange);border:1px solid var(--orange-border)"><i class="ti ti-bulldozer" style="font-size:11px"></i> Apoio: ${d.equipeApoio}</span>`:''}
       </div>
     </div>
     <div class="demand-meta">
@@ -1597,6 +1599,7 @@ function cardHtml(d,opts={}){
     </div>`:''}
     <div class="demand-actions">
       ${mostrarCheck?`<button class="btn-done" data-check="${d._id}"><i class="ti ti-camera"></i> Concluir com foto e data</button>`:''}
+      ${mostrarCheck&&!d.equipeApoio&&d.equipe!=='Equipe 6'?`<button class="btn btn-sm" data-retro="${d._id}" style="background:var(--orange-bg);color:var(--orange);border:1px solid var(--orange-border)"><i class="ti ti-bulldozer"></i> Necessita de retroescavadeira</button>`:''}
       ${mostrarNaoEncontrado?`<button class="btn-nao-encontrado" data-nao="${d._id}"><i class="ti ti-map-pin-off"></i> Local não encontrado</button>`:''}
       ${mostrarRevisao?`<button class="btn btn-sm btn-primary" data-revisao="${d._id}"><i class="ti ti-edit"></i> Corrigir endereço</button>`:''}
       ${mostrarApagar?`<button class="btn-del" data-del="${d._id}"><i class="ti ti-trash"></i> Apagar</button>`:''}
@@ -1613,6 +1616,14 @@ function bindCards(container){
   container.querySelectorAll('.zona-select').forEach(sel=>sel.addEventListener('change',()=>atualizarZona(sel.dataset.zonaId,sel.value)));
   container.querySelectorAll('.photo-preview[data-src]').forEach(img=>img.addEventListener('click',()=>abrirLightbox(img.dataset.src)));
   container.querySelectorAll('[data-salvar-data-evento]').forEach(b=>b.addEventListener('click',()=>salvarDataEvento(b.dataset.salvarDataEvento,b)));
+  container.querySelectorAll('[data-retro]').forEach(b=>b.addEventListener('click',()=>pedirRetroescavadeira(b.dataset.retro)));
+}
+
+async function pedirRetroescavadeira(id){
+  try{
+    await fbUpd(id,{equipeApoio:'Equipe 6'});
+    showMsg('Pedido de retroescavadeira enviado — já apareceu na lista da Equipe 6!');
+  }catch(e){showMsg('Erro ao pedir apoio da retroescavadeira.','danger');}
 }
 
 function renderStats(){
@@ -1970,7 +1981,7 @@ function renderPainel(){
 
 function renderEquipe(){
   const fz=$('filtro-zona-equipe').value;
-  let lista=_demandas.filter(d=>d.equipe===equipeAtual&&d.status!=='concluído'&&d.status!=='revisao');
+  let lista=_demandas.filter(d=>(d.equipe===equipeAtual||d.equipeApoio===equipeAtual)&&d.status!=='concluído'&&d.status!=='revisao');
   if(fz)lista=lista.filter(d=>d.zona===fz);
   const cont=$('contador-equipe');
   if(cont){const t=lista.length,u=lista.filter(d=>d.prioridade==='urgente').length;const lbl=fz||'Total';cont.innerHTML=`${lbl}: <span style="color:var(--text)">${t}</span> demanda${t!==1?'s':''}${u>0?` · <span style="color:var(--red)">⚡ ${u} urgente${u>1?'s':''}</span>`:''}`;}
@@ -2228,7 +2239,7 @@ async function renderMapa(){
   carregarCSS('https://unpkg.com/leaflet@1.9.4/dist/leaflet.css');
   await carregarScript('https://unpkg.com/leaflet@1.9.4/dist/leaflet.js');
   if(secaoAtual!=='mapa')return; // usuário já saiu da tela enquanto a biblioteca carregava
-  const lista=_demandas.filter(d=>d.equipe===equipeAtual&&d.status!=='concluído'&&d.status!=='revisao');
+  const lista=_demandas.filter(d=>(d.equipe===equipeAtual||d.equipeApoio===equipeAtual)&&d.status!=='concluído'&&d.status!=='revisao');
   if(!_mapaInstance){
     _mapaInstance=L.map('mapa-container').setView([-21.1775,-47.8103],13);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap',maxZoom:19}).addTo(_mapaInstance);
