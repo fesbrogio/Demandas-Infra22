@@ -2725,19 +2725,22 @@ async function baixarPDFServicos(){
   doc.setDrawColor(210,210,210);doc.line(M,y,W-M,y);y+=8;
 
   // Agrupar por tipo
+  // Mesmas cores usadas nas etiquetas de tipo dentro do site (roxo=bairro,
+  // azul=avenida, laranja=ação), pra manter a identidade visual e destacar
+  // bem cada seção do relatório.
   const grupos=[
-    {label:'Limpeza de Bairros',tipo:'bairro'},
-    {label:'Avenidas e Ruas',tipo:'avenida'},
-    {label:'Ações Especiais',tipo:'acao'}
+    {label:'Limpeza de Bairros',tipo:'bairro',cor:[74,26,122]},
+    {label:'Avenidas e Ruas',tipo:'avenida',cor:[26,63,122]},
+    {label:'Ações Especiais',tipo:'acao',cor:[122,58,0]}
   ];
 
   grupos.forEach(g=>{
     const itens=_servicos.filter(s=>s.tipo===g.tipo);
     if(!itens.length)return;
-    chk(14);
-    doc.setFillColor(238,236,234);doc.rect(M,y,W-M*2,9,'F');
-    doc.setFontSize(11);doc.setFont('helvetica','bold');doc.setTextColor(26,25,23);
-    doc.text(g.label,M+3,y+6);y+=13;
+    chk(17);
+    doc.setFillColor(...g.cor);doc.rect(M,y,W-M*2,12,'F');
+    doc.setFontSize(14);doc.setFont('helvetica','bold');doc.setTextColor(255,255,255);
+    doc.text(g.label.toUpperCase(),M+4,y+8);y+=16;
 
     itens.forEach((s,i)=>{
       chk(32);
