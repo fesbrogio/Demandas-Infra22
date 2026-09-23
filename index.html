@@ -1573,7 +1573,7 @@ function cardHtml(d,opts={}){
         ${atrasada?`<span class="badge badge-atrasada">⏰ ${labelTempo(h)}</span>`:''}
         ${d.zona?`<span class="badge badge-zona">${d.zona}</span>`:''}
         ${d.marcarData&&d.dataEvento?`<span class="badge" style="background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-border)"><i class="ti ti-calendar-event" style="font-size:11px"></i> ${brFromISO(d.dataEvento)}</span>`:''}
-        ${d.equipeApoio?`<span class="badge" style="background:var(--orange-bg);color:var(--orange);border:1px solid var(--orange-border)"><i class="ti ti-bulldozer" style="font-size:11px"></i> Apoio: ${d.equipeApoio}</span>`:''}
+        ${d.equipeApoio?`<span class="badge" style="background:var(--orange-bg);color:var(--orange);border:1px solid var(--orange-border)"><i class="ti ti-bulldozer" style="font-size:11px"></i> Apoio: Equipe 6</span>`:''}
       </div>
     </div>
     <div class="demand-meta">
@@ -1599,7 +1599,7 @@ function cardHtml(d,opts={}){
     </div>`:''}
     <div class="demand-actions">
       ${mostrarCheck?`<button class="btn-done" data-check="${d._id}"><i class="ti ti-camera"></i> Concluir com foto e data</button>`:''}
-      ${mostrarCheck&&!d.equipeApoio&&d.equipe!=='Equipe 6'?`<button class="btn btn-sm" data-retro="${d._id}" style="background:var(--orange-bg);color:var(--orange);border:1px solid var(--orange-border)"><i class="ti ti-bulldozer"></i> Necessita de retroescavadeira</button>`:''}
+      ${mostrarCheck&&!d.equipeApoio&&d.equipe!=='Equipe 6 (Retroescavadeira)'?`<button class="btn btn-sm" data-retro="${d._id}" style="background:var(--orange-bg);color:var(--orange);border:1px solid var(--orange-border)"><i class="ti ti-bulldozer"></i> Necessita de retroescavadeira</button>`:''}
       ${mostrarNaoEncontrado?`<button class="btn-nao-encontrado" data-nao="${d._id}"><i class="ti ti-map-pin-off"></i> Local não encontrado</button>`:''}
       ${mostrarRevisao?`<button class="btn btn-sm btn-primary" data-revisao="${d._id}"><i class="ti ti-edit"></i> Corrigir endereço</button>`:''}
       ${mostrarApagar?`<button class="btn-del" data-del="${d._id}"><i class="ti ti-trash"></i> Apagar</button>`:''}
@@ -1621,7 +1621,7 @@ function bindCards(container){
 
 async function pedirRetroescavadeira(id){
   try{
-    await fbUpd(id,{equipeApoio:'Equipe 6'});
+    await fbUpd(id,{equipeApoio:'Equipe 6 (Retroescavadeira)'});
     showMsg('Pedido de retroescavadeira enviado — já apareceu na lista da Equipe 6!');
   }catch(e){showMsg('Erro ao pedir apoio da retroescavadeira.','danger');}
 }
