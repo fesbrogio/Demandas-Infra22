@@ -734,7 +734,7 @@
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, query, where, orderBy, serverTimestamp, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { initializeFirestore, persistentLocalCache, persistentSingleTabManager, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, query, where, orderBy, serverTimestamp, setDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 // ══ FIREBASE ══════════════════════════════════════════
 const app = initializeApp({
@@ -745,7 +745,16 @@ const app = initializeApp({
   messagingSenderId:"327199319082",
   appId:"1:327199319082:web:d04f07df17d532b7c04f53"
 });
-const db = getFirestore(app);
+// Persistência local: guarda uma cópia dos dados no próprio dispositivo (via
+// IndexedDB do navegador). Da segunda vez que alguém abre o site no mesmo
+// celular em diante, a tela aparece quase instantânea usando essa cópia local,
+// e só depois confere no Firestore se algo mudou — em vez de baixar tudo de
+// novo a cada recarregamento. Se o navegador não suportar (raro, ex: alguns
+// modos de navegação privada), o Firebase cai sozinho no comportamento normal
+// sem persistência, sem quebrar nada.
+const db = initializeFirestore(app, {
+  localCache: persistentLocalCache({ tabManager: persistentSingleTabManager() })
+});
 const col = collection(db,"demandas");
 const colStats = collection(db,"estatisticas_mensais");
 const colServicos = collection(db,"servicos_area");
@@ -883,14 +892,25 @@ onSnapshot(query(col, where("status","in",STATUS_ATIVOS), orderBy("criadoEm","de
   });
   renderAtual();
 });
-// Demandas concluídas: são centenas, cada uma com fotos embutidas (base64), então
-// esse é o download mais pesado do app. Ele roda em segundo plano e NÃO deve
-// travar as telas que só precisam das demandas ativas (Equipe, Gerenciar, etc.).
-// Por isso, quando esse pacote chega, só redesenhamos as telas que realmente
-// dependem das concluídas — em vez de redesenhar tudo e fazer a tela da equipe
-// esperar por um download que ela nem usa.
+// Demandas concluídas: hoje o registro completo de cada uma tem duas fotos em
+// base64 embutidas, e são centenas — juntas, ~45 MB baixados de uma vez, toda
+// vez que a página abre (medido em teste real: 45 MB, 12 segundos, ver conversa
+// de 15/09/2026). A grande maioria das telas do app só precisa do TEXTO dessas
+// demandas (endereço, equipe, data — pra estatísticas, "atendimentos
+// anteriores", status por equipe), nunca das fotos. Por isso, desde 15/09/2026,
+// existe uma segunda coleção no Firestore — "demandas_concluidas_resumo" — que
+// guarda só os campos de texto de cada demanda concluída, sem foto nenhuma.
+// _demandasConcluidas passa a ser alimentado por ELA (leve, poucos KB), então
+// TODA a lógica existente que já usava _demandasConcluidas (Painel, Dashboard,
+// Localização das Equipes, "atendimentos anteriores") continua funcionando
+// exatamente igual, sem nenhuma mudança — só ficou rápida.
+// As 3 telas que realmente precisam das FOTOS (Histórico/Concluídas, os PDFs
+// com foto, Editar foto de conclusão) buscam a versão completa sob demanda,
+// através de carregarConcluidasCompletas() logo abaixo — só quando alguém de
+// fato abre uma dessas telas, não mais sempre.
+const colConcluidasResumo = collection(db,"demandas_concluidas_resumo");
 let _concluidasCarregadas=false;
-onSnapshot(query(col, where("status","==","concluído"), orderBy("criadoEm","desc")), snap=>{
+onSnapshot(query(colConcluidasResumo, orderBy("criadoEm","desc")), snap=>{
   _demandasConcluidas = snap.docs.map(d=>({_id:d.id,...d.data()}));
   // Reconstrói o índice por rua UMA VEZ aqui (custo O(n), uma passada), em vez de
   // cada card ativo varrer as concluídas inteiras toda vez que a tela desenha.
@@ -904,6 +924,25 @@ onSnapshot(query(col, where("status","==","concluído"), orderBy("criadoEm","des
   _concluidasCarregadas=true;
   renderDependentesDeConcluidas();
 });
+
+// Busca a lista COMPLETA de concluídas (com fotos) uma única vez, sob demanda —
+// não é mais um listener permanente. Fica guardada em cache (_demandasConcluidasCompletas)
+// pelo resto da sessão depois da primeira busca, então só pesa 45 MB uma vez,
+// e só pra quem realmente abre uma tela que precisa das fotos.
+let _demandasConcluidasCompletas = null;
+let _promiseConcluidasCompletas = null;
+function carregarConcluidasCompletas(){
+  if(_demandasConcluidasCompletas) return Promise.resolve(_demandasConcluidasCompletas);
+  if(_promiseConcluidasCompletas) return _promiseConcluidasCompletas;
+  _promiseConcluidasCompletas = getDocs(query(col, where("status","==","concluído"), orderBy("criadoEm","desc")))
+    .then(snap=>{
+      _demandasConcluidasCompletas = snap.docs.map(d=>({_id:d.id,...d.data()}));
+      return _demandasConcluidasCompletas;
+    })
+    .catch(err=>{ _promiseConcluidasCompletas=null; throw err; });
+  return _promiseConcluidasCompletas;
+}
+
 onSnapshot(query(colStats,orderBy("mesISO","asc")), snap=>{
   _estatisticas = snap.docs.map(d=>({_id:d.id,...d.data()}));
   if(secaoAtual==='dashboard') renderDashboard();
@@ -1357,9 +1396,38 @@ async function confirmarCheck(){
   if(prev.style.display==='none'||!prev.src){alert('Adicione a foto do serviço concluído.');return;}
   const foto=await comprimirImagem(prev.src);
   const obs=$('check-observacao').value.trim();
+  const dataConclusao=new Date(data+'T12:00:00').toLocaleDateString('pt-BR');
   try{
-    await fbUpd(checkId,{status:'concluído',dataConclusao:new Date(data+'T12:00:00').toLocaleDateString('pt-BR'),fotoConclusao:foto,observacao:obs||null});
+    await fbUpd(checkId,{status:'concluído',dataConclusao,fotoConclusao:foto,observacao:obs||null});
+    // Grava também um resumo leve (sem fotos) numa coleção separada — é o que
+    // alimenta Painel, Dashboard, Localização e "atendimentos anteriores" sem
+    // precisar baixar fotos pra isso. Ver o comentário grande junto do listener
+    // de _demandasConcluidas, mais acima no arquivo, pra entender o porquê.
+    const original=_demandas.find(d=>d._id===checkId);
+    if(original){
+      await setDoc(doc(db,"demandas_concluidas_resumo",checkId),{
+        descricao:original.descricao||null,
+        endereco:original.endereco||null,
+        zona:original.zona||null,
+        equipe:original.equipe||null,
+        prioridade:original.prioridade||null,
+        solicitante:original.solicitante||null,
+        data:original.data||null,
+        hora:original.hora||null,
+        dataConclusao,
+        observacao:obs||null,
+        status:'concluído',
+        marcarData:original.marcarData||false,
+        dataEvento:original.dataEvento||null,
+        notificadoEvento:original.notificadoEvento||false,
+        criadoEm:serverTimestamp()
+      });
+    }
     fecharModal('modal-check');showMsg('Demanda marcada como concluída!');
+    // Invalida o cache da busca completa (com fotos) — a próxima vez que alguém
+    // abrir o Histórico, ele busca de novo, já incluindo essa demanda nova.
+    _demandasConcluidasCompletas=null;
+    _promiseConcluidasCompletas=null;
   }catch(e){showMsg('Erro ao salvar.','danger');}
 }
 
@@ -1372,9 +1440,10 @@ function pedirSenhaEditarFotos(id){
   $('modal-senha-corrigir').style.display='flex';
   setTimeout(()=>$('input-senha-corrigir').focus(),150);
 }
-function abrirEditarFotosConcluida(id){
+async function abrirEditarFotosConcluida(id){
   _editarFotosId=id;
-  const d=_demandasConcluidas.find(x=>x._id===id);
+  const completas=await carregarConcluidasCompletas();
+  const d=completas.find(x=>x._id===id);
   if(!d)return;
   const depoisAtual=$('editar-fotos-depois-atual');
   if(d.fotoConclusao){depoisAtual.src=d.fotoConclusao;depoisAtual.style.display='block';}else{depoisAtual.style.display='none';depoisAtual.src='';}
@@ -1388,6 +1457,12 @@ async function salvarEditarFotos(){
   try{
     const fotoConclusao=await comprimirImagem(prevDepois.src);
     await fbUpd(_editarFotosId,{fotoConclusao});
+    // Atualiza também a cópia em memória (a busca completa é um snapshot único,
+    // não fica sincronizando sozinha), pra a foto nova já aparecer sem recarregar.
+    if(_demandasConcluidasCompletas){
+      const item=_demandasConcluidasCompletas.find(x=>x._id===_editarFotosId);
+      if(item) item.fotoConclusao=fotoConclusao;
+    }
     fecharModal('modal-editar-fotos');
     showMsg('Foto de conclusão atualizada com sucesso!');
   }catch(e){showMsg('Erro ao salvar a foto.','danger');}
@@ -1910,15 +1985,17 @@ function renderEquipe(){
   el.innerHTML=html;bindCards(el);
 }
 
-function renderHistorico(){
-  const conc=_demandasConcluidas;
+async function renderHistorico(){
+  const el=$('lista-historico');
+  el.innerHTML='<div class="empty"><i class="ti ti-loader-2"></i> Carregando concluídas com fotos (pode levar alguns segundos)…</div>';
+  const conc=await carregarConcluidasCompletas();
+  if(secaoAtual!=='historico')return; // usuário já saiu da tela enquanto carregava
   popularSelectMes('filtro-mes-historico',conc);
   const mesSel=$('filtro-mes-historico').value;
   let lista=filtrarPorMes(conc,mesSel,'dataConclusao');
   lista=lista.slice().sort((a,b)=>tsBR(b.dataConclusao||b.data)-tsBR(a.dataConclusao||a.data));
-  const el=$('lista-historico');
   if(!lista.length){el.innerHTML='<div class="empty"><i class="ti ti-history"></i>Nenhum serviço concluído ainda</div>';return;}
-  el.innerHTML=realtimeBadge()+`<div class="card">${lista.map(d=>`
+  el.innerHTML=`<div class="card">${lista.map(d=>`
     <div class="hist-row">
       <div style="font-size:14px;font-weight:600;margin-bottom:6px">${d.descricao}</div>
       ${cardMaps(d.endereco)}
@@ -2542,8 +2619,11 @@ function gerarRelatorio(){
 
 async function baixarPDF(){
   const mesSel=$('filtro-mes-historico').value;
-  let conc=_demandasConcluidas;
-  conc=filtrarPorMes(conc,mesSel,'dataConclusao');
+  // Checagem rápida com os dados leves (sem foto) primeiro — evita baixar as
+  // fotos todas se não houver nada pra gerar naquele mês.
+  if(!filtrarPorMes(_demandasConcluidas,mesSel,'dataConclusao').length)return;
+  const completas=await carregarConcluidasCompletas();
+  let conc=filtrarPorMes(completas,mesSel,'dataConclusao');
   if(!conc.length)return;
   await carregarScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
   const{jsPDF}=window.jspdf;
