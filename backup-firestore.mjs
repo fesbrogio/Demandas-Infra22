@@ -16,6 +16,7 @@ const API_KEY = process.env.FIREBASE_API_KEY || 'AIzaSyAOeJwqEKzVQNtKdQgFmgo7F4w
 const COLECOES = [
   'demandas',
   'demandas_concluidas_resumo',
+  'demandas_arquivo', // arquivo permanente (sem fotos) — nunca é apagado junto com os meses
   'estatisticas_mensais',
   'servicos_area',
 ];
