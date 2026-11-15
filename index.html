@@ -2236,7 +2236,7 @@ async function renderDashboard(){
     _charts['chart-equipe']=new Chart($('chart-equipe'),{type:'bar',data:{labels:eqLabels,datasets:[{data:porEquipe,backgroundColor:cores,borderRadius:6}]},options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:1}}},responsive:true}});
     _charts['chart-zona']=new Chart($('chart-zona'),{type:'doughnut',data:{labels:ZONAS,datasets:[{data:porZona,backgroundColor:cores.slice(0,5),borderWidth:2,borderColor:'#fff'}]},options:{plugins:{legend:{position:'bottom',labels:{font:{size:11},boxWidth:12}}},responsive:true}});
     _charts['chart-abertas']=new Chart($('chart-abertas'),{type:'bar',data:{labels:eqLabels,datasets:[{data:abertasEq,backgroundColor:'#a8bce0',borderRadius:6}]},options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:1}}},responsive:true}});
-    montarMapaDash(_det);
+    montarMapaDash(_det).catch(e=>{console.error('[mapa]',e);const m=$('dash-mapa');if(m)m.innerHTML='<div class="sem-dados">Não foi possível carregar o mapa.</div>';});
     return;
   }
 
@@ -2269,7 +2269,7 @@ async function renderDashboard(){
   _charts['chart-equipe']=new Chart($('chart-equipe'),{type:'bar',data:{labels:eqLabels,datasets:[{data:porEquipeTodos,backgroundColor:cores,borderRadius:6}]},options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:1}}},responsive:true}});
   _charts['chart-zona']=new Chart($('chart-zona'),{type:'doughnut',data:{labels:ZONAS,datasets:[{data:porZonaTodos,backgroundColor:cores.slice(0,5),borderWidth:2,borderColor:'#fff'}]},options:{plugins:{legend:{position:'bottom',labels:{font:{size:11},boxWidth:12}}},responsive:true}});
   _charts['chart-abertas']=new Chart($('chart-abertas'),{type:'bar',data:{labels:eqLabels,datasets:[{data:abertasEqTodos,backgroundColor:'#a8bce0',borderRadius:6}]},options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:1}}},responsive:true}});
-  montarMapaDash(_det);
+  montarMapaDash(_det).catch(e=>{console.error('[mapa]',e);const m=$('dash-mapa');if(m)m.innerHTML='<div class="sem-dados">Não foi possível carregar o mapa.</div>';});
 }
 
 // ══ ANÁLISES DO DASHBOARD: tempo de atendimento, recorrência e mapa ══
@@ -2352,13 +2352,16 @@ async function montarMapaDash(dados){
   await carregarScript('https://unpkg.com/leaflet@1.9.4/dist/leaflet.js');
   if(secaoAtual!=='dashboard'||!$('dash-mapa'))return;
   if(_dashMapa){try{_dashMapa.remove();}catch(e){}_dashMapa=null;}
-  const mapa=_dashMapa=L.map('dash-mapa',{preferCanvas:true}).setView([-21.1775,-47.8103],12);
+  const mapa=_dashMapa=L.map('dash-mapa').setView([-21.1775,-47.8103],12);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap',maxZoom:19}).addTo(mapa);
   const pts=dados.filter(d=>typeof d.lat==='number'&&typeof d.lng==='number');
   const calor=L.layerGroup(), pontos=L.layerGroup();
   pts.forEach(d=>{
-    // "Calor" sem plugin: círculos de 150 m bem transparentes — onde se sobrepõem, a cor acumula.
-    L.circle([d.lat,d.lng],{radius:150,stroke:false,fillColor:'#d9381e',fillOpacity:.13,interactive:false}).addTo(calor);
+    // "Calor" sem plugin: círculos de 16 px (tamanho fixo na tela, visíveis em qualquer zoom)
+    // bem transparentes — onde se sobrepõem, a cor acumula.
+    // OBS: não usar renderizador canvas aqui: o CSS ".dash-card canvas{width:100%!important}"
+    // (dos gráficos) deforma o canvas do Leaflet e nada aparece. O padrão (SVG) não sofre disso.
+    L.circleMarker([d.lat,d.lng],{radius:16,stroke:false,fillColor:'#d9381e',fillOpacity:.16,interactive:false}).addTo(calor);
     L.circleMarker([d.lat,d.lng],{radius:5,color:'#fff',weight:1,fillColor:d.prioridade==='urgente'?'#e05555':'#1a3f7a',fillOpacity:.9})
       .bindPopup(`<div style="font-family:sans-serif;font-size:12px"><strong>${escHtml(d.descricao||'')}</strong><br>${escHtml(d.endereco||'')}<br><span style="color:#666">${escHtml(d.equipe||'')} · concluída em ${escHtml(d.dataConclusao||'—')}</span></div>`)
       .addTo(pontos);
