@@ -1320,6 +1320,7 @@ function voltarPerfil(){
   perfil='';equipeAtual='';secaoAtual='';
   _mapaRenderToken++; // interrompe qualquer fila de geocodificação do mapa em andamento
   Object.values(_charts).forEach(c=>c.destroy());_charts={};
+  if(_dashMapa){try{_dashMapa.remove();}catch(e){}_dashMapa=null;}
   if(_mapaInstance){_mapaInstance.remove();_mapaInstance=null;_mapaMarkers=[];_marcadorUsuario=null;_circuloUsuario=null;}
   $('tela-perfil').style.display='block';
   $('tela-app').style.display='none';
@@ -3465,6 +3466,51 @@ document.addEventListener('DOMContentLoaded', ()=>{
   $('btn-fechar-relatorio-servicos').addEventListener('click',()=>fecharModal('modal-relatorio-servicos'));
   $('btn-baixar-pdf-servicos').addEventListener('click',baixarPDFServicos);
 });
+
+// ══ BOTÃO "VOLTAR" DO CELULAR / NAVEGADOR ═════════════
+// Dentro do app, o voltar agora navega pelo próprio app: fecha a janela (modal) ou a
+// foto ampliada que estiver aberta; senão volta da tela do app para a seleção de
+// perfil; só na seleção de perfil ele sai do aplicativo.
+// Como funciona: enquanto houver algo a "voltar" dentro do app, mantemos UMA entrada
+// extra no histórico do navegador (a "guarda"). O botão voltar consome essa entrada
+// e tratamos o evento aqui, em vez de deixar o navegador sair do site.
+(function(){
+  let guardaAtiva=false, ignorarPop=false, timer=null;
+  const visivel=el=>!!el&&getComputedStyle(el).display!=='none';
+  const modaisAbertos=()=>[...document.querySelectorAll('.modal-wrap')].filter(visivel);
+  const precisaGuarda=()=>visivel($('tela-app'))||visivel($('lightbox'))||modaisAbertos().length>0;
+  // Cria a guarda quando há algo a voltar; remove (em silêncio) quando não há mais.
+  function reconciliar(){
+    const precisa=precisaGuarda();
+    if(precisa&&!guardaAtiva){history.pushState({guardaApp:true},'');guardaAtiva=true;}
+    else if(!precisa&&guardaAtiva){
+      guardaAtiva=false;ignorarPop=true;
+      setTimeout(()=>{ignorarPop=false;},600); // segurança
+      history.back();
+    }
+  }
+  window.addEventListener('popstate',()=>{
+    if(ignorarPop){ignorarPop=false;return;}
+    guardaAtiva=false; // o botão voltar consumiu a guarda
+    if(visivel($('lightbox'))){fecharLightbox();}
+    else{
+      const abertos=modaisAbertos();
+      if(abertos.length){
+        const m=abertos[abertos.length-1];
+        const bt=m.querySelector('[id^="btn-cancelar"],[id^="btn-fechar"]');
+        if(bt)bt.click();
+        if(visivel(m))m.style.display='none';
+      }else if(visivel($('tela-app'))){voltarPerfil();}
+    }
+    reconciliar(); // ainda há algo aberto? recria a guarda; senão o próximo voltar sai do app
+  });
+  const obs=new MutationObserver(()=>{clearTimeout(timer);timer=setTimeout(reconciliar,30);});
+  const cfg={attributes:true,attributeFilter:['style']};
+  obs.observe($('tela-app'),cfg);obs.observe($('lightbox'),cfg);
+  document.querySelectorAll('.modal-wrap').forEach(m=>obs.observe(m,cfg));
+  // Recarregou a página com uma guarda velha no histórico: não conta como ativa.
+  if(history.state&&history.state.guardaApp)history.replaceState(null,'');
+})();
 </script>
 
 <div style="text-align:center;padding:24px 16px 32px;font-size:11px;color:var(--text3);font-family:var(--font-mono);border-top:1px solid var(--border);margin-top:40px">
