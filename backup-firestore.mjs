@@ -1,70 +1,3466 @@
-// Backup semanal do Firestore (projeto demandas-limp-rp)
-// Roda no GitHub Actions (ver .github/workflows/backup-firestore.yml).
-// Baixa TODAS as coleções do sistema pela API REST e salva em arquivos JSON
-// na pasta ./backup — o workflow depois guarda essa pasta como "artefato"
-// (fica disponível pra download na aba Actions do GitHub por 90 dias).
-//
-// Os documentos são salvos no formato original da API REST do Firestore
-// (campo "fields" com os tipos), o que permite restaurar depois exatamente
-// como estavam, inclusive datas (timestamps) e fotos.
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Gestão de Limpeza Urbana – Secretaria da Infraestrutura</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+<style>
+  :root{--bg:#f4f3ef;--surface:#fff;--surface2:#eeecea;--border:#d8d6d0;--border2:#c8c5be;--text:#1a1917;--text2:#6b6860;--text3:#9e9b94;--green:#1a6640;--green-bg:#e6f2eb;--green-border:#a8d4b8;--amber:#7a4f00;--amber-bg:#fef3db;--amber-border:#f5cc7a;--red:#8b1a1a;--red-bg:#fdeaea;--red-border:#f0a8a8;--blue:#1a3f7a;--blue-bg:#e8eef8;--blue-border:#a8bce0;--purple:#4a1a7a;--purple-bg:#f0e8f8;--purple-border:#c8a8e0;--orange:#7a3a00;--orange-bg:#fff0e0;--orange-border:#f5b87a;--radius:8px;--radius-lg:12px;--font:'IBM Plex Sans',sans-serif;--font-mono:'IBM Plex Mono',monospace;--shadow:0 1px 3px rgba(0,0,0,.08)}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:15px;min-height:100vh}
+  .header{background:var(--text);color:#fff;padding:0 16px;height:54px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;gap:10px}
+  .header-brand{display:flex;align-items:center;gap:10px;min-width:0}
+  .header-logo{width:36px;height:36px;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+  .header-logo img{width:36px;height:36px;object-fit:contain;filter:drop-shadow(0 1px 2px rgba(0,0,0,.3))}
+  .brand-text{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .brand-sub{font-size:10px;opacity:.5;font-family:var(--font-mono)}
+  .header-right{display:flex;align-items:center;gap:8px;flex-shrink:0}
+  #header-user-label{font-size:12px;opacity:.7;font-family:var(--font-mono);white-space:nowrap}
+  .btn-header{background:rgba(255,255,255,.14);border:none;color:#fff;padding:7px 13px;border-radius:7px;font-size:13px;cursor:pointer;font-family:var(--font);display:flex;align-items:center;gap:5px;transition:background .15s}
+  .btn-header:hover{background:rgba(255,255,255,.24)}
+  .main{max-width:720px;margin:0 auto;padding:22px 14px 80px}
+  #tela-perfil{animation:fadeIn .2s ease}
+  .perfil-title{font-size:21px;font-weight:600;margin:8px 0 4px}
+  .perfil-sub{font-size:14px;color:var(--text2);margin-bottom:24px}
+  .perfil-section-label{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);margin-bottom:10px;font-family:var(--font-mono)}
+  .perfil-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px}
+  .perfil-btn{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:18px;cursor:pointer;text-align:left;width:100%;transition:border-color .15s,box-shadow .15s}
+  .perfil-btn:hover{border-color:var(--border2);box-shadow:var(--shadow)}
+  .picon{font-size:22px;margin-bottom:10px;display:block;color:var(--text2)}
+  .pname{font-size:14px;font-weight:600}
+  .pdesc{font-size:12px;color:var(--text2);margin-top:3px;line-height:1.4}
+  .equipe-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .equipe-btn{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:13px 10px;cursor:pointer;font-family:var(--font);font-size:13px;font-weight:500;display:flex;align-items:center;justify-content:center;gap:7px;color:var(--text);transition:border-color .15s,background .15s}
+  .equipe-btn:hover{border-color:var(--border2);background:var(--surface2)}
+  .equipe-btn i{font-size:15px;color:var(--text2)}
+  .modal-wrap{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:200;padding:16px}
+  .modal{background:var(--surface);border-radius:var(--radius-lg);padding:24px;max-width:400px;width:100%;border:1px solid var(--border);animation:slideUp .2s ease}
+  .modal-lg{max-width:520px;max-height:90vh;overflow-y:auto}
+  .modal h3{font-size:16px;font-weight:600;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+  .modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:18px;flex-wrap:wrap}
+  .modal-erro{font-size:12px;color:var(--red);margin-top:6px;display:none;align-items:center;gap:5px}
+  #tela-app{display:none;animation:fadeIn .2s ease}
+  .btn-voltar{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--text2);cursor:pointer;border:none;background:none;font-family:var(--font);padding:0;margin-bottom:16px;transition:color .15s}
+  .btn-voltar:hover{color:var(--text)}
+  .tabs{display:flex;gap:2px;border-bottom:1px solid var(--border);margin-bottom:18px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .tabs::-webkit-scrollbar{display:none}
+  .tab{padding:10px 13px;font-size:13px;cursor:pointer;border:none;background:none;color:var(--text2);border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap;font-family:var(--font);display:flex;align-items:center;gap:6px;transition:color .15s;flex-shrink:0}
+  .tab:hover{color:var(--text)}
+  .tab.active{color:var(--text);border-bottom-color:var(--text);font-weight:500}
+  .tab-badge{background:var(--red);color:#fff;border-radius:20px;font-size:10px;padding:1px 6px;font-family:var(--font-mono);font-weight:600}
+  .section{display:none}
+  .section.active{display:block;animation:fadeIn .15s ease}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:18px 20px;margin-bottom:12px}
+  .section-title{font-size:15px;font-weight:600;margin-bottom:16px}
+  .field{margin-bottom:14px}
+  .field label{display:block;font-size:12px;font-weight:500;color:var(--text2);margin-bottom:6px}
+  .field input,.field textarea,.field select{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius);font-size:14px;font-family:var(--font);background:var(--bg);color:var(--text);-webkit-appearance:none;appearance:none;transition:border-color .15s}
+  .field select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b6860' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:30px}
+  .field input:focus,.field textarea:focus,.field select:focus{outline:none;border-color:var(--text);box-shadow:0 0 0 3px rgba(26,25,23,.08)}
+  .field textarea{resize:vertical;min-height:80px;line-height:1.5}
+  .divider{height:1px;background:var(--border);margin:16px 0}
+  .field-destaque{margin-bottom:14px}
+  .field-destaque label{display:flex;font-size:12px;font-weight:600;color:var(--amber);margin-bottom:6px;align-items:center;gap:5px}
+  .field-destaque select{width:100%;padding:11px 32px 11px 12px;border:2px solid var(--amber-border);border-radius:var(--radius);font-size:14px;font-family:var(--font);background:var(--amber-bg);color:var(--text);-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%237a4f00' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;font-weight:500;cursor:pointer}
+  .field-destaque select:focus{outline:none;border-color:var(--amber);box-shadow:0 0 0 3px rgba(122,79,0,.12)}
+  .field-destaque .hint{font-size:11px;color:var(--amber);margin-top:5px;display:flex;align-items:center;gap:4px}
+  .btn{padding:10px 18px;border-radius:var(--radius);font-size:13px;font-weight:500;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--text);font-family:var(--font);display:inline-flex;align-items:center;gap:7px;transition:background .15s;white-space:nowrap;-webkit-tap-highlight-color:transparent}
+  .btn:hover{background:var(--surface2)}
+  .btn:active{transform:scale(.98)}
+  .btn-primary{background:var(--text);color:#fff;border-color:var(--text)}
+  .btn-primary:hover{background:#333}
+  .btn-danger{border-color:var(--red-border);color:var(--red)}
+  .btn-danger:hover{background:var(--red-bg)}
+  .btn-info{border-color:var(--blue-border);color:var(--blue)}
+  .btn-info:hover{background:var(--blue-bg)}
+  .btn-warning{border-color:var(--orange-border);color:var(--orange)}
+  .btn-warning:hover{background:var(--orange-bg)}
+  .btn-sm{padding:7px 13px;font-size:12px}
+  .btn-full{width:100%;justify-content:center;margin-top:4px}
+  .badge{display:inline-block;font-size:11px;padding:3px 9px;border-radius:20px;font-weight:500;font-family:var(--font-mono)}
+  .badge-pending{background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-border)}
+  .badge-doing{background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-border)}
+  .badge-done{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)}
+  .badge-urgente{background:var(--red-bg);color:var(--red);border:1px solid var(--red-border);font-weight:700}
+  .badge-zona{background:var(--purple-bg);color:var(--purple);border:1px solid var(--purple-border)}
+  .badge-atrasada{background:var(--orange-bg);color:var(--orange);border:1px solid var(--orange-border);font-weight:600}
+  .badge-revisao{background:var(--red-bg);color:var(--red);border:1px solid var(--red-border);font-weight:600}
+  .demand-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px;margin-bottom:10px}
+  .demand-card.urgente{border-left:4px solid #e05555;background:#fffafa}
+  .demand-card.atrasada{border-left:4px solid #d97706}
+  .demand-card.revisao{border-left:4px solid #e05555;background:#fff8f8}
+  .demand-card.urgente .demand-title::before{content:'⚡ '}
+  .evento-banner{background:var(--purple-bg);border:2px solid var(--purple);color:var(--purple);border-radius:var(--radius);padding:10px 13px;font-size:13px;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:8px;line-height:1.4}
+  .evento-banner i{font-size:16px;flex-shrink:0}
+  .demand-header{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:8px}
+  .demand-title{font-size:14px;font-weight:600;flex:1;line-height:1.4}
+  .demand-badges{display:flex;flex-direction:column;gap:4px;align-items:flex-end;flex-shrink:0}
+  .demand-meta{font-size:12px;color:var(--text2);margin-bottom:10px;line-height:1.8}
+  .demand-meta i{font-size:12px;vertical-align:-1px}
+  .maps-link{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--blue);text-decoration:none;padding:7px 11px;border:1px solid var(--blue-border);border-radius:var(--radius);margin-bottom:10px;background:var(--blue-bg);font-family:var(--font-mono);transition:background .15s;word-break:break-all;line-height:1.4}
+  .maps-link:hover{background:#d4e0f4}
+  .maps-link i{flex-shrink:0}
+  .alocar-box{background:var(--amber-bg);border:2px solid var(--amber-border);border-radius:var(--radius);padding:13px;margin-top:12px}
+  .alocar-label{font-size:12px;font-weight:600;color:var(--amber);margin-bottom:8px;display:flex;align-items:center;gap:6px}
+  .alocar-select{width:100%;padding:10px 30px 10px 12px;border:1px solid var(--amber-border);border-radius:var(--radius);font-size:14px;font-family:var(--font);background:#fff;color:var(--text);cursor:pointer;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%237a4f00' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;font-weight:500}
+  .alocar-select:focus{outline:none;border-color:var(--amber)}
+  .alocar-alocada{font-size:13px;font-weight:500;margin-top:8px;display:flex;align-items:center;gap:6px;color:var(--green)}
+  .demand-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)}
+  .btn-done{font-size:12px;padding:9px 16px;border-radius:var(--radius);cursor:pointer;border:1px solid var(--green-border);background:var(--green-bg);color:var(--green);display:inline-flex;align-items:center;gap:5px;font-family:var(--font);font-weight:500;transition:background .15s}
+  .btn-done:hover{background:#cde8d8}
+  .btn-del{font-size:12px;padding:9px 14px;border-radius:var(--radius);cursor:pointer;border:1px solid var(--red-border);background:transparent;color:var(--red);display:inline-flex;align-items:center;gap:5px;font-family:var(--font);transition:background .15s}
+  .btn-del:hover{background:var(--red-bg)}
+  .btn-nao-encontrado{font-size:12px;padding:9px 14px;border-radius:var(--radius);cursor:pointer;border:1px solid var(--orange-border);background:transparent;color:var(--orange);display:inline-flex;align-items:center;gap:5px;font-family:var(--font);transition:background .15s}
+  .btn-nao-encontrado:hover{background:var(--orange-bg)}
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px}
+  .stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px 8px;text-align:center}
+  .stat-num{font-size:22px;font-weight:600;font-family:var(--font-mono)}
+  .stat-label{font-size:11px;color:var(--text3);margin-top:2px}
+  .filter-row{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+  .filter-row select{font-size:12px;padding:8px 28px 8px 10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);color:var(--text);font-family:var(--font);cursor:pointer;flex:1;min-width:120px;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b6860' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center}
+  .photo-preview{max-width:100%;max-height:180px;border-radius:var(--radius);margin-top:8px;display:block;object-fit:cover;border:1px solid var(--border);cursor:zoom-in;transition:opacity .15s}
+  .photo-preview:hover{opacity:.88}
+  .lightbox{position:fixed;inset:0;background:rgba(0,0,0,.92);display:flex;align-items:center;justify-content:center;z-index:500;padding:16px;cursor:zoom-out;animation:fadeIn .15s ease}
+  .lightbox img{max-width:100%;max-height:92vh;border-radius:var(--radius);object-fit:contain;box-shadow:0 8px 40px rgba(0,0,0,.6)}
+  .lightbox-close{position:fixed;top:16px;right:16px;background:rgba(255,255,255,.15);border:none;color:#fff;width:40px;height:40px;border-radius:50%;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s}
+  .lightbox-close:hover{background:rgba(255,255,255,.28)}
+  .msg{padding:10px 14px;border-radius:var(--radius);font-size:13px;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+  .msg-success{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)}
+  .msg-danger{background:var(--red-bg);color:var(--red);border:1px solid var(--red-border)}
+  .hist-row{padding:14px 0;border-bottom:1px solid var(--border)}
+  .hist-row:last-child{border-bottom:none}
+  .tag-equipe{display:inline-flex;align-items:center;gap:4px;font-size:11px;padding:2px 8px;border-radius:20px;background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-border);font-family:var(--font-mono)}
+  .tag-zona{display:inline-flex;align-items:center;gap:4px;font-size:11px;padding:2px 8px;border-radius:20px;background:var(--purple-bg);color:var(--purple);border:1px solid var(--purple-border);font-family:var(--font-mono)}
+  .empty{text-align:center;padding:40px 20px;color:var(--text3);font-size:14px}
+  .empty i{font-size:32px;display:block;margin-bottom:10px}
+  .rel-content{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:12px;font-size:12px;line-height:1.8;max-height:300px;overflow-y:auto;font-family:var(--font-mono)}
+  .realtime-badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--green);font-family:var(--font-mono);margin-bottom:14px}
+  .realtime-dot{width:7px;height:7px;background:var(--green);border-radius:50%;animation:pulse 1.5s infinite}
+  .alerta-topo{border-radius:var(--radius);padding:10px 14px;font-size:13px;font-weight:600;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+  .alerta-urgente{background:var(--red-bg);border:1px solid var(--red-border);color:var(--red)}
+  .alerta-atrasada{background:var(--orange-bg);border:1px solid var(--orange-border);color:var(--orange)}
+  .alerta-revisao{background:#fff0f0;border:1px solid var(--red-border);color:var(--red)}
+  .revisao-box{background:#fff8f8;border:2px solid var(--red-border);border-radius:var(--radius);padding:13px;margin-top:12px}
+  .revisao-label{font-size:12px;font-weight:600;color:var(--red);margin-bottom:8px;display:flex;align-items:center;gap:6px}
+  .dash-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
+  .dash-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px}
+  .dash-card h4{font-size:13px;font-weight:600;color:var(--text2);margin-bottom:12px;display:flex;align-items:center;gap:6px}
+  .dash-card canvas{width:100%!important}
+  .dash-card-full{grid-column:1/-1}
+  .mes-selector{display:flex;align-items:center;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+  .mes-selector select{font-size:13px;padding:7px 28px 7px 10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);color:var(--text);font-family:var(--font);cursor:pointer;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b6860' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center}
+  .mes-selector label{font-size:13px;color:var(--text2);font-weight:500}
+  .dash-stat-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+  .dash-stat{background:var(--bg);border-radius:var(--radius);padding:10px;text-align:center}
+  .dash-stat-num{font-size:20px;font-weight:600;font-family:var(--font-mono)}
+  .dash-stat-label{font-size:11px;color:var(--text3);margin-top:2px}
+  .sem-dados{text-align:center;padding:30px;color:var(--text3);font-size:13px}
+  .historico-meses{display:flex;flex-direction:column;gap:6px}
+  .mes-row{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--bg);border-radius:var(--radius);font-size:13px}
+  .mes-row-nome{font-weight:500}
+  .mes-row-num{font-family:var(--font-mono);font-weight:600;color:var(--green)}
+  .mes-filter-box{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:16px}
+  .mes-filter-box label{font-size:12px;font-weight:600;color:var(--text2);margin-bottom:8px;display:flex;align-items:center;gap:5px}
+  .mes-filter-box select{width:100%;padding:9px 30px 9px 12px;border:1px solid var(--border);border-radius:var(--radius);font-size:14px;font-family:var(--font);background:var(--surface);color:var(--text);-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b6860' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;cursor:pointer}
+  @media(max-width:500px){.perfil-grid{grid-template-columns:1fr 1fr}.equipe-grid{grid-template-columns:1fr 1fr}.stats{grid-template-columns:repeat(2,1fr)}.dash-grid{grid-template-columns:1fr}.dash-card-full{grid-column:1}.demand-header{flex-direction:column;gap:6px}.demand-badges{flex-direction:row}.brand-text{font-size:12px}#header-user-label{display:none}.btn-done,.btn-del,.btn-nao-encontrado{flex:1;justify-content:center}.card{padding:14px}}
+  /* ── Serviços de Área ── */
+  .tipo-selector{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px}
+  .tipo-btn{background:var(--surface);border:2px solid var(--border);border-radius:var(--radius-lg);padding:14px;cursor:pointer;text-align:center;transition:border-color .15s,background .15s;font-family:var(--font)}
+  .tipo-btn:hover{border-color:var(--border2)}
+  .tipo-btn.selected{border-color:var(--text);background:var(--surface2)}
+  .tipo-btn i{font-size:22px;display:block;margin-bottom:6px;color:var(--text2)}
+  .tipo-btn.selected i{color:var(--text)}
+  .tipo-btn span{font-size:13px;font-weight:600;display:block}
+  .tipo-btn small{font-size:11px;color:var(--text3)}
+  .autocomplete-wrap{position:relative}
+  .autocomplete-list{position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--border);border-radius:var(--radius);z-index:100;max-height:200px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,.1);margin-top:2px}
+  .autocomplete-item{padding:10px 12px;font-size:14px;cursor:pointer;border-bottom:1px solid var(--border);transition:background .1s}
+  .autocomplete-item:last-child{border-bottom:none}
+  .autocomplete-item:hover,.autocomplete-item.active{background:var(--surface2)}
+  .area-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px;margin-bottom:10px}
+  .area-card.em-andamento{border-left:4px solid var(--blue)}
+  .area-card.concluido{border-left:4px solid var(--green);opacity:.85}
+  .area-card.aguardando{border-left:4px solid var(--amber)}
+  .area-header{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:8px}
+  .area-tipo-tag{display:inline-flex;align-items:center;gap:4px;font-size:11px;padding:2px 8px;border-radius:20px;font-family:var(--font-mono);font-weight:600}
+  .area-tipo-bairro{background:var(--purple-bg);color:var(--purple);border:1px solid var(--purple-border)}
+  .area-tipo-avenida{background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-border)}
+  .area-tipo-acao{background:var(--orange-bg);color:var(--orange);border:1px solid var(--orange-border)}
+  .area-progress{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin-top:10px}
+  .area-progress label{font-size:12px;font-weight:600;color:var(--text2);margin-bottom:6px;display:block}
+  .progress-bar-wrap{height:8px;background:var(--border);border-radius:4px;overflow:hidden;margin-bottom:8px}
+  .progress-bar{height:100%;background:var(--green);border-radius:4px;transition:width .3s}
+  .area-datas{display:flex;gap:8px;flex-wrap:wrap}
+  .area-datas .field{flex:1;min-width:120px;margin-bottom:0}
+  .area-sec-tabs{display:flex;gap:4px;margin-bottom:14px}
+  .area-sec-tab{padding:7px 14px;font-size:13px;cursor:pointer;border:1px solid var(--border);background:var(--surface);border-radius:var(--radius);font-family:var(--font);color:var(--text2);transition:all .15s}
+  .area-sec-tab.active{background:var(--text);color:#fff;border-color:var(--text)}
+  .resumo-anual{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px}
+  .resumo-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px;text-align:center}
+  .resumo-num{font-size:24px;font-weight:600;font-family:var(--font-mono)}
+  .resumo-label{font-size:11px;color:var(--text3);margin-top:2px}
+  /* ── Clima ── */
+  .clima-card{margin-top:18px;border-radius:var(--radius-lg);border:1px solid var(--border);background:var(--surface);padding:14px 16px;animation:fadeIn .3s}
+  .clima-card.alerta{border-color:#e05555;background:#fff5f5}
+  .clima-card.atencao{border-color:var(--amber);background:#fffbf0}
+  .clima-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+  .clima-titulo{font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.6px}
+  .clima-atualizado{font-size:10px;color:var(--text3)}
+  .clima-principal{display:flex;align-items:center;gap:14px;margin-bottom:10px}
+  .clima-emoji{font-size:36px;line-height:1}
+  .clima-temp{font-size:32px;font-weight:700;font-family:var(--font-mono);color:var(--text)}
+  .clima-desc{font-size:13px;color:var(--text2);margin-top:2px}
+  .clima-max-min{font-size:11px;color:var(--text3)}
+  .clima-detalhes{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+  .clima-detalhe{background:var(--bg);border-radius:var(--radius);padding:8px;text-align:center}
+  .clima-detalhe-val{font-size:14px;font-weight:600;font-family:var(--font-mono)}
+  .clima-detalhe-label{font-size:10px;color:var(--text3);margin-top:2px}
+  .clima-alerta-banner{display:flex;align-items:center;gap:8px;background:#fef2f2;border:1px solid #fca5a5;border-radius:var(--radius);padding:10px 12px;margin-bottom:10px;font-size:13px;font-weight:600;color:#b91c1c}
+  .clima-loading{text-align:center;padding:16px;color:var(--text3);font-size:13px}
+  .hist-end-box{background:var(--blue-bg);border:1px solid var(--blue-border);border-radius:var(--radius);padding:11px 13px;margin-top:8px;font-size:12px}
+  .hist-end-titulo{font-size:11px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.06em;margin-bottom:7px;display:flex;align-items:center;gap:5px}
+  .hist-end-item{padding:5px 0;border-bottom:1px solid var(--blue-border);line-height:1.6}
+  .hist-end-item:last-child{border-bottom:none;padding-bottom:0}
+  /* ── Calendário de eventos ── */
+  .btn-calendario-inicial{width:100%;justify-content:center;gap:8px;margin:16px 0;background:var(--purple-bg);border:1.5px solid var(--purple-border);color:var(--purple);font-weight:600;font-size:14px;padding:13px}
+  .btn-calendario-inicial:hover{background:#e5d8f5}
+  .calendario-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+  .calendario-mes-label{font-size:15px;font-weight:600;text-transform:capitalize}
+  .calendario-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+  .calendario-dow{font-size:10px;font-weight:600;color:var(--text3);text-align:center;padding:4px 0;text-transform:uppercase}
+  .calendario-dia{aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:var(--radius);cursor:pointer;font-size:13px;border:1px solid transparent;background:var(--bg);transition:border-color .15s}
+  .calendario-dia:hover{border-color:var(--border2)}
+  .calendario-dia.vazio{visibility:hidden;cursor:default}
+  .calendario-dia.tem-evento{background:var(--purple-bg);color:var(--purple);font-weight:700}
+  .calendario-dia.selecionado{outline:2px solid var(--purple);outline-offset:1px}
+  .calendario-dia.hoje{border-color:var(--text2);font-weight:700}
+  .calendario-dia .ponto{width:5px;height:5px;border-radius:50%;background:var(--purple);margin-top:1px}
+  .calendario-detalhe{margin-top:16px;border-top:1px solid var(--border);padding-top:14px}
+  @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+  @keyframes slideUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+  ::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+</style>
+</head>
+<body>
 
-import { mkdir, writeFile } from 'node:fs/promises';
+<div class="header">
+  <div class="header-brand">
+    <div class="header-logo"><img id="brasao-header-img" alt="Brasão de Ribeirão Preto"></div>
+    <div><div class="brand-text">Secretaria da Infraestrutura</div><div class="brand-sub">Ribeirão Preto – SP</div></div>
+  </div>
+  <div class="header-right" id="header-right" style="display:none">
+    <span id="header-user-label"></span>
+    <button class="btn-header" id="btn-voltar-header"><i class="ti ti-chevron-left"></i> Voltar</button>
+  </div>
+</div>
 
-const PROJECT = 'demandas-limp-rp';
-// Mesma chave pública que já está no index.html do site.
-const API_KEY = process.env.FIREBASE_API_KEY || 'AIzaSyAOeJwqEKzVQNtKdQgFmgo7F4w1Xl2gno8';
-const COLECOES = [
-  'demandas',
-  'demandas_concluidas_resumo',
-  'demandas_arquivo', // arquivo permanente (sem fotos) — nunca é apagado junto com os meses
-  'estatisticas_mensais',
-  'servicos_area',
-];
-const BASE = `https://firestore.googleapis.com/v1/projects/${PROJECT}/databases/(default)/documents`;
-const PAGE_SIZE = 50; // páginas pequenas: as demandas têm fotos em base64
+<div class="main">
+  <div id="tela-perfil">
+    <p class="perfil-title">Gestão de limpeza urbana</p>
+    <p class="perfil-sub">Selecione seu perfil para acessar o sistema.</p>
+    <p class="perfil-section-label">Secretaria / Relatório</p>
+    <div class="perfil-grid">
+      <button class="perfil-btn" id="btn-secretaria"><i class="ti ti-building picon"></i><div class="pname">Secretaria</div><div class="pdesc">Registrar e alocar demandas por equipe</div></button>
+      <button class="perfil-btn" id="btn-fiscal"><i class="ti ti-eye picon"></i><div class="pname">Relatório</div><div class="pdesc">Painel completo, dashboard e relatórios</div></button>
+    </div>
+    <p class="perfil-section-label">Encarregado de equipe</p>
+    <div class="equipe-grid">
+      <button class="perfil-btn equipe-btn" data-equipe="1"><i class="ti ti-users"></i> Equipe 1</button>
+      <button class="perfil-btn equipe-btn" data-equipe="2"><i class="ti ti-users"></i> Equipe 2</button>
+      <button class="perfil-btn equipe-btn" data-equipe="3"><i class="ti ti-users"></i> Equipe 3</button>
+      <button class="perfil-btn equipe-btn" data-equipe="4"><i class="ti ti-users"></i> Equipe 4</button>
+      <button class="perfil-btn equipe-btn" data-equipe="5"><i class="ti ti-users"></i> Equipe 5</button>
+      <button class="perfil-btn equipe-btn" data-equipe="6"><i class="ti ti-bulldozer"></i> Equipe 6 (Retroescavadeira)</button>
+      <button class="perfil-btn equipe-btn" data-equipe="esal"><i class="ti ti-truck"></i> Demandas ESAL</button>
+    </div>
+    <button class="btn btn-calendario-inicial" id="btn-calendario-inicial"><i class="ti ti-calendar"></i> Calendário de eventos e ações</button>
+    <!-- Card de Clima -->
+    <div id="clima-card" class="clima-card">
+      <div class="clima-loading"><i class="ti ti-cloud"></i> Carregando previsão do tempo…</div>
+    </div>
+  </div>
 
-async function baixarColecao(nome) {
-  const docs = [];
-  let pageToken = '';
-  do {
-    const url = `${BASE}/${nome}?pageSize=${PAGE_SIZE}&key=${API_KEY}` +
-      (pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : '');
-    let res, tentativa = 0;
-    while (true) {
-      tentativa++;
-      res = await fetch(url);
-      if (res.ok) break;
-      const corpo = await res.text();
-      if (tentativa >= 3) throw new Error(`Falha ao ler "${nome}" (HTTP ${res.status}): ${corpo.slice(0, 300)}`);
-      console.warn(`  "${nome}": HTTP ${res.status}, tentando de novo em 5s…`);
-      await new Promise(r => setTimeout(r, 5000));
+  <div id="tela-app">
+    <button class="btn-voltar" id="btn-voltar-app"><i class="ti ti-arrow-left"></i> Voltar à seleção de perfil</button>
+    <div class="tabs" id="tabs-container"></div>
+    <div id="msg-global" style="display:none" class="msg"></div>
+
+    <div id="sec-servicos" class="section">
+      <!-- Conteúdo renderizado por JS dependendo do perfil -->
+      <div id="servicos-conteudo"></div>
+    </div>
+
+    <div id="sec-nova" class="section">
+      <div class="card">
+        <p class="section-title">Registrar nova demanda</p>
+        <div class="field"><label>Quem está solicitando</label><input id="solicitante" type="text" placeholder="Nome e setor" autocomplete="off"></div>
+        <div class="field"><label>Endereço completo</label><input id="endereco" type="text" placeholder="Ex: Rua das Flores, 120 – Jardim Paulista"></div>
+        <div id="hist-end-nova" style="display:none"></div>
+        <div class="field"><label>Descrição do serviço</label><textarea id="descricao" placeholder="Descreva o que precisa ser feito…"></textarea></div>
+        <div class="field"><label>Prioridade</label><select id="prioridade"><option value="normal">Normal</option><option value="urgente">⚡ Urgente</option></select></div>
+        <div class="divider"></div>
+        <div class="field-destaque"><label><i class="ti ti-map"></i> Zona da cidade</label><select id="zona-nova"><option value="">— Selecione a zona —</option><option value="Zona Norte">Zona Norte</option><option value="Zona Sul">Zona Sul</option><option value="Zona Leste">Zona Leste</option><option value="Zona Oeste">Zona Oeste</option><option value="Centro">Centro</option></select><div class="hint"><i class="ti ti-info-circle"></i> Região onde o serviço será executado</div></div>
+        <div class="field-destaque"><label><i class="ti ti-users"></i> Equipe responsável</label><select id="equipe-nova"><option value="">— Selecione a equipe —</option><option value="Equipe 1">Equipe 1</option><option value="Equipe 2">Equipe 2</option><option value="Equipe 3">Equipe 3</option><option value="Equipe 4">Equipe 4</option><option value="Equipe 5">Equipe 5</option><option value="Equipe 6 (Retroescavadeira)">Equipe 6 (Retroescavadeira)</option><option value="Demandas ESAL">Demandas ESAL</option></select><div class="hint"><i class="ti ti-info-circle"></i> Equipe que vai executar o serviço</div></div>
+        <div class="field"><label>Foto do local (opcional)</label><input type="file" id="foto" accept="image/*"><img id="foto-preview" style="display:none" class="photo-preview" alt="Prévia"></div>
+        <div class="divider"></div>
+        <div class="field">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:500;color:var(--text)">
+            <input type="checkbox" id="marcar-data-nova" style="width:18px;height:18px;flex-shrink:0;cursor:pointer;-webkit-appearance:checkbox;appearance:auto;accent-color:var(--text)">
+            <span><i class="ti ti-calendar-event"></i> Marcar data do evento</span>
+          </label>
+          <div class="hint" style="margin-top:4px"><i class="ti ti-info-circle"></i> Envia um aviso automático no Telegram 1 dia antes da data marcada</div>
+        </div>
+        <div class="field" id="campo-data-evento-nova" style="display:none">
+          <label>Data do evento</label>
+          <input type="date" id="data-evento-nova">
+        </div>
+        <button class="btn btn-primary btn-full" id="btn-enviar-demanda"><i class="ti ti-send"></i> Enviar demanda</button>
+      </div>
+    </div>
+
+    <div id="sec-localizacao" class="section">
+      <div id="localizacao-conteudo"></div>
+    </div>
+
+    <div id="sec-gerenciar" class="section">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+        <p class="section-title" style="margin:0">Gerenciar demandas abertas</p>
+        <button class="btn btn-danger btn-sm" id="btn-apagar-concluidas"><i class="ti ti-trash"></i> Apagar concluídas</button>
+      </div>
+      <div id="lista-gerenciar"></div>
+    </div>
+
+    <div id="sec-revisao" class="section">
+      <p class="section-title">⚠️ Endereços para revisão</p>
+      <div id="lista-revisao"></div>
+    </div>
+
+    <div id="sec-painel" class="section">
+      <div class="stats" id="stats-box"></div>
+      <div class="filter-row">
+        <select id="filtro-status"><option value="">Todos os status</option><option value="pendente">Pendente</option><option value="em andamento">Em andamento</option><option value="concluído">Concluído</option></select>
+        <select id="filtro-equipe-painel"><option value="">Todas as equipes</option><option value="Equipe 1">Equipe 1</option><option value="Equipe 2">Equipe 2</option><option value="Equipe 3">Equipe 3</option><option value="Equipe 4">Equipe 4</option><option value="Equipe 5">Equipe 5</option><option value="Equipe 6 (Retroescavadeira)">Equipe 6</option><option value="Demandas ESAL">Demandas ESAL</option></select>
+        <select id="filtro-zona-painel"><option value="">Todas as zonas</option><option value="Zona Norte">Zona Norte</option><option value="Zona Sul">Zona Sul</option><option value="Zona Leste">Zona Leste</option><option value="Zona Oeste">Zona Oeste</option><option value="Centro">Centro</option></select>
+      </div>
+      <div id="lista-painel"></div>
+    </div>
+
+    <div id="sec-dashboard" class="section">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+        <p class="section-title" style="margin:0">Dashboard — Histórico mensal</p>
+        <button class="btn btn-primary btn-sm" id="btn-abrir-relatorio-executivo"><i class="ti ti-file-analytics"></i> Relatório Executivo</button>
+      </div>
+      <div class="mes-selector"><label><i class="ti ti-calendar"></i> Visualizar mês:</label><select id="sel-mes-dash"></select></div>
+      <div id="dash-conteudo"></div>
+    </div>
+
+    <div id="sec-historico" class="section">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+        <p class="section-title" style="margin:0">Demandas concluídas</p>
+        <button class="btn btn-info btn-sm" id="btn-gerar-relatorio"><i class="ti ti-file-type-pdf"></i> Gerar PDF</button>
+      </div>
+      <div class="mes-filter-box"><label><i class="ti ti-calendar"></i> Filtrar por mês</label><select id="filtro-mes-historico"><option value="">Todos os meses</option></select></div>
+      <div id="lista-historico"></div>
+    </div>
+
+    <div id="sec-equipe" class="section">
+      <div class="filter-row" style="align-items:center">
+        <select id="filtro-zona-equipe"><option value="">Todas as zonas</option><option value="Zona Norte">Zona Norte</option><option value="Zona Sul">Zona Sul</option><option value="Zona Leste">Zona Leste</option><option value="Zona Oeste">Zona Oeste</option><option value="Centro">Centro</option></select>
+        <div id="contador-equipe" style="flex-shrink:0;font-size:13px;font-weight:600;font-family:var(--font-mono);background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:7px 14px;white-space:nowrap;color:var(--text2)"></div>
+      </div>
+      <div id="lista-equipe"></div>
+    </div>
+
+    <div id="sec-mapa" class="section">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+        <p style="font-size:13px;color:var(--text2);margin:0">
+          <span style="display:inline-flex;align-items:center;gap:5px;margin-right:12px"><span style="width:12px;height:12px;background:#e05555;border-radius:50%;display:inline-block"></span> Urgente</span>
+          <span style="display:inline-flex;align-items:center;gap:5px;margin-right:12px"><span style="width:12px;height:12px;background:#1a3f7a;border-radius:50%;display:inline-block"></span> Normal</span>
+          <span style="display:inline-flex;align-items:center;gap:5px"><span style="width:12px;height:12px;background:#16a34a;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 2px #16a34a;display:inline-block"></span> Você</span>
+        </p>
+        <button id="btn-minha-localizacao" class="btn btn-sm" style="border-color:var(--green-border);color:var(--green);background:var(--green-bg)"><i class="ti ti-navigation"></i> Minha localização</button>
+      </div>
+      <div id="mapa-container" style="height:480px;border-radius:var(--radius-lg);overflow:hidden;border:1px solid var(--border)"></div>
+      <p style="font-size:12px;color:var(--text3);margin-top:8px;text-align:center">Clique em um ponto para ver os detalhes da demanda</p>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL ENDEREÇO DUPLICADO -->
+<div id="modal-duplicado" class="modal-wrap" style="display:none">
+  <div class="modal" style="max-width:480px">
+    <div style="font-size:40px;margin-bottom:12px;text-align:center">⚠️</div>
+    <h3 style="font-size:17px;font-weight:700;color:var(--amber);justify-content:center;margin-bottom:10px">Endereço similar encontrado!</h3>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:12px">Encontramos demandas recentes em endereços próximos a este:</p>
+    <div id="duplicado-lista" style="background:var(--amber-bg);border:1px solid var(--amber-border);border-radius:var(--radius);padding:12px;margin-bottom:14px;font-size:13px;line-height:1.8"></div>
+    <div class="modal-actions">
+      <button class="btn" id="btn-cancelar-duplicado"><i class="ti ti-x"></i> Cancelar</button>
+      <button class="btn btn-primary" id="btn-confirmar-duplicado"><i class="ti ti-send"></i> Cadastrar mesmo assim</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL SENHA -->
+<div id="modal-senha" class="modal-wrap" style="display:none">
+  <div class="modal">
+    <h3><i class="ti ti-lock" style="color:var(--amber)"></i> Acesso restrito – Secretaria</h3>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:16px">Esta área é exclusiva para servidores autorizados.</p>
+    <div class="field"><label>Senha de acesso</label><input type="password" id="input-senha" placeholder="••••••••"></div>
+    <div class="modal-erro" id="msg-senha-erro"><i class="ti ti-alert-circle"></i> Senha incorreta.</div>
+    <div class="modal-actions">
+      <button class="btn" id="btn-cancelar-senha">Cancelar</button>
+      <button class="btn btn-primary" id="btn-confirmar-senha"><i class="ti ti-login"></i> Entrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL SENHA – EDITAR FOTOS DE DEMANDA CONCLUÍDA -->
+<div id="modal-senha-corrigir" class="modal-wrap" style="display:none">
+  <div class="modal">
+    <h3><i class="ti ti-lock" style="color:var(--amber)"></i> Confirmar edição de fotos</h3>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:16px">Editar fotos de uma demanda já concluída exige senha de confirmação.</p>
+    <div class="field"><label>Senha</label><input type="password" id="input-senha-corrigir" placeholder="••••••••"></div>
+    <div class="modal-erro" id="msg-senha-corrigir-erro"><i class="ti ti-alert-circle"></i> Senha incorreta.</div>
+    <div class="modal-actions">
+      <button class="btn" id="btn-cancelar-senha-corrigir">Cancelar</button>
+      <button class="btn btn-primary" id="btn-confirmar-senha-corrigir"><i class="ti ti-login"></i> Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CHECK -->
+<div id="modal-check" class="modal-wrap" style="display:none">
+  <div class="modal" style="max-height:92vh;overflow-y:auto">
+    <h3><i class="ti ti-circle-check" style="color:var(--green)"></i> Confirmar conclusão</h3>
+    <div class="field"><label>Data de conclusão</label><input type="date" id="check-data"></div>
+    <div class="field"><label>Foto do serviço concluído (obrigatória)</label><input type="file" id="check-foto" accept="image/*"><img id="check-foto-prev" style="display:none" class="photo-preview" alt="Foto conclusão"></div>
+    <div class="field"><label>Observação (opcional)</label><textarea id="check-observacao" placeholder="Ex: Local precisa de atenção adicional…" style="min-height:80px"></textarea></div>
+    <div class="modal-actions">
+      <button class="btn" id="btn-cancelar-check">Cancelar</button>
+      <button class="btn btn-primary" id="btn-confirmar-check"><i class="ti ti-check"></i> Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL EDITAR FOTOS DE DEMANDA CONCLUÍDA -->
+<div id="modal-editar-fotos" class="modal-wrap" style="display:none">
+  <div class="modal" style="max-height:92vh;overflow-y:auto">
+    <h3><i class="ti ti-photo-edit" style="color:var(--blue)"></i> Editar foto de conclusão</h3>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:16px">Escolha a nova foto que comprova a conclusão do serviço.</p>
+    <div class="field">
+      <label>Foto do depois (conclusão) — atual</label>
+      <img id="editar-fotos-depois-atual" style="display:none" class="photo-preview" alt="Depois atual">
+    </div>
+    <div class="field">
+      <label>Nova foto</label>
+      <input type="file" id="editar-fotos-depois-novo" accept="image/*">
+      <img id="editar-fotos-depois-novo-prev" style="display:none" class="photo-preview" alt="Depois novo">
+    </div>
+    <div class="modal-actions">
+      <button class="btn" id="btn-cancelar-editar-fotos">Cancelar</button>
+      <button class="btn btn-primary" id="btn-salvar-editar-fotos"><i class="ti ti-check"></i> Salvar alterações</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CALENDÁRIO DE EVENTOS -->
+<div id="modal-calendario" class="modal-wrap" style="display:none">
+  <div class="modal modal-lg" style="max-width:460px">
+    <h3><i class="ti ti-calendar" style="color:var(--purple)"></i> Calendário de eventos e ações</h3>
+    <div class="calendario-nav">
+      <button class="btn btn-sm" id="btn-cal-mes-anterior"><i class="ti ti-chevron-left"></i></button>
+      <span class="calendario-mes-label" id="calendario-mes-label"></span>
+      <button class="btn btn-sm" id="btn-cal-mes-proximo"><i class="ti ti-chevron-right"></i></button>
+    </div>
+    <div class="calendario-grid" id="calendario-grid"></div>
+    <div id="calendario-detalhe" class="calendario-detalhe"></div>
+    <div class="modal-actions">
+      <button class="btn" id="btn-fechar-calendario">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL NÃO ENCONTRADO -->
+<div id="modal-nao-encontrado" class="modal-wrap" style="display:none">
+  <div class="modal" style="max-width:460px;text-align:center">
+    <div style="font-size:44px;margin-bottom:12px">📍</div>
+    <h3 style="font-size:18px;font-weight:700;color:var(--orange);justify-content:center;margin-bottom:10px">Local não encontrado?</h3>
+    <p style="font-size:14px;color:var(--text);line-height:1.6;margin-bottom:20px">A demanda será <strong>devolvida para a Secretaria</strong> revisar o endereço e reenviar.</p>
+    <div class="modal-actions" style="justify-content:center;gap:12px">
+      <button class="btn" id="btn-cancelar-nao-encontrado"><i class="ti ti-x"></i> Cancelar</button>
+      <button class="btn btn-warning" id="btn-confirmar-nao-encontrado" style="font-weight:600"><i class="ti ti-map-pin-off"></i> Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL REVISÃO -->
+<div id="modal-revisao" class="modal-wrap" style="display:none">
+  <div class="modal" style="max-width:480px;max-height:92vh;overflow-y:auto;-webkit-overflow-scrolling:touch">
+    <h3><i class="ti ti-map-pin-off" style="color:var(--red)"></i> Corrigir demanda</h3>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:16px">Corrija os dados necessários e reenvie para a mesma equipe.</p>
+    <div class="field"><label>Quem está solicitando</label><input type="text" id="revisao-solicitante" placeholder="Nome e setor" autocomplete="off" style="background:#fff"></div>
+    <div class="field"><label>Endereço correto</label><input type="text" id="revisao-endereco" placeholder="Digite o endereço correto" autocomplete="off" style="background:#fff"></div>
+    <div class="field"><label>Descrição do serviço</label><textarea id="revisao-descricao" style="min-height:70px;background:#fff"></textarea></div>
+    <div class="field"><label>Nova foto do local (opcional)</label><input type="file" id="revisao-foto" accept="image/*"><img id="revisao-foto-prev" style="display:none" class="photo-preview" alt="Nova foto"></div>
+    <div class="modal-actions">
+      <button class="btn" id="btn-cancelar-revisao">Cancelar</button>
+      <button class="btn btn-danger btn-sm" id="btn-apagar-revisao"><i class="ti ti-trash"></i> Apagar</button>
+      <button class="btn btn-primary" id="btn-reenviar-revisao"><i class="ti ti-send"></i> Corrigir e reenviar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CONFIRMAR APAGAR -->
+<div id="modal-confirmar-apagar" class="modal-wrap" style="display:none">
+  <div class="modal" style="max-width:460px;text-align:center">
+    <div style="font-size:48px;margin-bottom:16px">⚠️</div>
+    <h3 style="font-size:20px;font-weight:700;color:var(--red);justify-content:center;margin-bottom:12px">ATENÇÃO!</h3>
+    <p style="font-size:16px;font-weight:600;color:var(--text);line-height:1.5;margin-bottom:10px">Você está prestes a apagar permanentemente demandas concluídas.</p>
+    <p style="font-size:14px;color:var(--text2);line-height:1.6;margin-bottom:10px">Esta ação <strong>não pode ser desfeita</strong>.</p>
+    <div class="mes-filter-box" style="text-align:left;margin-bottom:14px"><label><i class="ti ti-calendar"></i> Selecione o mês a apagar</label><select id="filtro-mes-apagar"><option value="">Todos os meses</option></select></div>
+    <div style="background:var(--red-bg);border:1px solid var(--red-border);border-radius:var(--radius);padding:12px;margin-bottom:20px"><p style="font-size:13px;font-weight:700;color:var(--red)">💡 Gere o PDF antes!<br><span style="font-weight:400">O resumo mensal vai para o Dashboard e os dados (sem fotos) ficam guardados no arquivo.</span></p></div>
+    <div class="modal-actions" style="justify-content:center;gap:12px">
+      <button class="btn" id="btn-cancelar-apagar"><i class="ti ti-x"></i> Cancelar</button>
+      <button class="btn btn-danger" id="btn-executar-apagar" style="font-size:14px;font-weight:600"><i class="ti ti-trash"></i> Sim, apagar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL RELATÓRIO EXECUTIVO -->
+<div id="modal-relatorio-executivo" class="modal-wrap" style="display:none">
+  <div class="modal modal-lg">
+    <h3><i class="ti ti-chart-line" style="color:var(--green)"></i> Relatório Executivo</h3>
+    <div class="rel-content" id="rel-executivo-conteudo"></div>
+    <div class="modal-actions">
+      <button class="btn" id="btn-fechar-relatorio-executivo">Fechar</button>
+      <button class="btn btn-primary" id="btn-baixar-pdf-executivo"><i class="ti ti-download"></i> Baixar PDF</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL RELATÓRIO -->
+<div id="modal-relatorio" class="modal-wrap" style="display:none">
+  <div class="modal modal-lg">
+    <h3><i class="ti ti-file-type-pdf" style="color:var(--red)"></i> Relatório — Demandas concluídas</h3>
+    <div class="rel-content" id="rel-conteudo"></div>
+    <div class="modal-actions">
+      <button class="btn" id="btn-fechar-relatorio">Fechar</button>
+      <button class="btn btn-primary" id="btn-baixar-pdf"><i class="ti ti-download"></i> Baixar PDF</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL RELATÓRIO SERVIÇOS -->
+<div id="modal-relatorio-servicos" class="modal-wrap" style="display:none">
+  <div class="modal modal-lg">
+    <h3><i class="ti ti-file-type-pdf" style="color:var(--blue)"></i> Relatório — Serviços de Área</h3>
+    <div class="rel-content" id="rel-servicos-conteudo"></div>
+    <div class="modal-actions">
+      <button class="btn" id="btn-fechar-relatorio-servicos">Fechar</button>
+      <button class="btn btn-primary" id="btn-baixar-pdf-servicos"><i class="ti ti-download"></i> Baixar PDF</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL NOVO SERVIÇO DE ÁREA -->
+<div id="modal-novo-servico" class="modal-wrap" style="display:none">
+  <div class="modal" style="max-width:500px;max-height:92vh;overflow-y:auto">
+    <h3><i class="ti ti-map-2" style="color:var(--blue)"></i> Novo Serviço de Área</h3>
+    <div class="field">
+      <label>Tipo de serviço</label>
+      <div class="tipo-selector">
+        <button class="tipo-btn selected" data-tipo="bairro" id="tipo-btn-bairro">
+          <i class="ti ti-building-community"></i>
+          <span>Limpeza de Bairro</span>
+          <small>Nome do bairro com autocomplete</small>
+        </button>
+        <button class="tipo-btn" data-tipo="avenida" id="tipo-btn-avenida">
+          <i class="ti ti-road"></i>
+          <span>Avenida / Rua</span>
+          <small>Texto livre</small>
+        </button>
+        <button class="tipo-btn" data-tipo="acao" id="tipo-btn-acao" style="grid-column:1/-1">
+          <i class="ti ti-star"></i>
+          <span>Ação Especial da Prefeitura</span>
+          <small>Ex: mutirão, evento, operação</small>
+        </button>
+      </div>
+    </div>
+    <div class="field" id="field-bairro">
+      <label>Nome do bairro</label>
+      <div class="autocomplete-wrap">
+        <input type="text" id="servico-local-bairro" placeholder="Digite para buscar o bairro…" autocomplete="off">
+        <div class="autocomplete-list" id="autocomplete-lista" style="display:none"></div>
+      </div>
+    </div>
+    <div class="field" id="field-avenida" style="display:none">
+      <label>Nome da avenida / rua</label>
+      <input type="text" id="servico-local-avenida" placeholder="Ex: Av. Presidente Vargas" autocomplete="off">
+      <div class="field-destaque" style="margin-top:12px">
+        <label><i class="ti ti-ruler-2"></i> Extensão do serviço</label>
+        <select id="servico-avenida-extensao">
+          <option value="inteira">Avenida / rua inteira</option>
+          <option value="trecho">Apenas um trecho</option>
+        </select>
+      </div>
+      <div class="field" id="field-avenida-trecho" style="display:none;margin-top:10px">
+        <label>Qual trecho?</label>
+        <input type="text" id="servico-avenida-trecho-desc" placeholder="Ex: entre a Rua A e a Rua B / nº 100 a 500" autocomplete="off">
+      </div>
+    </div>
+    <div class="field" id="field-acao" style="display:none">
+      <label>Descrição da ação</label>
+      <input type="text" id="servico-local-acao" placeholder="Ex: Mutirão Cidade Limpa – Parque Curupira" autocomplete="off">
+      <div class="field" style="margin-top:12px">
+        <label>Endereço</label>
+        <input type="text" id="servico-acao-endereco" placeholder="Ex: Rua das Flores, 120 – Jardim Paulista" autocomplete="off">
+      </div>
+      <div class="field" style="margin-top:12px">
+        <label>Foto do local (antes)</label>
+        <input type="file" id="servico-acao-foto-antes" accept="image/*">
+        <img id="servico-acao-foto-antes-prev" style="display:none" class="photo-preview" alt="Foto antes">
+      </div>
+      <div class="field-destaque" style="margin-top:12px">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="checkbox" id="servico-acao-retro" style="width:18px;height:18px;flex-shrink:0;cursor:pointer;-webkit-appearance:checkbox;appearance:auto;accent-color:var(--amber)">
+          <span><i class="ti ti-bulldozer"></i> Necessita da retroescavadeira?</span>
+        </label>
+      </div>
+      <div class="field" style="margin-top:12px">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:500;color:var(--text)">
+          <input type="checkbox" id="marcar-data-servico" style="width:18px;height:18px;flex-shrink:0;cursor:pointer;-webkit-appearance:checkbox;appearance:auto;accent-color:var(--text)">
+          <span><i class="ti ti-calendar-event"></i> Marcar data da ação</span>
+        </label>
+        <div class="hint" style="margin-top:4px"><i class="ti ti-info-circle"></i> Aviso automático no Telegram 1 dia antes — a ação é executada no próprio dia marcado</div>
+      </div>
+      <div class="field" id="campo-data-evento-servico" style="display:none">
+        <label>Data da ação</label>
+        <input type="date" id="data-evento-servico">
+      </div>
+    </div>
+    <div class="field-destaque">
+      <label><i class="ti ti-users"></i> Equipe responsável</label>
+      <select id="servico-equipe">
+        <option value="">— Selecione —</option>
+        <option value="Equipe 1">Equipe 1</option>
+        <option value="Equipe 2">Equipe 2</option>
+        <option value="Equipe 3">Equipe 3</option>
+        <option value="Equipe 4">Equipe 4</option>
+        <option value="Equipe 5">Equipe 5</option>
+        <option value="Equipe 6 (Retroescavadeira)">Equipe 6 (Retroescavadeira)</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Observação inicial (opcional)</label>
+      <textarea id="servico-obs-inicial" placeholder="Ex: Ação de reintegração de posse de área pública" style="min-height:60px"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" id="btn-cancelar-novo-servico">Cancelar</button>
+      <button class="btn btn-primary" id="btn-salvar-novo-servico"><i class="ti ti-send"></i> Criar serviço</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL EDITAR TRECHO DA AVENIDA -->
+<div id="modal-editar-trecho" class="modal-wrap" style="display:none">
+  <div class="modal" style="max-width:440px">
+    <h3><i class="ti ti-ruler-2" style="color:var(--blue)"></i> Trecho da avenida</h3>
+    <div class="field-destaque">
+      <label><i class="ti ti-ruler-2"></i> Extensão do serviço</label>
+      <select id="editar-trecho-extensao">
+        <option value="inteira">Avenida / rua inteira</option>
+        <option value="trecho">Apenas um trecho</option>
+      </select>
+    </div>
+    <div class="field" id="editar-trecho-campo" style="display:none">
+      <label>Qual trecho?</label>
+      <input type="text" id="editar-trecho-desc" placeholder="Ex: entre a Rua A e a Rua B / nº 100 a 500" autocomplete="off">
+    </div>
+    <div class="modal-actions">
+      <button class="btn" id="btn-cancelar-editar-trecho">Cancelar</button>
+      <button class="btn btn-primary" id="btn-salvar-editar-trecho"><i class="ti ti-check"></i> Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL EXECUTAR SERVIÇO DE ÁREA -->
+<div id="modal-exec-servico" class="modal-wrap" style="display:none">
+  <div class="modal" style="max-width:460px;max-height:92vh;overflow-y:auto">
+    <h3><i class="ti ti-circle-check" style="color:var(--green)"></i> Registrar execução</h3>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:16px">Informe o período em que o serviço foi realizado.</p>
+    <!-- Trocar equipe — só aparece quando ainda aguardando -->
+    <div class="field" id="exec-campo-equipe" style="display:none">
+      <label><i class="ti ti-users" style="font-size:13px"></i> Equipe responsável</label>
+      <select id="exec-equipe">
+        <option value="">— Selecione —</option>
+        <option value="Equipe 1">Equipe 1</option>
+        <option value="Equipe 2">Equipe 2</option>
+        <option value="Equipe 3">Equipe 3</option>
+        <option value="Equipe 4">Equipe 4</option>
+        <option value="Equipe 5">Equipe 5</option>
+        <option value="Equipe 6 (Retroescavadeira)">Equipe 6 (Retroescavadeira)</option>
+      </select>
+      <small style="color:var(--text3);font-size:11px;margin-top:4px;display:block">Você pode realocar para outra equipe antes de iniciar.</small>
+    </div>
+    <div class="area-datas">
+      <div class="field"><label>Data de início</label><input type="date" id="exec-data-inicio"></div>
+      <div class="field"><label>Data de conclusão</label><input type="date" id="exec-data-fim"></div>
+    </div>
+    <div class="field" style="margin-top:10px">
+      <label>Observação (opcional)</label>
+      <textarea id="exec-obs" placeholder="Ex: Serviço concluído, houve chuva no 2º dia…" style="min-height:70px"></textarea>
+    </div>
+    <!-- Foto somente para Ação Especial -->
+    <div class="field" id="exec-campo-foto" style="display:none;margin-top:4px">
+      <label><i class="ti ti-camera" style="font-size:13px"></i> Foto da ação (opcional)</label>
+      <input type="file" id="exec-foto" accept="image/*">
+      <img id="exec-foto-prev" style="display:none" class="photo-preview" alt="Foto da ação">
+    </div>
+    <div class="modal-actions">
+      <button class="btn" id="btn-cancelar-exec">Cancelar</button>
+      <button class="btn btn-primary" id="btn-confirmar-exec"><i class="ti ti-check"></i> Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<div id="lightbox" class="lightbox" style="display:none">
+  <button class="lightbox-close" id="btn-fechar-lightbox"><i class="ti ti-x"></i></button>
+  <img id="lightbox-img" src="" alt="Foto ampliada">
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { initializeFirestore, persistentLocalCache, persistentSingleTabManager, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, query, where, orderBy, serverTimestamp, setDoc, getDocs, writeBatch } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+// ══ FIREBASE ══════════════════════════════════════════
+const app = initializeApp({
+  apiKey:"AIzaSyAOeJwqEKzVQNtKdQgFmgo7F4w1Xl2gno8",
+  authDomain:"demandas-limp-rp.firebaseapp.com",
+  projectId:"demandas-limp-rp",
+  storageBucket:"demandas-limp-rp.firebasestorage.app",
+  messagingSenderId:"327199319082",
+  appId:"1:327199319082:web:d04f07df17d532b7c04f53"
+});
+// Persistência local: guarda uma cópia dos dados no próprio dispositivo (via
+// IndexedDB do navegador). Da segunda vez que alguém abre o site no mesmo
+// celular em diante, a tela aparece quase instantânea usando essa cópia local,
+// e só depois confere no Firestore se algo mudou — em vez de baixar tudo de
+// novo a cada recarregamento. Se o navegador não suportar (raro, ex: alguns
+// modos de navegação privada), o Firebase cai sozinho no comportamento normal
+// sem persistência, sem quebrar nada.
+const db = initializeFirestore(app, {
+  localCache: persistentLocalCache({ tabManager: persistentSingleTabManager() })
+});
+const col = collection(db,"demandas");
+const colStats = collection(db,"estatisticas_mensais");
+const colServicos = collection(db,"servicos_area");
+
+// ══ CARREGAMENTO SOB DEMANDA DE BIBLIOTECAS PESADAS ═══
+// jsPDF, Chart.js e Leaflet só são usadas em telas específicas (PDF, Dashboard,
+// Mapa). Antes elas carregavam de antemão no <head>, travando a página inteira
+// até baixar as três — mesmo pra quem só ia abrir "Minhas demandas". Agora cada
+// uma só é buscada na primeira vez que a tela que realmente precisa dela abre.
+const _scriptsCarregados = {};
+function carregarScript(src){
+  if(_scriptsCarregados[src]) return _scriptsCarregados[src];
+  _scriptsCarregados[src] = new Promise((resolve,reject)=>{
+    const s=document.createElement('script');
+    s.src=src;
+    s.onload=()=>resolve();
+    s.onerror=()=>reject(new Error('Falha ao carregar '+src));
+    document.head.appendChild(s);
+  });
+  return _scriptsCarregados[src];
+}
+function carregarCSS(href){
+  if(document.querySelector(`link[href="${href}"]`)) return;
+  const l=document.createElement('link');
+  l.rel='stylesheet';
+  l.href=href;
+  document.head.appendChild(l);
+}
+
+// ══ BRASÃO (base64 embutido) ══════════════════════════
+const BRASAO_BASE64 = "data:image/png;base64,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";
+
+// ══ BAIRROS DE RIBEIRÃO PRETO ════════════════════════
+const BAIRROS_RP = [
+  'Adão do Carmo Leonel','Adelino Simioni','Alto da Boa Vista','Alto do Ipiranga',
+  'Antônio Marincek','Área Rural de Ribeirão Preto','Avelino Alves Palma',
+  'Bom Jesus','Bosque das Juritis','Campos Elíseos','Central Park','Centro',
+  'Chácaras Bonacorsi','Chácaras Pedro Corrêa de Carvalho','Chácaras Rio Pardo',
+  'Cidade Jardim','City Ribeirão','Colina Verde',
+  'Condomínio Aroeira','Condomínio Balneário Recreativa','Condomínio Bella Città',
+  'Condomínio Buritis','Condomínio Caimbé','Condomínio Chácaras Itambé',
+  'Condomínio Evidence Resort','Condomínio Figueira Branca','Condomínio Garden Ville',
+  'Condomínio Guaporé','Condomínio Itamaraty','Condomínio Jardim Sul',
+  'Condomínio Laranjeiras','Condomínio Mirante Sul','Condomínio Paineiras',
+  'Condomínio Pitangueiras','Condomínio Portal dos Ipês','Condomínio Quinta da Boa Vista',
+  'Condomínio Residencial Pau Brasil','Condomínio Vista Alegre',
+  'Conjunto Habitacional Jardim das Palmeiras','Conjunto Habitacional Sílvio Passalacqua',
+  'Distrito Empresarial Prefeito Luiz Roberto Jábali',
+  'Dom Bernardo José Mielle','Engenheiro Carlos de Lacerda Chaves',
+  'Esplanada da Estação','Geraldo Correia de Carvalho','Horto Florestal',
+  'Iguatemi','Independência','Ipiranga','Itanhangá Chácaras de Recreio',
+  'Jamil Seme Cury','Jardim Aeroporto','Jardim Alexandre Balbo','Jardim América',
+  'Jardim Ângelo Jurca','Jardim Anhangüera','Jardim Antártica','Jardim Arlindo Laguna',
+  'Jardim Bela Vista','Jardim Botânico','Jardim Cadacaam','Jardim Califórnia',
+  'Jardim Canadá','Jardim Castelo Branco','Jardim Centenário','Jardim Cybelli',
+  'Jardim das Mansões','Jardim das Palmeiras','Jardim Diva Tarlá de Carvalho',
+  'Jardim do Trevo','Jardim Dona Branca Salles','Jardim dos Gerânios',
+  'Jardim dos Hibiscos','Jardim Doutor Paulo Gomes Romeo',
+  'Jardim Eugênio Mendes Lopes','Jardim Florestan Fernandes',
+  'Jardim Genésio Massaro','Jardim Heitor Rigon','Jardim Helena',
+  'Jardim Herculano Fernandes','Jardim Iara','Jardim Interlagos','Jardim Irajá',
+  'Jardim Itaporã','Jardim Itaú','Jardim Itaú Mirim','Jardim Jandaia',
+  'Jardim Javari','Jardim João Rossi','Jardim Joaquim Procópio de Araújo Ferraz',
+  'Jardim Jóquei Clube','Jardim José Figueira','Jardim José Sampaio Júnior',
+  'Jardim José Wilson Toni','Jardim Jovino Campos','Jardim Juliana',
+  'Jardim Macedo','Jardim Manoel Penna','Jardim Marchesi',
+  'Jardim Maria Casagrande Lopes (Dona Amália)','Jardim Maria das Graças',
+  'Jardim Maria de Lourdes','Jardim Maria Goretti','Jardim Mário Paiva Arantes',
+  'Jardim Monte Carlo','Jardim Morumbi','Jardim Mosteiro',
+  'Jardim Nova Aliança Sul','Jardim Novo Mundo','Jardim Orestes Lopes de Camargo',
+  'Jardim Ouro Branco','Jardim Paiva','Jardim Palma Travassos',
+  'Jardim Paschoal Innecchi','Jardim Patriarca','Jardim Paulista','Jardim Paulistano',
+  'Jardim Pedra Branca','Jardim Piratininga','Jardim Porto Seguro',
+  'Jardim Professor Antônio Palocci','Jardim Progresso','Jardim Recreio',
+  'Jardim Roberto Benedetti','Jardim Saint Gerard','Jardim Salgado Filho',
+  'Jardim Santa Ângela','Jardim São José','Jardim São Luiz','Jardim Sumaré',
+  'Jardim Vilico Cantarelli','Jardim Zara',
+  'Nova Aliança','Nova Ribeirânia','Núcleo São Luís','Núcleo Vida Nova',
+  'Parque Anhangüera','Parque das Andorinhas','Parque das Figueiras',
+  'Parque das Oliveiras','Parque dos Bandeirantes','Parque dos Flamboyans',
+  'Parque dos Lagos','Parque dos Pinus','Parque dos Sabiás',
+  'Parque Industrial Avelino Alves Palma','Parque Industrial Coronel Quito Junqueira',
+  'Parque Industrial Lagoinha','Parque Industrial Tanquinho',
+  'Parque Residencial Cândido Portinari','Parque Residencial Cidade Universitária',
+  'Parque Residencial Emir Garcia','Parque Residencial Lagoinha',
+  'Parque Ribeirão Preto','Parque São Sebastião','Planalto Verde',
+  'Portal da Mata','Portal do Alto','Presidente Dutra','Presidente Médici',
+  'Quinta da Primavera','Quintino Facci I','Quintino Facci II',
+  'Recanto das Palmeiras','Recanto Princesa Isabel','Recreio Anhangüera',
+  'Recreio das Acácias','Recreio Internacional','República',
+  'Reserva Imperial','Reserva Sul Condomínio Resort',
+  'Residencial das Américas','Residencial Doutor Rubem Cione',
+  'Residencial e Comercial Palmares','Residencial Flórida',
+  'Residencial Greenville','Residencial Jatobá','Residencial Jequitibá',
+  'Residencial Léo Gomes de Moraes','Residencial Morro do Ipê',
+  'Residencial Parque dos Servidores','Ribeirânia',
+  'Santa Cruz do José Jacques','Sítio São Bento 2','Solar Boa Vista','Sumarezinho',
+  'Valentina Figueiredo','Vila Abranches','Vila Albertina','Vila Amélia',
+  'Vila Ana Maria','Vila Brasil','Vila Carvalho','Vila do Golf','Vila Elisa',
+  'Vila Esperança','Vila Guiomar','Vila Hípica','Vila Isabel',
+  'Vila Maria Luiza','Vila Mariana','Vila Monte Alegre','Vila Pompéia',
+  'Vila Recreio','Vila Seixas','Vila Tamandaré','Vila Tibério','Vila Virgínia',
+  'Villas Mabel'
+].sort();
+
+// ══ CONFIG ════════════════════════════════════════════
+const SENHA = 'infra22';
+const SENHA_CORRIGIR = 'corrigir';
+const HORAS_ALERTA = 168;
+const LIMITE_DUPLICADO = 20;
+const EQUIPES = ['Equipe 1','Equipe 2','Equipe 3','Equipe 4','Equipe 5','Equipe 6 (Retroescavadeira)','Demandas ESAL'];
+const ZONAS = ['Zona Norte','Zona Sul','Zona Leste','Zona Oeste','Centro'];
+
+// ══ ESTADO ════════════════════════════════════════════
+let perfil='', equipeAtual='', checkId=null, revisaoId=null, _dadosPendentes=null;
+let _demandas=[], _demandasConcluidas=[], _estatisticas=[], _servicos=[];
+// Índice de demandas concluídas por rua (normalizada), reconstruído uma única vez
+// sempre que _demandasConcluidas muda — evita que cada card ativo tenha que
+// varrer TODAS as centenas de concluídas pra achar "atendimentos anteriores"
+// no mesmo endereço (ver historicoDemanda mais abaixo).
+let _indicePorRua = new Map();
+const STATUS_ATIVOS = ['pendente','em andamento','revisao'];
+let _charts={}, _mapaInstance=null, _mapaMarkers=[], _mapaRenderToken=0;
+let secaoAtual='', _execServicoId=null, _tipoServicoSel='bairro';
+
+// ══ FIREBASE LISTENERS ════════════════════════════════
+// Demandas ativas: carregam primeiro e liberam a tela rapidamente (é o que a
+// maioria das telas do dia a dia usa — Nova, Gerenciar, Equipe, Revisão, Mapa).
+onSnapshot(query(col, where("status","in",STATUS_ATIVOS), orderBy("criadoEm","desc")), snap=>{
+  _demandas = snap.docs.map(d=>({_id:d.id,...d.data()}));
+  _demandas.sort((a,b)=>{
+    if(a.prioridade==='urgente'&&b.prioridade!=='urgente') return -1;
+    if(a.prioridade!=='urgente'&&b.prioridade==='urgente') return 1;
+    return 0;
+  });
+  renderAtual();
+});
+// Demandas concluídas: hoje o registro completo de cada uma tem duas fotos em
+// base64 embutidas, e são centenas — juntas, ~45 MB baixados de uma vez, toda
+// vez que a página abre (medido em teste real: 45 MB, 12 segundos, ver conversa
+// de 15/09/2026). A grande maioria das telas do app só precisa do TEXTO dessas
+// demandas (endereço, equipe, data — pra estatísticas, "atendimentos
+// anteriores", status por equipe), nunca das fotos. Por isso, desde 15/09/2026,
+// existe uma segunda coleção no Firestore — "demandas_concluidas_resumo" — que
+// guarda só os campos de texto de cada demanda concluída, sem foto nenhuma.
+// _demandasConcluidas passa a ser alimentado por ELA (leve, poucos KB), então
+// TODA a lógica existente que já usava _demandasConcluidas (Painel, Dashboard,
+// Localização das Equipes, "atendimentos anteriores") continua funcionando
+// exatamente igual, sem nenhuma mudança — só ficou rápida.
+// As 3 telas que realmente precisam das FOTOS (Histórico/Concluídas, os PDFs
+// com foto, Editar foto de conclusão) buscam a versão completa sob demanda,
+// através de carregarConcluidasCompletas() logo abaixo — só quando alguém de
+// fato abre uma dessas telas, não mais sempre.
+const colConcluidasResumo = collection(db,"demandas_concluidas_resumo");
+let _concluidasCarregadas=false;
+onSnapshot(query(colConcluidasResumo, orderBy("criadoEm","desc")), snap=>{
+  _demandasConcluidas = snap.docs.map(d=>({_id:d.id,...d.data()}));
+  // Reconstrói o índice por rua UMA VEZ aqui (custo O(n), uma passada), em vez de
+  // cada card ativo varrer as concluídas inteiras toda vez que a tela desenha.
+  _indicePorRua = new Map();
+  _demandasConcluidas.forEach(d=>{
+    const{rua}=extrairRuaNumero(d.endereco||'');
+    if(!rua||rua.length<4)return;
+    if(!_indicePorRua.has(rua)) _indicePorRua.set(rua,[]);
+    _indicePorRua.get(rua).push(d);
+  });
+  _concluidasCarregadas=true;
+  renderDependentesDeConcluidas();
+});
+
+// Busca a lista COMPLETA de concluídas (com fotos) uma única vez, sob demanda —
+// não é mais um listener permanente. Fica guardada em cache (_demandasConcluidasCompletas)
+// pelo resto da sessão depois da primeira busca, então só pesa 45 MB uma vez,
+// e só pra quem realmente abre uma tela que precisa das fotos.
+let _demandasConcluidasCompletas = null;
+let _promiseConcluidasCompletas = null;
+function carregarConcluidasCompletas(){
+  if(_demandasConcluidasCompletas) return Promise.resolve(_demandasConcluidasCompletas);
+  if(_promiseConcluidasCompletas) return _promiseConcluidasCompletas;
+  _promiseConcluidasCompletas = getDocs(query(col, where("status","==","concluído"), orderBy("criadoEm","desc")))
+    .then(snap=>{
+      _demandasConcluidasCompletas = snap.docs.map(d=>({_id:d.id,...d.data()}));
+      repararResumoConcluidas(_demandasConcluidasCompletas);
+      return _demandasConcluidasCompletas;
+    })
+    .catch(err=>{ _promiseConcluidasCompletas=null; throw err; });
+  return _promiseConcluidasCompletas;
+}
+
+// ══ ARQUIVO PERMANENTE (SEM FOTOS) ════════════════════
+// Coleção "demandas_arquivo": cópia só de texto + coordenada de cada demanda
+// concluída (poucos KB cada). NUNCA é apagada junto com o mês — assim, mesmo
+// apagando as fotos antigas pra deixar o sistema leve, o histórico detalhado
+// (endereço, datas, equipe, zona, bairro, lat/lng) continua disponível pra
+// relatórios anuais, mapa de calor e pontos recorrentes.
+// É escrita (1) no momento da conclusão, junto com a demanda e o resumo, numa
+// única gravação atômica, e (2) logo antes de "Apagar concluídas" (idempotente).
+const colArquivo = collection(db,"demandas_arquivo");
+let _arquivo=null, _promiseArquivo=null;
+function carregarArquivo(){
+  if(_arquivo) return Promise.resolve(_arquivo);
+  if(_promiseArquivo) return _promiseArquivo;
+  _promiseArquivo=getDocs(colArquivo)
+    .then(snap=>{_arquivo=snap.docs.map(d=>({_id:d.id,...d.data()}));return _arquivo;})
+    .catch(err=>{_promiseArquivo=null;throw err;});
+  return _promiseArquivo;
+}
+// Campos de texto (sem foto) de uma demanda concluída — usados no resumo e no arquivo.
+function camposResumo(o){
+  return{
+    descricao:o.descricao||null,
+    endereco:o.endereco||null,
+    zona:o.zona||null,
+    equipe:o.equipe||null,
+    equipeApoio:o.equipeApoio||null,
+    prioridade:o.prioridade||null,
+    solicitante:o.solicitante||null,
+    data:o.data||null,
+    hora:o.hora||null,
+    dataConclusao:o.dataConclusao||null,
+    observacao:o.observacao||null,
+    status:'concluído',
+    marcarData:o.marcarData||false,
+    dataEvento:o.dataEvento||null,
+    notificadoEvento:o.notificadoEvento||false,
+    lat:typeof o.lat==='number'?o.lat:null,
+    lng:typeof o.lng==='number'?o.lng:null,
+    bairroDetectado:o.bairroDetectado||null
+  };
+}
+function docArquivo(o){
+  return{...camposResumo(o),mesConclusao:parseMes(o.dataConclusao||o.data)||null,arquivadoEm:serverTimestamp(),criadoEm:o.criadoEm||serverTimestamp()};
+}
+// União do que temos com detalhe (resumo + arquivo), sem duplicar por id.
+// Usado só pelas análises do Dashboard — os totais/gráficos continuam como eram.
+function dadosDetalhados(){
+  const m=new Map();
+  (_arquivo||[]).forEach(d=>m.set(d._id,d));
+  _demandasConcluidas.forEach(d=>{
+    const b=m.get(d._id)||{};
+    m.set(d._id,{...b,...d,
+      lat:typeof d.lat==='number'?d.lat:b.lat,
+      lng:typeof d.lng==='number'?d.lng:b.lng,
+      bairroDetectado:d.bairroDetectado||b.bairroDetectado});
+  });
+  return [...m.values()];
+}
+
+// Auto-reparo do resumo: (a) recria o resumo de concluídas que existem na coleção
+// completa mas não têm cópia (ex.: gravação falhou na conclusão — caso de out/2026);
+// (b) completa lat/lng/bairro nos resumos antigos que ainda não têm coordenada.
+// Roda em segundo plano, uma vez por sessão, quando a lista completa é baixada.
+let _resumoReparado=false;
+async function repararResumoConcluidas(completas){
+  if(_resumoReparado||!_concluidasCarregadas)return;
+  _resumoReparado=true;
+  const porId=new Map(_demandasConcluidas.map(d=>[d._id,d]));
+  const ops=[];
+  completas.filter(d=>d.status==='concluído').forEach(o=>{
+    const r=porId.get(o._id);
+    if(!r){
+      ops.push({id:o._id,dados:{...camposResumo(o),criadoEm:o.criadoEm||serverTimestamp()},tipo:'criar'});
+    }else if(typeof r.lat!=='number'&&typeof o.lat==='number'&&typeof o.lng==='number'){
+      ops.push({id:o._id,dados:{lat:o.lat,lng:o.lng,bairroDetectado:o.bairroDetectado||null},tipo:'coord'});
     }
-    const json = await res.json();
-    if (json.documents) docs.push(...json.documents);
-    pageToken = json.nextPageToken || '';
-  } while (pageToken);
-  return docs;
+  });
+  if(!ops.length)return;
+  console.warn(`[resumo] reparando ${ops.length} resumo(s):`,ops.filter(o=>o.tipo==='criar').length,'faltando,',ops.filter(o=>o.tipo==='coord').length,'sem coordenada');
+  let ok=0;
+  for(let i=0;i<ops.length;i+=400){
+    try{
+      const b=writeBatch(db);
+      ops.slice(i,i+400).forEach(o=>b.set(doc(db,"demandas_concluidas_resumo",o.id),o.dados,{merge:true}));
+      await b.commit();
+      ok+=Math.min(400,ops.length-i);
+    }catch(e){console.error('[resumo] falha no reparo',e);}
+  }
+  console.warn(`[resumo] ${ok}/${ops.length} reparo(s) concluído(s).`);
 }
 
-const data = new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' }); // AAAA-MM-DD
-await mkdir('backup', { recursive: true });
+onSnapshot(query(colStats,orderBy("mesISO","asc")), snap=>{
+  _estatisticas = snap.docs.map(d=>({_id:d.id,...d.data()}));
+  if(secaoAtual==='dashboard') renderDashboard();
+});
+onSnapshot(query(colServicos,orderBy("criadoEm","desc")), snap=>{
+  _servicos = snap.docs.map(d=>({_id:d.id,...d.data()}));
+  if(secaoAtual==='servicos'||secaoAtual==='localizacao') renderAtual();
+});
 
-const resumo = { projeto: PROJECT, geradoEm: new Date().toISOString(), colecoes: {} };
-for (const nome of COLECOES) {
-  console.log(`Baixando "${nome}"…`);
-  const docs = await baixarColecao(nome);
-  const conteudo = JSON.stringify({ colecao: nome, total: docs.length, documentos: docs });
-  await writeFile(`backup/${nome}.json`, conteudo);
-  resumo.colecoes[nome] = { documentos: docs.length, megabytes: +(Buffer.byteLength(conteudo) / 1048576).toFixed(2) };
-  console.log(`  ✓ ${docs.length} documentos (${resumo.colecoes[nome].megabytes} MB)`);
-}
-await writeFile('backup/_resumo.json', JSON.stringify(resumo, null, 2));
+const fbAdd = data => addDoc(col,{...data,criadoEm:serverTimestamp()});
+const fbUpd = (id,data) => updateDoc(doc(db,"demandas",id),data);
+const fbDel = id => deleteDoc(doc(db,"demandas",id));
+const fbStat = (mesISO,dados) => setDoc(doc(db,"estatisticas_mensais",mesISO),dados);
+const fbAddServico = data => addDoc(colServicos,{...data,criadoEm:serverTimestamp()});
+const fbUpdServico = (id,data) => updateDoc(doc(db,"servicos_area",id),data);
+const fbDelServico = id => deleteDoc(doc(db,"servicos_area",id));
 
-// Segurança: se a coleção principal vier vazia, algo está errado (regras
-// vencidas, chave errada ou banco apagado) — falha o workflow pra você ser
-// avisado por e-mail pelo GitHub, em vez de guardar um backup vazio.
-if (!resumo.colecoes.demandas.documentos) {
-  console.error('ATENÇÃO: a coleção "demandas" veio vazia. Backup marcado como falho.');
-  process.exit(1);
+// ══ RENDER ATUAL ══════════════════════════════════════
+// Redesenha a tela aberta. Chamada assim que as demandas ATIVAS chegam — que
+// são poucas e leves — para a tela aparecer rápido, sem esperar o download
+// pesado das concluídas.
+function renderAtual(){
+  if(secaoAtual==='painel') renderPainel();
+  if(secaoAtual==='historico') renderHistorico();
+  if(secaoAtual==='equipe') renderEquipe();
+  if(secaoAtual==='gerenciar') renderGerenciar();
+  if(secaoAtual==='revisao') renderRevisao();
+  if(secaoAtual==='mapa') renderMapa();
+  if(secaoAtual==='servicos') renderServicos();
+  if(secaoAtual==='localizacao') renderLocalizacao();
+  atualizarBadgeRevisao();
 }
-console.log(`\nBackup de ${data} concluído.`);
+// Redesenha SÓ as telas cujo conteúdo depende das demandas concluídas (o pacote
+// pesado). Rodada quando esse pacote termina de baixar, em segundo plano — as
+// telas que só usam demandas ativas já apareceram antes e não são tocadas aqui.
+function renderDependentesDeConcluidas(){
+  if(secaoAtual==='painel') renderPainel();
+  if(secaoAtual==='historico') renderHistorico();
+  if(secaoAtual==='localizacao') renderLocalizacao();
+  // Equipe e Gerenciar mostram um aviso de "atendimentos anteriores neste
+  // endereço", que usa as concluídas — então redesenhamos uma vez quando elas
+  // chegam, para o aviso aparecer (a lista principal já estava visível antes).
+  if(secaoAtual==='equipe') renderEquipe();
+  if(secaoAtual==='gerenciar') renderGerenciar();
+}
+
+// ══ UTILS ══════════════════════════════════════════════
+function $(id){return document.getElementById(id)}
+function mapsUrl(e){return'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(e+', Ribeirão Preto, SP')}
+function cardMaps(e){return`<a href="${mapsUrl(e)}" target="_blank" class="maps-link"><i class="ti ti-map-pin"></i>${e}<i class="ti ti-external-link" style="font-size:11px;flex-shrink:0"></i></a>`}
+function badgeHtml(s){const c=s==='pendente'?'badge-pending':s==='em andamento'?'badge-doing':s==='revisao'?'badge-revisao':'badge-done';const l=s==='revisao'?'⚠️ revisão':s;return`<span class="badge ${c}">${l}</span>`}
+function showMsg(txt,tipo='success'){const el=$('msg-global');el.innerHTML=`<i class="ti ti-${tipo==='success'?'circle-check':'alert-circle'}"></i> ${txt}`;el.className='msg msg-'+tipo;el.style.display='flex';setTimeout(()=>el.style.display='none',3500)}
+function realtimeBadge(){return`<div class="realtime-badge"><span class="realtime-dot"></span> Atualização em tempo real</div>`}
+function horasAbertas(d){if(!d.criadoEm)return 0;const ts=d.criadoEm.seconds?d.criadoEm.seconds*1000:Date.now();return(Date.now()-ts)/3600000}
+function labelTempo(h){return h<24?`${Math.floor(h)}h aberta`:`${Math.floor(h/24)}d aberta`}
+function diasAtras(dataStr){if(!dataStr)return 999;const[d,m,a]=dataStr.split('/');return Math.floor((Date.now()-new Date(+a,+m-1,+d).getTime())/86400000)}
+function tsBR(dataStr){if(!dataStr)return 0;const p=dataStr.split('/');if(p.length!==3)return 0;const[d,m,a]=p;return new Date(+a,+m-1,+d).getTime()}
+// Junta ativas + concluídas — usar sempre que a tela precisar do histórico completo
+function todasDemandasCombinadas(){return [..._demandas, ..._demandasConcluidas]}
+
+// ══ CALENDÁRIO DE EVENTOS (Demandas-evento + Ações) ═══
+let _calMesAtual=new Date(new Date().getFullYear(),new Date().getMonth(),1);
+let _calDiaSelecionado=null;
+
+function eventosDoDia(iso){
+  const eventos=[];
+  todasDemandasCombinadas().forEach(d=>{
+    if(d.marcarData&&d.dataEvento===iso) eventos.push({tipo:'demanda',obj:d});
+  });
+  _servicos.forEach(s=>{
+    if(s.tipo==='acao'&&s.marcarData&&s.dataEvento===iso) eventos.push({tipo:'acao',obj:s});
+  });
+  return eventos;
+}
+
+function diasComEventoNoMes(ano,mes){
+  const prefixo=`${ano}-${String(mes).padStart(2,'0')}-`;
+  const dias=new Set();
+  todasDemandasCombinadas().forEach(d=>{if(d.marcarData&&d.dataEvento&&d.dataEvento.startsWith(prefixo))dias.add(d.dataEvento);});
+  _servicos.forEach(s=>{if(s.tipo==='acao'&&s.marcarData&&s.dataEvento&&s.dataEvento.startsWith(prefixo))dias.add(s.dataEvento);});
+  return dias;
+}
+
+function abrirCalendario(){
+  _calMesAtual=new Date(new Date().getFullYear(),new Date().getMonth(),1);
+  _calDiaSelecionado=null;
+  $('modal-calendario').style.display='flex';
+  renderCalendario();
+}
+
+function mudarMesCalendario(delta){
+  _calMesAtual=new Date(_calMesAtual.getFullYear(),_calMesAtual.getMonth()+delta,1);
+  _calDiaSelecionado=null;
+  renderCalendario();
+}
+
+function selecionarDiaCalendario(iso){
+  _calDiaSelecionado=(_calDiaSelecionado===iso)?null:iso;
+  renderCalendario();
+}
+
+function renderCalendario(){
+  const ano=_calMesAtual.getFullYear(),mes=_calMesAtual.getMonth()+1;
+  const label=_calMesAtual.toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+  $('calendario-mes-label').textContent=label.charAt(0).toUpperCase()+label.slice(1);
+  const diasComEvento=diasComEventoNoMes(ano,mes);
+  const primeiroDiaSemana=new Date(ano,mes-1,1).getDay();
+  const totalDias=new Date(ano,mes,0).getDate();
+  const hojeISO=new Date().toISOString().split('T')[0];
+  const dow=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+  let html=dow.map(d=>`<div class="calendario-dow">${d}</div>`).join('');
+  for(let i=0;i<primeiroDiaSemana;i++) html+=`<div class="calendario-dia vazio"></div>`;
+  for(let dia=1;dia<=totalDias;dia++){
+    const iso=`${ano}-${String(mes).padStart(2,'0')}-${String(dia).padStart(2,'0')}`;
+    const temEvento=diasComEvento.has(iso);
+    const classes=['calendario-dia'];
+    if(temEvento)classes.push('tem-evento');
+    if(iso===_calDiaSelecionado)classes.push('selecionado');
+    if(iso===hojeISO)classes.push('hoje');
+    html+=`<div class="${classes.join(' ')}" data-dia-cal="${iso}">${dia}${temEvento?'<div class="ponto"></div>':''}</div>`;
+  }
+  $('calendario-grid').innerHTML=html;
+  $('calendario-grid').querySelectorAll('[data-dia-cal]').forEach(el=>el.addEventListener('click',()=>selecionarDiaCalendario(el.dataset.diaCal)));
+  renderDetalheDiaCalendario();
+}
+
+function renderDetalheDiaCalendario(){
+  const el=$('calendario-detalhe');
+  if(!_calDiaSelecionado){el.innerHTML='<p style="font-size:13px;color:var(--text3);text-align:center;padding:8px 0">Clique em um dia marcado (roxo) para ver os detalhes.</p>';return;}
+  const eventos=eventosDoDia(_calDiaSelecionado);
+  if(!eventos.length){el.innerHTML=`<p style="font-size:13px;color:var(--text3);text-align:center;padding:8px 0">Nenhum evento em ${brFromISO(_calDiaSelecionado)}.</p>`;return;}
+  el.innerHTML=`<div style="font-size:13px;font-weight:600;margin-bottom:10px">${eventos.length} evento${eventos.length>1?'s':''} em ${brFromISO(_calDiaSelecionado)}</div>`+eventos.map(resumoEventoCalendario).join('');
+}
+
+function resumoEventoCalendario(ev){
+  if(ev.tipo==='demanda'){
+    const d=ev.obj;
+    return`<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin-bottom:8px">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;flex-wrap:wrap">
+        <span class="badge" style="background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-border)">📅 DEMANDA</span>
+        ${d.prioridade==='urgente'?'<span class="badge badge-urgente">⚡ URGENTE</span>':''}
+      </div>
+      <div style="font-size:14px;font-weight:600;margin-bottom:4px">${d.descricao}</div>
+      <div style="font-size:12px;color:var(--text2);line-height:1.8">
+        📍 ${d.endereco}<br>
+        👷 ${d.equipe||'—'} &nbsp;·&nbsp; 🗺️ ${d.zona||'—'}<br>
+        <span style="color:var(--purple);font-weight:600">⚠️ Deve estar pronto até ${diaAnteriorBR(d.dataEvento)}</span>
+      </div>
+    </div>`;
+  }
+  const s=ev.obj;
+  return`<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin-bottom:8px">
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+      <span class="badge" style="background:var(--purple-bg);color:var(--purple);border:1px solid var(--purple-border)">⭐ AÇÃO</span>
+    </div>
+    <div style="font-size:14px;font-weight:600;margin-bottom:4px">${s.local}</div>
+    <div style="font-size:12px;color:var(--text2);line-height:1.8">
+      ${s.enderecoAcao?`📍 ${s.enderecoAcao}<br>`:''}
+      👷 ${s.equipe||'—'}<br>
+      ${s.necessitaRetroescavadeira?'🚜 Necessita retroescavadeira<br>':''}
+      <span style="color:var(--purple);font-weight:600">📌 Executar neste dia</span>
+    </div>
+  </div>`;
+}
+
+async function comprimirImagem(src,maxPx=800,quality=0.75){
+  return new Promise(resolve=>{
+    const img=new Image();
+    img.onload=()=>{
+      const canvas=document.createElement('canvas');
+      let w=img.width,h=img.height;
+      if(w>maxPx||h>maxPx){if(w>h){h=Math.round(h*maxPx/w);w=maxPx;}else{w=Math.round(w*maxPx/h);h=maxPx;}}
+      canvas.width=w;canvas.height=h;
+      canvas.getContext('2d').drawImage(img,0,0,w,h);
+      resolve(canvas.toDataURL('image/jpeg',quality));
+    };img.src=src;
+  });
+}
+
+function previewFoto(inputEl,prevId){
+  if(inputEl.files&&inputEl.files[0]){
+    const r=new FileReader();
+    r.onload=e=>{$(prevId).src=e.target.result;$(prevId).style.display='block';};
+    r.readAsDataURL(inputEl.files[0]);
+  }
+}
+
+function fecharModal(id){$(id).style.display='none'}
+
+function atualizarBadgeRevisao(){
+  const n=_demandas.filter(d=>d.status==='revisao').length;
+  const b=$('badge-revisao');
+  if(b){b.textContent=n>0?n:'';b.style.display=n>0?'inline':'none';}
+}
+
+// ══ MÊS UTILS ═════════════════════════════════════════
+function parseMes(dataStr){
+  if(!dataStr)return null;
+  const p=dataStr.split('/');
+  return p.length===3?`${p[2]}-${p[1]}`:null;
+}
+function nomeMes(mesISO){
+  const[ano,mes]=mesISO.split('-');
+  const n=new Date(+ano,+mes-1,1).toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+  return n.charAt(0).toUpperCase()+n.slice(1);
+}
+function popularSelectMes(selId,lista){
+  const sel=$(selId);if(!sel)return;
+  const atual=sel.value;
+  const meses=new Set();
+  lista.forEach(d=>{const m=parseMes(d.dataConclusao||d.data);if(m)meses.add(m);});
+  sel.innerHTML='<option value="">Todos os meses</option>'+[...meses].sort().reverse().map(m=>`<option value="${m}">${nomeMes(m)}</option>`).join('');
+  if(atual&&[...sel.options].some(o=>o.value===atual))sel.value=atual;
+}
+function filtrarPorMes(lista,mesISO,campo='dataConclusao'){
+  if(!mesISO)return lista;
+  return lista.filter(d=>{const m=parseMes(d[campo]);return m===mesISO;});
+}
+
+// ══ NAVEGAÇÃO ══════════════════════════════════════════
+function entrarComo(p){
+  perfil=p;
+  $('tela-perfil').style.display='none';
+  $('tela-app').style.display='block';
+  $('header-right').style.display='flex';
+  const tabs=$('tabs-container');
+  let html='',titulo='',sec='';
+  if(p==='secretaria'){
+    titulo='🏢 Secretaria';
+    html=`<button class="tab active" data-sec="nova"><i class="ti ti-plus"></i> Nova demanda</button>
+          <button class="tab" data-sec="servicos"><i class="ti ti-map-2"></i> Novo Serviço</button>
+          <button class="tab" data-sec="localizacao"><i class="ti ti-map-pin"></i> Equipes</button>
+          <button class="tab" data-sec="gerenciar"><i class="ti ti-settings"></i> Gerenciar</button>
+          <button class="tab" data-sec="revisao"><i class="ti ti-map-pin-off"></i> Revisão <span id="badge-revisao" class="tab-badge" style="display:none"></span></button>`;
+    sec='nova';
+  } else if(p==='fiscal'){
+    titulo='📋 Relatório';
+    html=`<button class="tab active" data-sec="painel"><i class="ti ti-layout-dashboard"></i> Painel</button>
+          <button class="tab" data-sec="servicos"><i class="ti ti-map-2"></i> Serviços</button>
+          <button class="tab" data-sec="dashboard"><i class="ti ti-chart-bar"></i> Dashboard</button>
+          <button class="tab" data-sec="historico"><i class="ti ti-history"></i> Concluídas / PDF</button>`;
+    sec='painel';
+  } else if(p==='equipeesal'){
+    equipeAtual='Demandas ESAL';
+    titulo='🚛 Demandas ESAL';
+    html=`<button class="tab active" data-sec="equipe"><i class="ti ti-clipboard-list"></i> Minhas demandas</button>
+          <button class="tab" data-sec="mapa"><i class="ti ti-map"></i> Mapa</button>`;
+    sec='equipe';
+  } else {
+    const num=p.replace('equipe','');
+    equipeAtual=num==='6'?'Equipe 6 (Retroescavadeira)':`Equipe ${num}`;
+    titulo='👷 '+equipeAtual;
+    html=`<button class="tab active" data-sec="equipe"><i class="ti ti-clipboard-list"></i> Minhas demandas</button>
+          <button class="tab" data-sec="servicos"><i class="ti ti-map-2"></i> Serviços</button>
+          <button class="tab" data-sec="mapa"><i class="ti ti-map"></i> Mapa</button>`;
+    sec='equipe';
+  }
+  tabs.innerHTML=html;
+  $('header-user-label').textContent=titulo;
+  // Bind tab clicks
+  tabs.querySelectorAll('.tab').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      tabs.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      showSection(btn.dataset.sec);
+    });
+  });
+  showSection(sec);
+  setTimeout(()=>atualizarBadgeRevisao(),0);
+}
+
+function voltarPerfil(){
+  perfil='';equipeAtual='';secaoAtual='';
+  _mapaRenderToken++; // interrompe qualquer fila de geocodificação do mapa em andamento
+  Object.values(_charts).forEach(c=>c.destroy());_charts={};
+  if(_mapaInstance){_mapaInstance.remove();_mapaInstance=null;_mapaMarkers=[];_marcadorUsuario=null;_circuloUsuario=null;}
+  $('tela-perfil').style.display='block';
+  $('tela-app').style.display='none';
+  $('header-right').style.display='none';
+}
+
+function showSection(t){
+  ['nova','gerenciar','revisao','painel','dashboard','historico','equipe','mapa','servicos','localizacao'].forEach(s=>{
+    const el=$('sec-'+s);if(el)el.classList.remove('active');
+  });
+  const el=$('sec-'+t);if(el)el.classList.add('active');
+  secaoAtual=t;
+  if(t==='painel') renderPainel();
+  if(t==='historico') renderHistorico();
+  if(t==='equipe') renderEquipe();
+  if(t==='gerenciar') renderGerenciar();
+  if(t==='revisao') renderRevisao();
+  if(t==='dashboard') renderDashboard();
+  if(t==='mapa') renderMapa();
+  if(t==='servicos') renderServicos();
+  if(t==='localizacao') renderLocalizacao();
+}
+
+// ══ LIGHTBOX ══════════════════════════════════════════
+function abrirLightbox(src){$('lightbox-img').src=src;$('lightbox').style.display='flex';document.body.style.overflow='hidden';}
+function fecharLightbox(){$('lightbox').style.display='none';$('lightbox-img').src='';document.body.style.overflow='';}
+
+// ══ DUPLICADOS ════════════════════════════════════════
+function historicoDemanda(endereco, idAtual){
+  // Busca qualquer demanda concluída no mesmo endereço (sem limite de data).
+  // Usa o índice por rua (construído uma vez quando as concluídas chegam) em vez
+  // de varrer todas as centenas de concluídas a cada card — só olha o punhado
+  // que já sabe estar na mesma rua.
+  const{rua,numero}=extrairRuaNumero(endereco);
+  if(!rua||rua.length<4)return[];
+  const candidatas=_indicePorRua.get(rua)||[];
+  return candidatas.filter(d=>{
+    if(d._id===idAtual)return false;
+    const{numero:nD}=extrairRuaNumero(d.endereco||'');
+    if(numero&&nD&&Math.abs(numero-nD)>LIMITE_DUPLICADO)return false;
+    return true;
+  }).sort((a,b)=>diasAtras(a.dataConclusao||a.data)-diasAtras(b.dataConclusao||b.data));
+}
+
+function htmlHistorico(lista){
+  if(!lista.length)return'';
+  return`<div class="hist-end-box">
+    <div class="hist-end-titulo"><i class="ti ti-clock-history"></i> Atendimentos anteriores neste endereço (${lista.length})</div>
+    ${lista.map(d=>`<div class="hist-end-item">
+      <span style="font-weight:600">${d.descricao}</span><br>
+      <span style="color:var(--text2)">✅ Concluído em <strong>${d.dataConclusao||'—'}</strong> · ${d.equipe||'—'}${d.zona?` · ${d.zona}`:''}</span>
+      ${d.observacao?`<br><span style="color:var(--text3);font-style:italic">Obs: ${d.observacao}</span>`:''}
+    </div>`).join('')}
+  </div>`;
+}
+
+function extrairRuaNumero(end){
+  const partes=end.toLowerCase().split(',');
+  const rua=partes[0].trim();
+  const m=end.match(/,\s*(\d+)/);
+  return{rua,numero:m?parseInt(m[1]):null};
+}
+function verificarDuplicados(end){
+  const{rua,numero}=extrairRuaNumero(end);
+  return _demandas.filter(d=>{
+    if(d.status==='concluído'||d.status==='revisao')return false;
+    if(diasAtras(d.data)>30)return false;
+    const{rua:rD,numero:nD}=extrairRuaNumero(d.endereco||'');
+    if(rD!==rua)return false;
+    if(numero&&nD&&Math.abs(numero-nD)>LIMITE_DUPLICADO)return false;
+    return true;
+  });
+}
+
+// ══ ENVIAR DEMANDA ════════════════════════════════════
+async function enviarDemanda(){
+  const sol=$('solicitante').value.trim();
+  const end=$('endereco').value.trim();
+  const desc=$('descricao').value.trim();
+  const prio=$('prioridade').value;
+  const zona=$('zona-nova').value;
+  const equipe=$('equipe-nova').value;
+  const prev=$('foto-preview');
+  const marcarData=$('marcar-data-nova').checked;
+  const dataEventoISO=$('data-evento-nova').value;
+  if(!sol||!end||!desc){alert('Preencha solicitante, endereço e descrição.');return;}
+  if(!zona){alert('Selecione a zona da cidade.');return;}
+  if(!equipe){alert('Selecione a equipe responsável.');return;}
+  if(marcarData&&!dataEventoISO){alert('Informe a data do evento, ou desmarque "Marcar data do evento".');return;}
+  let foto=null;
+  if(prev.style.display!=='none'&&prev.src) foto=await comprimirImagem(prev.src);
+  _dadosPendentes={solicitante:sol,endereco:end,descricao:desc,prioridade:prio,zona,foto,status:'em andamento',equipe,data:new Date().toLocaleDateString('pt-BR'),hora:new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),dataConclusao:null,fotoConclusao:null,naoEncontrado:false,marcarData,dataEvento:marcarData?dataEventoISO:null,notificadoEvento:false};
+  const similares=verificarDuplicados(end);
+  if(similares.length){
+    $('duplicado-lista').innerHTML=similares.map(d=>`<div style="padding:6px 0;border-bottom:1px solid var(--amber-border)"><strong>${d.descricao}</strong><br>📍 ${d.endereco}<br><span style="color:var(--text2)">há ${diasAtras(d.data)} dia(s) · ${d.equipe||'—'}</span></div>`).join('');
+    $('modal-duplicado').style.display='flex';
+    return;
+  }
+  await salvarDemanda();
+}
+
+async function salvarDemanda(){
+  if(!_dadosPendentes)return;
+  try{
+    const docRef = await fbAdd(_dadosPendentes);
+    // Geocodificação silenciosa em segundo plano
+    geocodificarBairro(_dadosPendentes.endereco, docRef.id);
+    ['solicitante','endereco','descricao'].forEach(id=>$(id).value='');
+    $('prioridade').value='normal';$('zona-nova').value='';$('equipe-nova').value='';
+    $('foto-preview').style.display='none';$('foto-preview').src='';$('foto').value='';
+    $('marcar-data-nova').checked=false;$('campo-data-evento-nova').style.display='none';$('data-evento-nova').value='';
+    showMsg(`✓ Demanda registrada para ${_dadosPendentes.equipe} – ${_dadosPendentes.zona}!`);
+    _dadosPendentes=null;
+  }catch(e){showMsg('Erro ao salvar.','danger');}
+}
+
+async function geocodificarBairro(endereco, docId){
+  if(!endereco||!docId)return;
+  try{
+    const q=encodeURIComponent(endereco+', Ribeirão Preto, SP, Brasil');
+    const res=await fetch(`https://nominatim.openstreetmap.org/search?q=${q}&format=json&addressdetails=1&limit=1`,{headers:{'Accept-Language':'pt-BR'}});
+    const data=await res.json();
+    if(!data||!data[0])return;
+    const addr=data[0].address;
+    const bairro=addr.suburb||addr.neighbourhood||addr.quarter||addr.city_district||addr.village||null;
+    const lat=parseFloat(data[0].lat), lng=parseFloat(data[0].lon);
+    const upd={};
+    if(bairro) upd.bairroDetectado=bairro;
+    if(!isNaN(lat)&&!isNaN(lng)){upd.lat=lat;upd.lng=lng;}
+    if(Object.keys(upd).length){
+      await fbUpd(docId,upd);
+    }
+  }catch(e){/* silencioso — não impacta o fluxo */}
+}
+
+// ══ ATRIBUIR ══════════════════════════════════════════
+async function atribuir(id,equipe){
+  try{await fbUpd(id,{equipe,status:equipe?'em andamento':'pendente'});}
+  catch(e){showMsg('Erro ao atribuir.','danger');}
+}
+
+async function atualizarZona(id,zona){
+  try{await fbUpd(id,{zona});}
+  catch(e){showMsg('Erro ao atualizar zona.','danger');}
+}
+
+async function salvarDataEvento(id,btnEl){
+  const input=btnEl.closest('.alocar-box').querySelector('.data-evento-input');
+  const novaData=input.value;
+  if(!novaData){alert('Informe uma data válida.');return;}
+  try{
+    // Reseta notificadoEvento: se a data mudou (evento adiado/antecipado), o aviso
+    // deve valer para a nova data, então "esquecemos" que já avisamos antes.
+    await fbUpd(id,{dataEvento:novaData,notificadoEvento:false});
+    showMsg('Data do evento atualizada! O aviso será enviado 1 dia antes da nova data.');
+  }catch(e){showMsg('Erro ao atualizar a data do evento.','danger');}
+}
+
+// ══ DELETAR ═══════════════════════════════════════════
+async function deletarDemanda(id){
+  if(!confirm('Apagar esta demanda?'))return;
+  try{await fbDel(id);}catch(e){showMsg('Erro ao apagar.','danger');}
+}
+
+// ══ CHECK ════════════════════════════════════════════
+function abrirCheck(id){
+  checkId=id;
+  $('check-data').value=new Date().toISOString().split('T')[0];
+  $('check-foto-prev').style.display='none';$('check-foto').value='';$('check-observacao').value='';
+  $('modal-check').style.display='flex';
+}
+async function confirmarCheck(){
+  const data=$('check-data').value;
+  const prev=$('check-foto-prev');
+  if(!data){alert('Informe a data de conclusão.');return;}
+  if(prev.style.display==='none'||!prev.src){alert('Adicione a foto do serviço concluído.');return;}
+  const foto=await comprimirImagem(prev.src);
+  const obs=$('check-observacao').value.trim();
+  const dataConclusao=new Date(data+'T12:00:00').toLocaleDateString('pt-BR');
+  try{
+    // Uma ÚNICA gravação atômica: a demanda vira "concluído" E o resumo leve E o
+    // arquivo permanente são gravados juntos — ou vão os três, ou nenhum. (Antes
+    // eram gravações separadas, e se a segunda falhasse a demanda ficava concluída
+    // sem resumo: sumia do Painel/Dashboard e dava "não há demandas" no PDF.)
+    const original=_demandas.find(d=>d._id===checkId);
+    const lote=writeBatch(db);
+    lote.update(doc(db,"demandas",checkId),{status:'concluído',dataConclusao,fotoConclusao:foto,observacao:obs||null});
+    if(original){
+      const base={...original,dataConclusao,observacao:obs||null};
+      lote.set(doc(db,"demandas_concluidas_resumo",checkId),{...camposResumo(base),criadoEm:serverTimestamp()});
+      lote.set(doc(db,"demandas_arquivo",checkId),docArquivo({...base,criadoEm:null}));
+    }
+    await lote.commit();
+    _arquivo=null;_promiseArquivo=null;
+    fecharModal('modal-check');showMsg('Demanda marcada como concluída!');
+    // Invalida o cache da busca completa (com fotos) — a próxima vez que alguém
+    // abrir o Histórico, ele busca de novo, já incluindo essa demanda nova.
+    _demandasConcluidasCompletas=null;
+    _promiseConcluidasCompletas=null;
+  }catch(e){showMsg('Erro ao salvar.','danger');}
+}
+
+// ══ EDITAR FOTOS DE DEMANDA CONCLUÍDA ═════════════════
+let _editarFotosId=null;
+let _editarFotosIdPendente=null;
+function pedirSenhaEditarFotos(id){
+  _editarFotosIdPendente=id;
+  $('input-senha-corrigir').value='';$('msg-senha-corrigir-erro').style.display='none';
+  $('modal-senha-corrigir').style.display='flex';
+  setTimeout(()=>$('input-senha-corrigir').focus(),150);
+}
+async function abrirEditarFotosConcluida(id){
+  _editarFotosId=id;
+  const completas=await carregarConcluidasCompletas();
+  const d=completas.find(x=>x._id===id);
+  if(!d)return;
+  const depoisAtual=$('editar-fotos-depois-atual');
+  if(d.fotoConclusao){depoisAtual.src=d.fotoConclusao;depoisAtual.style.display='block';}else{depoisAtual.style.display='none';depoisAtual.src='';}
+  $('editar-fotos-depois-novo').value='';$('editar-fotos-depois-novo-prev').style.display='none';$('editar-fotos-depois-novo-prev').src='';
+  $('modal-editar-fotos').style.display='flex';
+}
+async function salvarEditarFotos(){
+  const prevDepois=$('editar-fotos-depois-novo-prev');
+  const temDepois=prevDepois.style.display!=='none'&&prevDepois.src;
+  if(!temDepois){alert('Escolha a nova foto de conclusão para salvar.');return;}
+  try{
+    const fotoConclusao=await comprimirImagem(prevDepois.src);
+    await fbUpd(_editarFotosId,{fotoConclusao});
+    // Atualiza também a cópia em memória (a busca completa é um snapshot único,
+    // não fica sincronizando sozinha), pra a foto nova já aparecer sem recarregar.
+    if(_demandasConcluidasCompletas){
+      const item=_demandasConcluidasCompletas.find(x=>x._id===_editarFotosId);
+      if(item) item.fotoConclusao=fotoConclusao;
+    }
+    fecharModal('modal-editar-fotos');
+    showMsg('Foto de conclusão atualizada com sucesso!');
+  }catch(e){showMsg('Erro ao salvar a foto.','danger');}
+}
+
+// ══ NÃO ENCONTRADO ════════════════════════════════════
+let _naoEncontradoId=null;
+function abrirNaoEncontrado(id){_naoEncontradoId=id;$('modal-nao-encontrado').style.display='flex';}
+async function confirmarNaoEncontrado(){
+  if(!_naoEncontradoId)return;
+  try{await fbUpd(_naoEncontradoId,{status:'revisao',naoEncontrado:true});fecharModal('modal-nao-encontrado');showMsg('Demanda devolvida para revisão.');}
+  catch(e){showMsg('Erro.','danger');}
+}
+
+// ══ REVISÃO ═══════════════════════════════════════════
+function abrirRevisao(id){
+  revisaoId=id;
+  const d=_demandas.find(x=>x._id===id);
+  if(d){$('revisao-solicitante').value=d.solicitante||'';$('revisao-endereco').value=d.endereco||'';$('revisao-descricao').value=d.descricao||'';}
+  $('revisao-foto').value='';$('revisao-foto-prev').style.display='none';$('revisao-foto-prev').src='';
+  $('modal-revisao').style.display='flex';
+  setTimeout(()=>$('revisao-endereco').focus(),150);
+}
+async function reenviarDemanda(){
+  const sol=$('revisao-solicitante').value.trim();
+  const end=$('revisao-endereco').value.trim();
+  const desc=$('revisao-descricao').value.trim();
+  if(!end||!sol||!desc){alert('Preencha todos os campos obrigatórios.');return;}
+  const prev=$('revisao-foto-prev');
+  let foto=null;
+  if(prev.style.display!=='none'&&prev.src&&$('revisao-foto').files?.length) foto=await comprimirImagem(prev.src);
+  const dados={solicitante:sol,endereco:end,descricao:desc,status:'em andamento',naoEncontrado:false};
+  if(foto)dados.foto=foto;
+  try{
+    await fbUpd(revisaoId,dados);
+    geocodificarBairro(end, revisaoId);
+    fecharModal('modal-revisao');
+    showMsg('Demanda corrigida e reenviada!');
+  }
+  catch(e){showMsg('Erro ao reenviar.','danger');}
+}
+async function apagarDemandaRevisao(){
+  if(!confirm('Apagar esta demanda permanentemente?'))return;
+  try{await fbDel(revisaoId);fecharModal('modal-revisao');showMsg('Demanda apagada.');}
+  catch(e){showMsg('Erro.','danger');}
+}
+
+// ══ APAGAR CONCLUÍDAS ════════════════════════════════
+async function abrirApagarConcluidas(){
+  let conc;
+  try{conc=await carregarConcluidasCompletas();}
+  catch(e){alert('Erro ao carregar as demandas concluídas. Tente novamente.');return;}
+  if(!conc.length){alert('Não há demandas concluídas para apagar.');return;}
+  popularSelectMes('filtro-mes-apagar',conc);
+  $('modal-confirmar-apagar').style.display='flex';
+}
+async function executarApagarConcluidas(){
+  fecharModal('modal-confirmar-apagar');
+  const mesSel=$('filtro-mes-apagar').value;
+  let completas;
+  try{completas=await carregarConcluidasCompletas();}
+  catch(e){showMsg('Erro ao carregar as demandas. Nada foi apagado.','danger');return;}
+  // Fonte de verdade = coleção completa (não depende do resumo estar íntegro).
+  let conc=completas.filter(d=>d.status==='concluído');
+  if(mesSel) conc=filtrarPorMes(conc,mesSel,'dataConclusao');
+  if(!conc.length){showMsg('Nenhuma demanda no período.','danger');return;}
+  // 1) Arquiva (sem fotos) ANTES de apagar. Se falhar, não apaga nada.
+  try{
+    for(let i=0;i<conc.length;i+=400){
+      const b=writeBatch(db);
+      conc.slice(i,i+400).forEach(d=>b.set(doc(db,"demandas_arquivo",d._id),docArquivo(d)));
+      await b.commit();
+    }
+  }catch(e){showMsg('Erro ao arquivar os dados. Nada foi apagado.','danger');return;}
+  // 2) Apaga a demanda e o resumo, em lotes. Guarda o que realmente saiu.
+  const apagadas=[];
+  let falhou=false;
+  for(let i=0;i<conc.length;i+=200){
+    const parte=conc.slice(i,i+200);
+    try{
+      const b=writeBatch(db);
+      parte.forEach(d=>{b.delete(doc(db,"demandas",d._id));b.delete(doc(db,"demandas_concluidas_resumo",d._id));});
+      await b.commit();
+      apagadas.push(...parte);
+    }catch(e){falhou=true;break;}
+  }
+  // 3) Estatística mensal só do que foi de fato apagado (evita contar em dobro numa nova tentativa).
+  const porMes={};
+  apagadas.forEach(d=>{const m=parseMes(d.dataConclusao||d.data)||new Date().toISOString().slice(0,7);if(!porMes[m])porMes[m]=[];porMes[m].push(d);});
+  try{
+    for(const[m,lista] of Object.entries(porMes)){
+      const ex=_estatisticas.find(e=>e._id===m);
+      const nE={...(ex?.porEquipe||{})},nZ={...(ex?.porZona||{})};
+      EQUIPES.forEach(e=>nE[e]=(nE[e]||0)+lista.filter(d=>d.equipe===e).length);
+      ZONAS.forEach(z=>nZ[z]=(nZ[z]||0)+lista.filter(d=>d.zona===z).length);
+      await fbStat(m,{mesISO:m,nomeMes:nomeMes(m),total:(ex?.total||0)+lista.length,urgentes:(ex?.urgentes||0)+lista.filter(d=>d.prioridade==='urgente').length,porEquipe:nE,porZona:nZ});
+    }
+  }catch(e){showMsg('Demandas apagadas, mas houve erro ao salvar o resumo mensal. Avise o administrador antes de apagar mais.','danger');}
+  _demandasConcluidasCompletas=null;_promiseConcluidasCompletas=null;_arquivo=null;_promiseArquivo=null;
+  if(falhou) showMsg(`Apagou ${apagadas.length} de ${conc.length} demandas e parou por erro. Os dados estão no arquivo; tente de novo.`,'danger');
+  else showMsg(`✓ ${apagadas.length} demandas apagadas (dados guardados no arquivo, sem fotos). Resumo salvo no Dashboard!`);
+}
+
+// ══ RENDERS ═══════════════════════════════════════════
+function alocarHtml(d){
+  const eqs=EQUIPES.map(e=>`<option value="${e}" ${d.equipe===e?'selected':''}>${e}</option>`).join('');
+  const zns=ZONAS.map(z=>`<option value="${z}" ${d.zona===z?'selected':''}>${z}</option>`).join('');
+  return`<div class="alocar-box">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div>
+        <div class="alocar-label"><i class="ti ti-users"></i> Equipe responsável</div>
+        <select class="alocar-select" data-id="${d._id}"><option value="">— Selecione —</option>${eqs}</select>
+        ${d.equipe?`<div class="alocar-alocada"><i class="ti ti-circle-check"></i><span class="tag-equipe">${d.equipe}</span> alocada</div>`:''}
+      </div>
+      <div>
+        <div class="alocar-label"><i class="ti ti-map"></i> Zona da cidade</div>
+        <select class="alocar-select zona-select" data-zona-id="${d._id}"><option value="">— Selecione —</option>${zns}</select>
+        ${d.zona?`<div class="alocar-alocada"><i class="ti ti-circle-check"></i><span class="tag-zona" style="font-size:11px;padding:2px 8px;border-radius:20px;background:var(--purple-bg);color:var(--purple);border:1px solid var(--purple-border);font-family:var(--font-mono)">${d.zona}</span> definida</div>`:''}
+      </div>
+    </div>
+  </div>`;
+}
+
+function cardHtml(d,opts={}){
+  const{mostrarAlocar=false,mostrarApagar=false,mostrarCheck=false,mostrarNaoEncontrado=false,mostrarRevisao=false,mostrarConcluido=false}=opts;
+  const h=horasAbertas(d);
+  const atrasada=d.status!=='concluído'&&d.status!=='revisao'&&h>=HORAS_ALERTA;
+  const cls=d.status==='revisao'?'revisao':d.prioridade==='urgente'?'urgente':atrasada?'atrasada':'';
+  return`<div class="demand-card ${cls}" data-id="${d._id}">
+    ${d.marcarData&&d.dataEvento&&d.status!=='concluído'?`<div class="evento-banner"><i class="ti ti-calendar-event"></i> EVENTO em <u>${brFromISO(d.dataEvento)}</u> — serviço deve estar pronto até <u>${diaAnteriorBR(d.dataEvento)}</u> (um dia antes)${d.prioridade==='urgente'?', mesmo estando marcada como urgente':''}</div>`:''}
+    <div class="demand-header">
+      <span class="demand-title">${d.descricao}</span>
+      <div class="demand-badges">
+        ${badgeHtml(d.status)}
+        ${d.prioridade==='urgente'?'<span class="badge badge-urgente">⚡ URGENTE</span>':''}
+        ${atrasada?`<span class="badge badge-atrasada">⏰ ${labelTempo(h)}</span>`:''}
+        ${d.zona?`<span class="badge badge-zona">${d.zona}</span>`:''}
+        ${d.marcarData&&d.dataEvento?`<span class="badge" style="background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-border)"><i class="ti ti-calendar-event" style="font-size:11px"></i> ${brFromISO(d.dataEvento)}</span>`:''}
+        ${d.equipeApoio?`<span class="badge" style="background:var(--orange-bg);color:var(--orange);border:1px solid var(--orange-border)"><i class="ti ti-bulldozer" style="font-size:11px"></i> Apoio: Equipe 6</span>`:''}
+      </div>
+    </div>
+    <div class="demand-meta">
+      <i class="ti ti-user"></i> ${d.solicitante} &nbsp;·&nbsp;
+      <i class="ti ti-clock"></i> ${d.data} ${d.hora}
+      ${d.equipe?`&nbsp;·&nbsp;<span class="tag-equipe">${d.equipe}</span>`:''}
+      ${mostrarConcluido&&d.dataConclusao?`&nbsp;·&nbsp;✅ <strong>${d.dataConclusao}</strong>`:''}
+    </div>
+    ${cardMaps(d.endereco)}
+    ${d.foto?`<img src="${d.foto}" class="photo-preview" data-src="${d.foto}" alt="Foto" style="margin-bottom:10px">`:''}
+    ${mostrarConcluido&&d.fotoConclusao?`<img src="${d.fotoConclusao}" class="photo-preview" data-src="${d.fotoConclusao}" alt="Foto conclusão" style="margin-bottom:10px">`:''}
+    ${mostrarConcluido&&d.observacao?`<div style="margin-top:8px;background:var(--amber-bg);border:1px solid var(--amber-border);border-radius:var(--radius);padding:8px 10px;font-size:13px"><i class="ti ti-message" style="font-size:13px;vertical-align:-1px"></i> <strong>Obs. da equipe:</strong> ${d.observacao}</div>`:''}
+    ${mostrarRevisao?`<div class="revisao-box"><div class="revisao-label"><i class="ti ti-map-pin-off"></i> Endereço não encontrado</div><p style="font-size:13px;color:var(--red);font-style:italic">A ${d.equipe||'equipe'} não localizou este endereço.</p></div>`:''}
+    ${(()=>{const hist=historicoDemanda(d.endereco,d._id);return hist.length?htmlHistorico(hist):'';})()}
+    ${mostrarAlocar?alocarHtml(d):''}
+    ${mostrarAlocar&&d.marcarData?`<div class="alocar-box" style="background:var(--blue-bg);border-color:var(--blue-border)">
+      <div class="alocar-label" style="color:var(--blue)"><i class="ti ti-calendar-event"></i> Data do evento (aviso Telegram 1 dia antes)</div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <input type="date" class="data-evento-input" value="${d.dataEvento||''}" style="flex:1;min-width:140px;padding:9px 10px;border:1px solid var(--blue-border);border-radius:var(--radius);font-size:14px;background:#fff">
+        <button class="btn btn-sm btn-info" data-salvar-data-evento="${d._id}"><i class="ti ti-check"></i> Salvar</button>
+      </div>
+      <div style="font-size:11px;color:var(--text3);margin-top:6px">${d.notificadoEvento?'✓ Aviso já enviado para esta data':'Aviso ainda não enviado'}</div>
+    </div>`:''}
+    <div class="demand-actions">
+      ${mostrarCheck?`<button class="btn-done" data-check="${d._id}"><i class="ti ti-camera"></i> Concluir com foto e data</button>`:''}
+      ${mostrarCheck&&!d.equipeApoio&&d.equipe!=='Equipe 6 (Retroescavadeira)'?`<button class="btn btn-sm" data-retro="${d._id}" style="background:var(--orange-bg);color:var(--orange);border:1px solid var(--orange-border)"><i class="ti ti-bulldozer"></i> Necessita de retroescavadeira</button>`:''}
+      ${mostrarNaoEncontrado?`<button class="btn-nao-encontrado" data-nao="${d._id}"><i class="ti ti-map-pin-off"></i> Local não encontrado</button>`:''}
+      ${mostrarRevisao?`<button class="btn btn-sm btn-primary" data-revisao="${d._id}"><i class="ti ti-edit"></i> Corrigir endereço</button>`:''}
+      ${mostrarApagar?`<button class="btn-del" data-del="${d._id}"><i class="ti ti-trash"></i> Apagar</button>`:''}
+    </div>
+  </div>`;
+}
+
+function bindCards(container){
+  container.querySelectorAll('[data-check]').forEach(b=>b.addEventListener('click',()=>abrirCheck(b.dataset.check)));
+  container.querySelectorAll('[data-nao]').forEach(b=>b.addEventListener('click',()=>abrirNaoEncontrado(b.dataset.nao)));
+  container.querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click',()=>deletarDemanda(b.dataset.del)));
+  container.querySelectorAll('[data-revisao]').forEach(b=>b.addEventListener('click',()=>abrirRevisao(b.dataset.revisao)));
+  container.querySelectorAll('.alocar-select').forEach(sel=>sel.addEventListener('change',()=>atribuir(sel.dataset.id,sel.value)));
+  container.querySelectorAll('.zona-select').forEach(sel=>sel.addEventListener('change',()=>atualizarZona(sel.dataset.zonaId,sel.value)));
+  container.querySelectorAll('.photo-preview[data-src]').forEach(img=>img.addEventListener('click',()=>abrirLightbox(img.dataset.src)));
+  container.querySelectorAll('[data-salvar-data-evento]').forEach(b=>b.addEventListener('click',()=>salvarDataEvento(b.dataset.salvarDataEvento,b)));
+  container.querySelectorAll('[data-retro]').forEach(b=>b.addEventListener('click',()=>pedirRetroescavadeira(b.dataset.retro)));
+}
+
+async function pedirRetroescavadeira(id){
+  try{
+    await fbUpd(id,{equipeApoio:'Equipe 6 (Retroescavadeira)'});
+    showMsg('Pedido de retroescavadeira enviado — já apareceu na lista da Equipe 6!');
+  }catch(e){showMsg('Erro ao pedir apoio da retroescavadeira.','danger');}
+}
+
+function renderStats(){
+  const pend=_demandas.filter(d=>d.status==='pendente').length;
+  const and=_demandas.filter(d=>d.status==='em andamento').length;
+  const conc=_demandasConcluidas.length;
+  $('stats-box').innerHTML=`
+    <div class="stat"><div class="stat-num">${_demandas.length+_demandasConcluidas.length}</div><div class="stat-label">Total</div></div>
+    <div class="stat"><div class="stat-num" style="color:var(--amber)">${pend}</div><div class="stat-label">Pendentes</div></div>
+    <div class="stat"><div class="stat-num" style="color:var(--blue)">${and}</div><div class="stat-label">Em andamento</div></div>
+    <div class="stat"><div class="stat-num" style="color:var(--green)">${conc}</div><div class="stat-label">Concluídas</div></div>`;
+}
+
+// ══ ONDE ESTÃO AS EQUIPES ═════════════════════════════
+function renderLocalizacao(){
+  const el=$('localizacao-conteudo');if(!el)return;
+  const agora=new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+  const hoje=new Date().toLocaleDateString('pt-BR');
+  const abaAtual=el.dataset.aba||'atual';
+
+  // ── Dados ──
+  // Compara a demanda concluída mais recente de uma equipe com o serviço de
+  // área concluído mais recente, e retorna qual das duas aconteceu por último.
+  // Isso cobre equipes que fazem tanto serviços de área quanto demandas
+  // avulsas (ex: equipes reforçando o volume de demandas quando não têm
+  // bairro/avenida em aberto).
+  function ultimaDemandaConcluida(nomeEquipe){
+    const conc=_demandasConcluidas
+      .filter(d=>d.equipe===nomeEquipe)
+      .sort((a,b)=>tsBR(b.dataConclusao||b.data)-tsBR(a.dataConclusao||a.data));
+    return conc[0]||null;
+  }
+
+  function infoEquipeServico(nomeEquipe){
+    const ativos=_servicos.filter(s=>s.equipe===nomeEquipe&&s.status!=='concluido');
+    if(!ativos.length){
+      const concluidos=_servicos
+        .filter(s=>s.equipe===nomeEquipe&&s.status==='concluido')
+        .sort((a,b)=>tsBR(b.dataFim)-tsBR(a.dataFim));
+      const ultServico=concluidos[0]||null;
+      const ultDemanda=ultimaDemandaConcluida(nomeEquipe);
+      if(!ultServico&&!ultDemanda) return{tipo:'vazio',texto:'Sem serviços ou demandas registrados'};
+      const tsServico=ultServico?tsBR(ultServico.dataFim):-1;
+      const tsDemanda=ultDemanda?tsBR(ultDemanda.dataConclusao||ultDemanda.data):-1;
+      if(tsDemanda>tsServico){
+        return{tipo:'demanda',endereco:ultDemanda.endereco,data:ultDemanda.dataConclusao||ultDemanda.data||'—',desc:ultDemanda.descricao};
+      }
+      const label=ultServico.tipo==='bairro'?'Bairro':ultServico.tipo==='avenida'?'Av./Rua':'Ação';
+      const trecho=ultServico.extensao==='trecho'&&ultServico.trecho?` – ${ultServico.trecho}`:'';
+      return{tipo:'concluido',texto:`${label}: ${ultServico.local}${trecho}`,data:ultServico.dataFim||'—'};
+    }
+    const s=ativos[0];
+    const label=s.tipo==='bairro'?'🏘️ Bairro':s.tipo==='avenida'?'🛣️ Av./Rua':'⭐ Ação';
+    const trecho=s.extensao==='trecho'&&s.trecho?` – ${s.trecho}`:'';
+    const statusLabel=s.status==='aguardando'?'Aguardando':'Em andamento';
+    return{tipo:'ativo',texto:`${label}: ${s.local}${trecho}`,status:statusLabel,inicio:s.dataInicio||null};
+  }
+
+  function infoEquipe3(){
+    const conc=_demandasConcluidas
+      .filter(d=>d.equipe==='Equipe 3')
+      .sort((a,b)=>tsBR(b.dataConclusao||b.data)-tsBR(a.dataConclusao||a.data));
+    if(!conc.length) return{tipo:'vazio',texto:'Nenhuma demanda concluída ainda'};
+    const d=conc[0];
+    return{tipo:'demanda',endereco:d.endereco,data:d.dataConclusao||d.data||'—',desc:d.descricao};
+  }
+
+  function infoEquipeESAL(){
+    const conc=_demandasConcluidas
+      .filter(d=>d.equipe==='Demandas ESAL')
+      .sort((a,b)=>tsBR(b.dataConclusao||b.data)-tsBR(a.dataConclusao||a.data));
+    if(!conc.length) return{tipo:'vazio',texto:'Nenhuma demanda concluída ainda'};
+    const d=conc[0];
+    return{tipo:'demanda',endereco:d.endereco,data:d.dataConclusao||d.data||'—',desc:d.descricao};
+  }
+
+  function corTipo(tipo){
+    if(tipo==='ativo') return{bg:'var(--blue-bg)',border:'var(--blue-border)',cor:'var(--blue)',icone:'ti-map-2'};
+    if(tipo==='demanda') return{bg:'var(--green-bg)',border:'var(--green-border)',cor:'var(--green)',icone:'ti-map-pin'};
+    if(tipo==='concluido') return{bg:'var(--surface2)',border:'var(--border)',cor:'var(--text3)',icone:'ti-circle-check'};
+    return{bg:'var(--surface2)',border:'var(--border)',cor:'var(--text3)',icone:'ti-minus'};
+  }
+
+  function cardEquipe(nome,info){
+    const{bg,border,cor,icone}=corTipo(info.tipo);
+    let detalhe='';
+    if(info.tipo==='ativo'){
+      detalhe=`
+        <div style="font-size:15px;font-weight:600;color:var(--text);margin:6px 0 4px">${info.texto}</div>
+        <div style="font-size:12px;color:${cor};display:flex;align-items:center;gap:5px">
+          <i class="ti ti-activity" style="font-size:12px"></i> ${info.status}
+          ${info.inicio?`&nbsp;·&nbsp;<i class="ti ti-calendar" style="font-size:12px"></i> desde ${info.inicio}`:''}
+        </div>`;
+    } else if(info.tipo==='demanda'){
+      detalhe=`
+        <div style="font-size:13px;color:var(--text2);margin:4px 0 2px;font-style:italic">${info.desc}</div>
+        <div style="font-size:15px;font-weight:600;color:var(--text);margin:2px 0 4px">📍 ${info.endereco}</div>
+        <div style="font-size:12px;color:${cor}">✅ Concluída em ${info.data}</div>`;
+    } else if(info.tipo==='concluido'){
+      detalhe=`
+        <div style="font-size:14px;color:var(--text2);margin:6px 0 4px">${info.texto}</div>
+        <div style="font-size:12px;color:var(--text3)">Concluído em ${info.data} · Aguardando novo serviço</div>`;
+    } else {
+      detalhe=`<div style="font-size:13px;color:var(--text3);margin-top:6px">${info.texto}</div>`;
+    }
+    return`<div style="background:${bg};border:1.5px solid ${border};border-radius:var(--radius-lg);padding:14px 16px;margin-bottom:10px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:2px">
+        <i class="ti ${icone}" style="font-size:16px;color:${cor}"></i>
+        <span style="font-size:13px;font-weight:700;color:${cor};text-transform:uppercase;letter-spacing:.04em">${nome}</span>
+      </div>
+      ${detalhe}
+    </div>`;
+  }
+
+  function montarTextoWhatsApp(){
+    let linhas=[`📋 *Localização das Equipes*`,`🗓️ ${hoje} às ${agora}`,``];
+    ['Equipe 1','Equipe 2'].forEach(eq=>{
+      const info=infoEquipeServico(eq);
+      if(info.tipo==='ativo') linhas.push(`*${eq}:* ${info.texto.replace(/^[🏘️🛣️⭐]+\s?/,'')}`);
+      else if(info.tipo==='concluido') linhas.push(`*${eq}:* ${info.texto} _(concluído)_`);
+      else linhas.push(`*${eq}:* Sem serviço ativo`);
+    });
+    const info3=infoEquipe3();
+    if(info3.tipo==='demanda') linhas.push(`*Equipe 3:* Última demanda – ${info3.endereco}`);
+    else linhas.push(`*Equipe 3:* ${info3.texto}`);
+    ['Equipe 4','Equipe 5'].forEach(eq=>{
+      const info=infoEquipeServico(eq);
+      if(info.tipo==='ativo') linhas.push(`*${eq}:* ${info.texto.replace(/^[🏘️🛣️⭐]+\s?/,'')}`);
+      else if(info.tipo==='concluido') linhas.push(`*${eq}:* ${info.texto} _(concluído)_`);
+      else linhas.push(`*${eq}:* Sem serviço ativo`);
+    });
+    const infoESAL=infoEquipeESAL();
+    if(infoESAL.tipo==='demanda') linhas.push(`*Demandas ESAL:* Última coleta – ${infoESAL.endereco}`);
+    else linhas.push(`*Demandas ESAL:* ${infoESAL.texto}`);
+    return linhas.join('\n');
+  }
+
+  // ── Aba: Situação atual ──
+  function renderAtual(){
+    let html='';
+    html+=cardEquipe('Equipe 1', infoEquipeServico('Equipe 1'));
+    html+=cardEquipe('Equipe 2', infoEquipeServico('Equipe 2'));
+    html+=cardEquipe('Equipe 3 — última demanda', infoEquipe3());
+    html+=cardEquipe('Equipe 4', infoEquipeServico('Equipe 4'));
+    html+=cardEquipe('Equipe 5', infoEquipeServico('Equipe 5'));
+    html+=cardEquipe('Demandas ESAL — última coleta', infoEquipeESAL());
+    html+=`<button id="btn-copiar-whatsapp" class="btn btn-primary btn-full" style="margin-top:8px;background:#25D366;border-color:#25D366;font-size:14px;padding:13px">
+      <i class="ti ti-brand-whatsapp"></i> Copiar localização das equipes
+    </button>
+    <div id="msg-copiado" style="display:none;text-align:center;font-size:12px;color:var(--green);margin-top:8px;font-family:var(--font-mono)">
+      ✓ Copiado! Agora é só colar no WhatsApp.
+    </div>`;
+    return html;
+  }
+
+  // ── Aba: Histórico ──
+  function tipoServicoLabel(s){
+    const t=s.tipo==='bairro'?'🏘️ Bairro':s.tipo==='avenida'?'🛣️ Av./Rua':'⭐ Ação Especial';
+    const trecho=s.extensao==='trecho'&&s.trecho?` – trecho: ${s.trecho}`:'';
+    return t+trecho;
+  }
+
+  function cardHistoricoServico(s){
+    return`<div style="padding:12px 0;border-bottom:1px solid var(--border)">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap">
+        <div style="font-size:14px;font-weight:600">${s.local}</div>
+        <span class="badge badge-done">✅ Concluído</span>
+      </div>
+      <div style="font-size:12px;color:var(--text2);margin-top:4px;line-height:1.8">
+        <span>${tipoServicoLabel(s)}</span><br>
+        ${s.dataInicio?`<span>🟢 Início: <strong>${s.dataInicio}</strong></span> &nbsp;·&nbsp; `:''}
+        ${s.dataFim?`<span>🏁 Conclusão: <strong>${s.dataFim}</strong></span>`:''}
+        ${s.obs?`<br><span style="color:var(--text3);font-style:italic">Obs: ${s.obs}</span>`:''}
+        ${s.obsInicial?`<br><span style="color:var(--text3)">Obs. inicial: ${s.obsInicial}</span>`:''}
+      </div>
+    </div>`;
+  }
+
+  function cardHistoricoDemanda(d){
+    return`<div style="padding:12px 0;border-bottom:1px solid var(--border)">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap">
+        <div style="font-size:14px;font-weight:600">${d.descricao}</div>
+        ${d.prioridade==='urgente'?'<span class="badge badge-urgente">⚡ URGENTE</span>':''}
+      </div>
+      <div style="font-size:12px;color:var(--text2);margin-top:4px;line-height:1.8">
+        <span><i class="ti ti-map-pin" style="font-size:12px"></i> ${d.endereco}</span><br>
+        <span><i class="ti ti-user" style="font-size:12px"></i> ${d.solicitante}</span><br>
+        ${d.zona?`<span class="tag-zona">${d.zona}</span> &nbsp;`:''}
+        <span>📅 Aberta: ${d.data} ${d.hora}</span><br>
+        <span>✅ Concluída: <strong>${d.dataConclusao||'—'}</strong></span>
+        ${d.observacao?`<br><span style="color:var(--text3);font-style:italic">Obs: ${d.observacao}</span>`:''}
+      </div>
+    </div>`;
+  }
+
+  function renderHistoricoEquipes(){
+
+    function cardServicoAndamento(s){
+      return`<div style="padding:12px 0;border-bottom:1px solid var(--border)">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap">
+          <div style="font-size:14px;font-weight:600">${s.local}</div>
+          <span class="badge badge-doing">🔄 Em andamento</span>
+        </div>
+        <div style="font-size:12px;color:var(--text2);margin-top:4px;line-height:1.8">
+          <span>${tipoServicoLabel(s)}</span><br>
+          ${s.dataInicio?`<span>🟢 Início: <strong>${s.dataInicio}</strong></span>`:'<span style="color:var(--text3)">Aguardando início</span>'}
+          ${s.obs?`<br><span style="color:var(--text3);font-style:italic">Obs: ${s.obs}</span>`:''}
+          ${s.obsInicial?`<br><span style="color:var(--text3)">Obs. inicial: ${s.obsInicial}</span>`:''}
+        </div>
+      </div>`;
+    }
+
+    function blocoServicos(eq){
+      const emAndamento=_servicos.filter(s=>s.equipe===eq&&s.status!=='concluido');
+      const concluidos=_servicos
+        .filter(s=>s.equipe===eq&&s.status==='concluido')
+        .sort((a,b)=>tsBR(b.dataFim)-tsBR(a.dataFim));
+      const todos=[...emAndamento,...concluidos].slice(0,3);
+      const ultDem=_demandasConcluidas
+        .filter(d=>d.equipe===eq)
+        .sort((a,b)=>(b.dataConclusao||b.data||'').localeCompare(a.dataConclusao||a.data||''))[0];
+      return`<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px;margin-bottom:12px">
+        <div style="font-size:13px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px;display:flex;align-items:center;gap:6px">
+          <i class="ti ti-map-2" style="font-size:14px"></i> ${eq}
+        </div>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:10px">Últimos 3 serviços de área (incluindo em andamento)</div>
+        ${todos.length
+          ? todos.map(s=>s.status==='concluido'?cardHistoricoServico(s):cardServicoAndamento(s)).join('')
+          : '<div style="font-size:13px;color:var(--text3);padding:8px 0">Nenhum serviço registrado ainda.</div>'}
+        ${ultDem?`
+        <div style="margin-top:12px;padding-top:10px;border-top:2px dashed var(--border)">
+          <div style="font-size:11px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;display:flex;align-items:center;gap:5px">
+            <i class="ti ti-clipboard-check" style="font-size:12px"></i> Última demanda concluída
+          </div>
+          ${cardHistoricoDemanda(ultDem)}
+        </div>`:''}
+      </div>`;
+    }
+
+    function blocoEquipe3(){
+      const lista=_demandasConcluidas
+        .filter(d=>d.equipe==='Equipe 3')
+        .sort((a,b)=>tsBR(b.dataConclusao||b.data)-tsBR(a.dataConclusao||a.data))
+        .slice(0,5);
+      return`<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px;margin-bottom:12px">
+        <div style="font-size:13px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px;display:flex;align-items:center;gap:6px">
+          <i class="ti ti-clipboard-list" style="font-size:14px"></i> Equipe 3
+        </div>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:10px">Últimas 5 demandas concluídas</div>
+        ${lista.length
+          ? lista.map(d=>cardHistoricoDemanda(d)).join('')
+          : '<div style="font-size:13px;color:var(--text3);padding:8px 0">Nenhuma demanda concluída ainda.</div>'}
+      </div>`;
+    }
+
+    function blocoEquipeESAL(){
+      const lista=_demandasConcluidas
+        .filter(d=>d.equipe==='Demandas ESAL')
+        .sort((a,b)=>tsBR(b.dataConclusao||b.data)-tsBR(a.dataConclusao||a.data))
+        .slice(0,10);
+      return`<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px;margin-bottom:12px">
+        <div style="font-size:13px;font-weight:700;color:var(--purple);text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px;display:flex;align-items:center;gap:6px">
+          <i class="ti ti-truck" style="font-size:14px"></i> Demandas ESAL
+        </div>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:10px">Últimas 10 demandas concluídas</div>
+        ${lista.length
+          ? lista.map(d=>cardHistoricoDemanda(d)).join('')
+          : '<div style="font-size:13px;color:var(--text3);padding:8px 0">Nenhuma demanda concluída ainda.</div>'}
+      </div>`;
+    }
+
+    return blocoServicos('Equipe 1')
+      + blocoServicos('Equipe 2')
+      + blocoEquipe3()
+      + blocoServicos('Equipe 4')
+      + blocoServicos('Equipe 5')
+      + blocoEquipeESAL();
+  }
+  // ── Monta tela ──
+  let html=`
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:6px">
+      <p class="section-title" style="margin:0">📍 Equipes</p>
+      <span style="font-size:11px;color:var(--text3);font-family:var(--font-mono)">Atualizado às ${agora}</span>
+    </div>
+    ${realtimeBadge()}
+    <div class="area-sec-tabs" style="margin-bottom:16px">
+      <button class="area-sec-tab ${abaAtual==='atual'?'active':''}" data-loc-aba="atual"><i class="ti ti-map-pin" style="font-size:13px"></i> Situação atual</button>
+      <button class="area-sec-tab ${abaAtual==='historico'?'active':''}" data-loc-aba="historico"><i class="ti ti-history" style="font-size:13px"></i> Histórico</button>
+    </div>
+    ${abaAtual==='atual'?renderAtual():renderHistoricoEquipes()}
+  `;
+
+  el.innerHTML=html;
+
+  // Bind abas
+  el.querySelectorAll('[data-loc-aba]').forEach(btn=>{
+    btn.addEventListener('click',()=>{el.dataset.aba=btn.dataset.locAba;renderLocalizacao();});
+  });
+
+  // Bind botão WhatsApp (só existe na aba atual)
+  const btnWpp=$('btn-copiar-whatsapp');
+  if(btnWpp){
+    btnWpp.addEventListener('click',()=>{
+      const texto=montarTextoWhatsApp();
+      navigator.clipboard.writeText(texto).then(()=>{
+        const msg=$('msg-copiado');msg.style.display='block';
+        setTimeout(()=>msg.style.display='none',3000);
+      }).catch(()=>{
+        const ta=document.createElement('textarea');
+        ta.value=texto;ta.style.position='fixed';ta.style.opacity='0';
+        document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);
+        const msg=$('msg-copiado');msg.style.display='block';
+        setTimeout(()=>msg.style.display='none',3000);
+      });
+    });
+  }
+}
+
+function renderGerenciar(){
+  const lista=_demandas.filter(d=>d.status!=='concluído'&&d.status!=='revisao');
+  const el=$('lista-gerenciar');
+  if(!lista.length){el.innerHTML='<div class="empty"><i class="ti ti-check"></i>Nenhuma demanda aberta</div>';return;}
+  el.innerHTML=realtimeBadge()+lista.map(d=>cardHtml(d,{mostrarAlocar:true,mostrarApagar:true})).join('');
+  bindCards(el);
+}
+
+function renderRevisao(){
+  const lista=_demandas.filter(d=>d.status==='revisao');
+  const el=$('lista-revisao');
+  if(!lista.length){el.innerHTML='<div class="empty"><i class="ti ti-circle-check"></i>Nenhuma demanda aguardando revisão</div>';return;}
+  el.innerHTML=realtimeBadge()+lista.map(d=>cardHtml(d,{mostrarRevisao:true,mostrarApagar:true})).join('');
+  bindCards(el);
+}
+
+function renderPainel(){
+  renderStats();
+  const fs=$('filtro-status').value,fe=$('filtro-equipe-painel').value,fz=$('filtro-zona-painel').value;
+  let lista=todasDemandasCombinadas();
+  if(fs)lista=lista.filter(d=>d.status===fs);
+  if(fe)lista=lista.filter(d=>d.equipe===fe);
+  if(fz)lista=lista.filter(d=>d.zona===fz);
+  const el=$('lista-painel');
+  if(!lista.length){el.innerHTML='<div class="empty"><i class="ti ti-check"></i>Nenhuma demanda encontrada</div>';return;}
+  const urg=lista.filter(d=>d.prioridade==='urgente'&&d.status!=='concluído');
+  const atr=lista.filter(d=>d.status!=='concluído'&&d.status!=='revisao'&&horasAbertas(d)>=HORAS_ALERTA&&d.prioridade!=='urgente');
+  const rev=lista.filter(d=>d.status==='revisao');
+  let html=realtimeBadge();
+  if(urg.length)html+=`<div class="alerta-topo alerta-urgente"><i class="ti ti-alert-triangle"></i> ${urg.length} demanda${urg.length>1?'s':''} urgente${urg.length>1?'s':''} em aberto</div>`;
+  if(atr.length)html+=`<div class="alerta-topo alerta-atrasada"><i class="ti ti-clock"></i> ${atr.length} demanda${atr.length>1?'s':''} com mais de 7 dias em aberto</div>`;
+  if(rev.length)html+=`<div class="alerta-topo alerta-revisao"><i class="ti ti-map-pin-off"></i> ${rev.length} demanda${rev.length>1?'s':''} com endereço não encontrado</div>`;
+  html+=lista.map(d=>cardHtml(d,{mostrarConcluido:d.status==='concluído'})).join('');
+  el.innerHTML=html;
+  bindCards(el);
+}
+
+function renderEquipe(){
+  const fz=$('filtro-zona-equipe').value;
+  let lista=_demandas.filter(d=>(d.equipe===equipeAtual||d.equipeApoio===equipeAtual)&&d.status!=='concluído'&&d.status!=='revisao');
+  if(fz)lista=lista.filter(d=>d.zona===fz);
+  const cont=$('contador-equipe');
+  if(cont){const t=lista.length,u=lista.filter(d=>d.prioridade==='urgente').length;const lbl=fz||'Total';cont.innerHTML=`${lbl}: <span style="color:var(--text)">${t}</span> demanda${t!==1?'s':''}${u>0?` · <span style="color:var(--red)">⚡ ${u} urgente${u>1?'s':''}</span>`:''}`;}
+  const el=$('lista-equipe');
+  if(!lista.length){el.innerHTML=`<div class="empty"><i class="ti ti-check"></i>Nenhuma demanda${fz?' na '+fz:''} para ${equipeAtual}</div>`;return;}
+  const urg=lista.filter(d=>d.prioridade==='urgente');
+  const atr=lista.filter(d=>horasAbertas(d)>=HORAS_ALERTA&&d.prioridade!=='urgente');
+  let html=realtimeBadge();
+  if(urg.length)html+=`<div class="alerta-topo alerta-urgente"><i class="ti ti-alert-triangle"></i> ${urg.length} demanda${urg.length>1?'s':''} urgente${urg.length>1?'s':''} — execute primeiro!</div>`;
+  if(atr.length)html+=`<div class="alerta-topo alerta-atrasada"><i class="ti ti-clock"></i> ${atr.length} demanda${atr.length>1?'s':''} com mais de 7 dias em aberto</div>`;
+  html+=lista.map(d=>cardHtml(d,{mostrarCheck:true,mostrarNaoEncontrado:true})).join('');
+  el.innerHTML=html;bindCards(el);
+}
+
+async function renderHistorico(){
+  const el=$('lista-historico');
+  el.innerHTML='<div class="empty"><i class="ti ti-loader-2"></i> Carregando concluídas com fotos (pode levar alguns segundos)…</div>';
+  const conc=await carregarConcluidasCompletas();
+  if(secaoAtual!=='historico')return; // usuário já saiu da tela enquanto carregava
+  popularSelectMes('filtro-mes-historico',conc);
+  const mesSel=$('filtro-mes-historico').value;
+  let lista=filtrarPorMes(conc,mesSel,'dataConclusao');
+  lista=lista.slice().sort((a,b)=>tsBR(b.dataConclusao||b.data)-tsBR(a.dataConclusao||a.data));
+  if(!lista.length){el.innerHTML='<div class="empty"><i class="ti ti-history"></i>Nenhum serviço concluído ainda</div>';return;}
+  el.innerHTML=`<div class="card">${lista.map(d=>`
+    <div class="hist-row">
+      <div style="font-size:14px;font-weight:600;margin-bottom:6px">${d.descricao}</div>
+      ${cardMaps(d.endereco)}
+      <div style="font-size:12px;color:var(--text2);margin-top:6px;display:flex;flex-wrap:wrap;gap:6px;align-items:center">
+        <span><i class="ti ti-user" style="font-size:12px"></i> ${d.solicitante}</span>
+        ${d.equipe?`<span class="tag-equipe">${d.equipe}</span>`:''}
+        ${d.zona?`<span class="tag-zona">${d.zona}</span>`:''}
+        <span>✅ <strong>${d.dataConclusao||'—'}</strong></span>
+      </div>
+      ${d.observacao?`<div style="margin-top:8px;background:var(--amber-bg);border:1px solid var(--amber-border);border-radius:var(--radius);padding:8px 10px;font-size:13px"><i class="ti ti-message" style="font-size:13px;vertical-align:-1px"></i> <strong>Obs. da equipe:</strong> ${d.observacao}</div>`:''}
+      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+        ${d.foto?`<div style="flex:1;min-width:120px"><div style="font-size:11px;color:var(--text3);margin-bottom:4px;font-weight:600">ANTES</div><img src="${d.foto}" class="photo-preview" data-src="${d.foto}" alt="Antes" style="margin-top:0;max-height:140px;width:100%"></div>`:''}
+        ${d.fotoConclusao?`<div style="flex:1;min-width:120px"><div style="font-size:11px;color:var(--text3);margin-bottom:4px;font-weight:600">DEPOIS</div><img src="${d.fotoConclusao}" class="photo-preview" data-src="${d.fotoConclusao}" alt="Depois" style="margin-top:0;max-height:140px;width:100%"></div>`:''}
+      </div>
+      <div style="margin-top:10px">
+        <button class="btn btn-sm btn-info" data-editar-fotos="${d._id}"><i class="ti ti-photo-edit"></i> Editar fotos</button>
+      </div>
+    </div>`).join('')}</div>`;
+  el.querySelectorAll('.photo-preview[data-src]').forEach(img=>img.addEventListener('click',()=>abrirLightbox(img.dataset.src)));
+  el.querySelectorAll('[data-editar-fotos]').forEach(b=>b.addEventListener('click',()=>pedirSenhaEditarFotos(b.dataset.editarFotos)));
+}
+
+// ══ DASHBOARD ═════════════════════════════════════════
+async function renderDashboard(){
+  const sel=$('sel-mes-dash');if(!sel)return;
+  await carregarScript('https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js');
+  if(secaoAtual!=='dashboard')return; // usuário já saiu da tela enquanto a biblioteca carregava
+  try{await carregarArquivo();}catch(e){console.warn('[arquivo] não foi possível carregar o arquivo permanente',e);}
+  if(secaoAtual!=='dashboard')return;
+
+  // Popula select de meses + opção "Todos"
+  const meses=new Set();
+  todasDemandasCombinadas().forEach(d=>{const m=parseMes(d.data);if(m)meses.add(m);});
+  _estatisticas.forEach(e=>{if(e._id)meses.add(e._id);});
+  const todos=[...meses].sort().reverse();
+  const atual=sel.value;
+  sel.innerHTML=`<option value="">📅 Todos os meses (${new Date().getFullYear()})</option>`
+    +( todos.length?todos.map(m=>`<option value="${m}">${nomeMes(m)}</option>`).join(''):'');
+  if(atual&&[...sel.options].some(o=>o.value===atual))sel.value=atual;
+
+  const mesISO=sel.value;
+  const conteudo=$('dash-conteudo');if(!conteudo)return;
+  const anoAtual=String(new Date().getFullYear());
+  // Dados com detalhe (resumo + arquivo permanente) do período, para as análises de
+  // tempo de atendimento, pontos recorrentes e mapa. Os totais e gráficos acima
+  // continuam usando a lógica original (resumo + estatísticas mensais).
+  const _det=dadosDetalhados().filter(d=>{const m=parseMes(d.dataConclusao||d.data);return mesISO?m===mesISO:(m&&m.startsWith(anoAtual+'-'));});
+  const insHtml=insightsDashHtml(_det);
+
+  // ── Dados filtrados ──
+  // IMPORTANTE: "Concluídas" deve contar pelo mês em que a demanda foi
+  // CONCLUÍDA (dataConclusao), não pelo mês em que foi aberta (data).
+  // "Em aberto" continua usando a data de abertura, pois ainda não têm conclusão.
+  const _todasDash=todasDemandasCombinadas();
+  let demFiltro, concFiltro, aberFiltro, labelTitulo;
+  if(!mesISO){
+    // Todos os meses do ano atual
+    labelTitulo=`Visão geral – ${anoAtual}`;
+    concFiltro=_todasDash.filter(d=>{
+      if(d.status!=='concluído')return false;
+      const m=parseMes(d.dataConclusao||d.data);
+      return m&&m.startsWith(anoAtual+'-');
+    });
+    aberFiltro=_todasDash.filter(d=>{
+      if(d.status==='concluído')return false;
+      if(!d.data)return false;
+      const p=d.data.split('/');
+      return p.length===3&&p[2]===anoAtual;
+    });
+    demFiltro=[...concFiltro,...aberFiltro];
+  } else {
+    const[ano,mes]=mesISO.split('-');
+    labelTitulo=nomeMes(mesISO);
+    const stat=_estatisticas.find(e=>e._id===mesISO);
+    concFiltro=_todasDash.filter(d=>{
+      if(d.status!=='concluído')return false;
+      const m=parseMes(d.dataConclusao||d.data);
+      return m===mesISO;
+    });
+    aberFiltro=_todasDash.filter(d=>{
+      if(d.status==='concluído')return false;
+      if(!d.data)return false;
+      const p=d.data.split('/');
+      return p.length===3&&p[2]===ano&&p[1]===mes;
+    });
+    demFiltro=[...concFiltro,...aberFiltro];
+    // adiciona estatísticas arquivadas
+    const totalConc=concFiltro.length+(stat?.total||0);
+    const totalUrg=concFiltro.filter(d=>d.prioridade==='urgente').length+(stat?.urgentes||0);
+    const porEquipe=EQUIPES.map(e=>concFiltro.filter(d=>d.equipe===e).length+(stat?.porEquipe?.[e]||0));
+    const porZona=ZONAS.map(z=>concFiltro.filter(d=>d.zona===z).length+(stat?.porZona?.[z]||0));
+    const abertasEq=EQUIPES.map(e=>aberFiltro.filter(d=>d.equipe===e).length);
+    const eqLabels=['Eq.1','Eq.2','Eq.3','Eq.4','Eq.5','Eq.6','ESAL'];
+    const cores=['#1a6640','#1a3f7a','#7a4f00','#4a1a7a','#7a3a00','#2a5f5a','#4a5568'];
+
+    // Bairros – mês selecionado
+    const bairroHtml=renderBairrosFreq(concFiltro, _servicos.filter(s=>{
+      const f=s.dataFim||s.dataInicio||'';const p=f.split('/');return p.length===3&&p[2]===ano&&p[1]===mes;
+    }), ano);
+
+    conteudo.innerHTML=`
+      <div class="dash-stat-row">
+        <div class="dash-stat"><div class="dash-stat-num" style="color:var(--green)">${totalConc}</div><div class="dash-stat-label">Concluídas</div></div>
+        <div class="dash-stat"><div class="dash-stat-num" style="color:var(--blue)">${aberFiltro.length}</div><div class="dash-stat-label">Em aberto</div></div>
+        <div class="dash-stat"><div class="dash-stat-num" style="color:var(--red)">${totalUrg}</div><div class="dash-stat-label">Urgentes</div></div>
+      </div>
+      <div class="dash-grid">
+        <div class="dash-card"><h4><i class="ti ti-chart-bar"></i> Concluídas por equipe</h4><canvas id="chart-equipe"></canvas></div>
+        <div class="dash-card"><h4><i class="ti ti-chart-pie"></i> Concluídas por zona</h4><canvas id="chart-zona"></canvas></div>
+        <div class="dash-card dash-card-full"><h4><i class="ti ti-users"></i> Em aberto por equipe</h4><canvas id="chart-abertas"></canvas></div>
+      </div>
+      ${insHtml}
+      ${bairroHtml}
+      <div class="dash-card"><h4><i class="ti ti-history"></i> Histórico de meses anteriores</h4>
+        <div class="historico-meses">${_estatisticas.slice().sort((a,b)=>b.mesISO?.localeCompare(a.mesISO)).map(m=>`<div class="mes-row"><span class="mes-row-nome">${m.nomeMes||m.mesISO}</span><span class="mes-row-num">${m.total||0} concluídas</span></div>`).join('')||'<div class="sem-dados">Nenhum mês anterior salvo ainda.</div>'}</div>
+      </div>`;
+    ['chart-equipe','chart-zona','chart-abertas'].forEach(id=>{if(_charts[id]){_charts[id].destroy();delete _charts[id];}});
+    _charts['chart-equipe']=new Chart($('chart-equipe'),{type:'bar',data:{labels:eqLabels,datasets:[{data:porEquipe,backgroundColor:cores,borderRadius:6}]},options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:1}}},responsive:true}});
+    _charts['chart-zona']=new Chart($('chart-zona'),{type:'doughnut',data:{labels:ZONAS,datasets:[{data:porZona,backgroundColor:cores.slice(0,5),borderWidth:2,borderColor:'#fff'}]},options:{plugins:{legend:{position:'bottom',labels:{font:{size:11},boxWidth:12}}},responsive:true}});
+    _charts['chart-abertas']=new Chart($('chart-abertas'),{type:'bar',data:{labels:eqLabels,datasets:[{data:abertasEq,backgroundColor:'#a8bce0',borderRadius:6}]},options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:1}}},responsive:true}});
+    montarMapaDash(_det).catch(e=>{console.error('[mapa]',e);const m=$('dash-mapa');if(m)m.innerHTML='<div class="sem-dados">Não foi possível carregar o mapa.</div>';});
+    return;
+  }
+
+  // ── Visão TODOS os meses ──
+  const porEquipeTodos=EQUIPES.map(e=>concFiltro.filter(d=>d.equipe===e).length);
+  const porZonaTodos=ZONAS.map(z=>concFiltro.filter(d=>d.zona===z).length);
+  const abertasEqTodos=EQUIPES.map(e=>aberFiltro.filter(d=>d.equipe===e).length);
+  const eqLabels=['Eq.1','Eq.2','Eq.3','Eq.4','Eq.5','Eq.6','ESAL'];
+  const cores=['#1a6640','#1a3f7a','#7a4f00','#4a1a7a','#7a3a00','#2a5f5a','#4a5568'];
+  const servsAno=_servicos.filter(s=>{const f=s.dataFim||s.dataInicio||'';return f.includes(anoAtual);});
+  const bairroHtml=renderBairrosFreq(concFiltro, servsAno, anoAtual);
+
+  conteudo.innerHTML=`
+    <div class="dash-stat-row">
+      <div class="dash-stat"><div class="dash-stat-num" style="color:var(--green)">${concFiltro.length}</div><div class="dash-stat-label">Concluídas ${anoAtual}</div></div>
+      <div class="dash-stat"><div class="dash-stat-num" style="color:var(--blue)">${aberFiltro.length}</div><div class="dash-stat-label">Em aberto</div></div>
+      <div class="dash-stat"><div class="dash-stat-num" style="color:var(--red)">${demFiltro.filter(d=>d.prioridade==='urgente').length}</div><div class="dash-stat-label">Urgentes ${anoAtual}</div></div>
+    </div>
+    <div class="dash-grid">
+      <div class="dash-card"><h4><i class="ti ti-chart-bar"></i> Concluídas por equipe</h4><canvas id="chart-equipe"></canvas></div>
+      <div class="dash-card"><h4><i class="ti ti-chart-pie"></i> Concluídas por zona</h4><canvas id="chart-zona"></canvas></div>
+      <div class="dash-card dash-card-full"><h4><i class="ti ti-users"></i> Em aberto por equipe</h4><canvas id="chart-abertas"></canvas></div>
+    </div>
+    ${insHtml}
+    ${bairroHtml}
+    <div class="dash-card"><h4><i class="ti ti-history"></i> Histórico de meses anteriores</h4>
+      <div class="historico-meses">${_estatisticas.slice().sort((a,b)=>b.mesISO?.localeCompare(a.mesISO)).map(m=>`<div class="mes-row"><span class="mes-row-nome">${m.nomeMes||m.mesISO}</span><span class="mes-row-num">${m.total||0} concluídas</span></div>`).join('')||'<div class="sem-dados">Nenhum mês anterior salvo ainda.</div>'}</div>
+    </div>`;
+  ['chart-equipe','chart-zona','chart-abertas'].forEach(id=>{if(_charts[id]){_charts[id].destroy();delete _charts[id];}});
+  _charts['chart-equipe']=new Chart($('chart-equipe'),{type:'bar',data:{labels:eqLabels,datasets:[{data:porEquipeTodos,backgroundColor:cores,borderRadius:6}]},options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:1}}},responsive:true}});
+  _charts['chart-zona']=new Chart($('chart-zona'),{type:'doughnut',data:{labels:ZONAS,datasets:[{data:porZonaTodos,backgroundColor:cores.slice(0,5),borderWidth:2,borderColor:'#fff'}]},options:{plugins:{legend:{position:'bottom',labels:{font:{size:11},boxWidth:12}}},responsive:true}});
+  _charts['chart-abertas']=new Chart($('chart-abertas'),{type:'bar',data:{labels:eqLabels,datasets:[{data:abertasEqTodos,backgroundColor:'#a8bce0',borderRadius:6}]},options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:1}}},responsive:true}});
+  montarMapaDash(_det).catch(e=>{console.error('[mapa]',e);const m=$('dash-mapa');if(m)m.innerHTML='<div class="sem-dados">Não foi possível carregar o mapa.</div>';});
+}
+
+// ══ ANÁLISES DO DASHBOARD: tempo de atendimento, recorrência e mapa ══
+let _dashMapa=null;
+function escHtml(t){return String(t==null?'':t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function fmtNum(n,casas=1){return n.toFixed(casas).replace('.',',');}
+// Dias entre abertura (data) e conclusão (dataConclusao); null se faltar/inconsistente.
+function diasAtendimento(d){
+  const a=tsBR(d.data),b=tsBR(d.dataConclusao);
+  if(!a||!b||b<a)return null;
+  return Math.round((b-a)/86400000);
+}
+function rotuloEquipe(e){return e.replace('Equipe ','Eq. ').replace(' (Retroescavadeira)','').replace('Demandas ESAL','ESAL');}
+function linhaMes(nome,num){return`<div class="mes-row"><span class="mes-row-nome">${nome}</span><span class="mes-row-num">${num}</span></div>`;}
+function insightsDashHtml(dados){
+  const cab=(t,i)=>`<h4><i class="ti ti-${i}"></i> ${t}</h4>`;
+  if(!dados.length){
+    return`<div class="dash-card dash-card-full" style="margin-bottom:12px">${cab('Análises detalhadas','report-analytics')}<div class="sem-dados">Sem dados detalhados neste período.</div></div>`;
+  }
+  // — Tempo de atendimento —
+  const comTempo=dados.map(d=>({d,t:diasAtendimento(d)})).filter(x=>x.t!==null);
+  let tempoHtml;
+  if(!comTempo.length){
+    tempoHtml='<div class="sem-dados">Sem datas suficientes para calcular.</div>';
+  }else{
+    const ts=comTempo.map(x=>x.t);
+    const media=ts.reduce((a,b)=>a+b,0)/ts.length;
+    const ord=ts.slice().sort((a,b)=>a-b);
+    const mediana=ord.length%2?ord[(ord.length-1)/2]:(ord[ord.length/2-1]+ord[ord.length/2])/2;
+    const ate7=ts.filter(t=>t<=7).length;
+    const mediaDe=lista=>{const v=lista.map(x=>x.t);return v.length?fmtNum(v.reduce((a,b)=>a+b,0)/v.length)+' dias · '+v.length:null;};
+    const porEq=EQUIPES.map(e=>[rotuloEquipe(e),mediaDe(comTempo.filter(x=>x.d.equipe===e))]).filter(x=>x[1]);
+    const porZn=ZONAS.map(z=>[z,mediaDe(comTempo.filter(x=>x.d.zona===z))]).filter(x=>x[1]);
+    tempoHtml=`
+      <div class="dash-stat-row">
+        <div class="dash-stat"><div class="dash-stat-num" style="color:var(--blue)">${fmtNum(media)}</div><div class="dash-stat-label">Média (dias)</div></div>
+        <div class="dash-stat"><div class="dash-stat-num" style="color:var(--text)">${fmtNum(mediana,mediana%1?1:0)}</div><div class="dash-stat-label">Mediana (dias)</div></div>
+        <div class="dash-stat"><div class="dash-stat-num" style="color:var(--green)">${Math.round(ate7/ts.length*100)}%</div><div class="dash-stat-label">Em até 7 dias</div></div>
+      </div>
+      <div class="dash-grid" style="margin-bottom:0">
+        <div><div style="font-size:11px;font-weight:600;color:var(--text3);margin-bottom:6px">POR EQUIPE (média · nº)</div><div class="historico-meses">${porEq.map(x=>linhaMes(x[0],x[1])).join('')}</div></div>
+        <div><div style="font-size:11px;font-weight:600;color:var(--text3);margin-bottom:6px">POR ZONA (média · nº)</div><div class="historico-meses">${porZn.map(x=>linhaMes(x[0],x[1])).join('')||'<div class="sem-dados" style="padding:10px">Sem zona definida.</div>'}</div></div>
+      </div>
+      <div style="font-size:11px;color:var(--text3);margin-top:8px">Tempo = da abertura à conclusão. Baseado em ${ts.length} demandas com dados detalhados.</div>`;
+  }
+  // — Pontos recorrentes —
+  const ruas=new Map();
+  dados.forEach(d=>{
+    const{rua}=extrairRuaNumero(d.endereco||'');
+    if(!rua||rua.length<4)return;
+    const x=ruas.get(rua)||{nome:(d.endereco||'').split(',')[0].trim(),n:0,ultima:0,ultimaTxt:''};
+    x.n++;const ts=tsBR(d.dataConclusao||d.data);if(ts>=x.ultima){x.ultima=ts;x.ultimaTxt=d.dataConclusao||d.data||'';}
+    ruas.set(rua,x);
+  });
+  const topRuas=[...ruas.values()].filter(x=>x.n>=2).sort((a,b)=>b.n-a.n||b.ultima-a.ultima).slice(0,10);
+  const bairros=new Map();
+  dados.forEach(d=>{if(d.bairroDetectado)bairros.set(d.bairroDetectado,(bairros.get(d.bairroDetectado)||0)+1);});
+  const topBairros=[...bairros.entries()].sort((a,b)=>b[1]-a[1]).slice(0,8);
+  const recHtml=`
+    <div class="dash-grid" style="margin-bottom:0">
+      <div><div style="font-size:11px;font-weight:600;color:var(--text3);margin-bottom:6px">RUAS COM MAIS ATENDIMENTOS</div><div class="historico-meses">${topRuas.map(x=>linhaMes(escHtml(x.nome)+` <span style="font-size:11px;color:var(--text3)">· últ. ${escHtml(x.ultimaTxt)}</span>`,x.n+'×')).join('')||'<div class="sem-dados" style="padding:10px">Nenhuma rua com 2 ou mais atendimentos.</div>'}</div></div>
+      <div><div style="font-size:11px;font-weight:600;color:var(--text3);margin-bottom:6px">BAIRROS COM MAIS ATENDIMENTOS</div><div class="historico-meses">${topBairros.map(x=>linhaMes(escHtml(x[0]),x[1])).join('')||'<div class="sem-dados" style="padding:10px">Bairro ainda não identificado nesses dados.</div>'}</div></div>
+    </div>`;
+  const comCoord=dados.filter(d=>typeof d.lat==='number'&&typeof d.lng==='number').length;
+  return`
+    <div class="dash-card dash-card-full" style="margin-bottom:12px">${cab('Tempo de atendimento','clock-check')}${tempoHtml}</div>
+    <div class="dash-card dash-card-full" style="margin-bottom:12px">${cab('Pontos recorrentes','repeat')}${recHtml}</div>
+    <div class="dash-card dash-card-full" style="margin-bottom:12px">${cab('Mapa de calor das demandas concluídas','map-2')}
+      <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap">
+        <button class="btn btn-sm btn-primary" id="dash-mapa-calor">Mapa de calor</button>
+        <button class="btn btn-sm" id="dash-mapa-pontos">Pontos</button>
+      </div>
+      <div id="dash-mapa" style="height:340px;border-radius:8px;border:1px solid var(--border);z-index:0"></div>
+      <div style="font-size:11px;color:var(--text3);margin-top:6px">${comCoord} de ${dados.length} demandas têm coordenada e aparecem no mapa.</div>
+    </div>`;
+}
+async function montarMapaDash(dados){
+  if(!$('dash-mapa'))return;
+  carregarCSS('https://unpkg.com/leaflet@1.9.4/dist/leaflet.css');
+  await carregarScript('https://unpkg.com/leaflet@1.9.4/dist/leaflet.js');
+  if(secaoAtual!=='dashboard'||!$('dash-mapa'))return;
+  if(_dashMapa){try{_dashMapa.remove();}catch(e){}_dashMapa=null;}
+  const mapa=_dashMapa=L.map('dash-mapa').setView([-21.1775,-47.8103],12);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap',maxZoom:19}).addTo(mapa);
+  const pts=dados.filter(d=>typeof d.lat==='number'&&typeof d.lng==='number');
+  const calor=L.layerGroup(), pontos=L.layerGroup();
+  pts.forEach(d=>{
+    // "Calor" sem plugin: círculos de 16 px (tamanho fixo na tela, visíveis em qualquer zoom)
+    // bem transparentes — onde se sobrepõem, a cor acumula.
+    // OBS: não usar renderizador canvas aqui: o CSS ".dash-card canvas{width:100%!important}"
+    // (dos gráficos) deforma o canvas do Leaflet e nada aparece. O padrão (SVG) não sofre disso.
+    L.circleMarker([d.lat,d.lng],{radius:16,stroke:false,fillColor:'#d9381e',fillOpacity:.16,interactive:false}).addTo(calor);
+    L.circleMarker([d.lat,d.lng],{radius:5,color:'#fff',weight:1,fillColor:d.prioridade==='urgente'?'#e05555':'#1a3f7a',fillOpacity:.9})
+      .bindPopup(`<div style="font-family:sans-serif;font-size:12px"><strong>${escHtml(d.descricao||'')}</strong><br>${escHtml(d.endereco||'')}<br><span style="color:#666">${escHtml(d.equipe||'')} · concluída em ${escHtml(d.dataConclusao||'—')}</span></div>`)
+      .addTo(pontos);
+  });
+  const bCalor=$('dash-mapa-calor'),bPontos=$('dash-mapa-pontos');
+  function modo(m){
+    if(m==='calor'){mapa.removeLayer(pontos);calor.addTo(mapa);}else{mapa.removeLayer(calor);pontos.addTo(mapa);}
+    if(bCalor)bCalor.className='btn btn-sm'+(m==='calor'?' btn-primary':'');
+    if(bPontos)bPontos.className='btn btn-sm'+(m==='pontos'?' btn-primary':'');
+  }
+  if(bCalor)bCalor.onclick=()=>modo('calor');
+  if(bPontos)bPontos.onclick=()=>modo('pontos');
+  modo('calor');
+  if(pts.length>1)mapa.fitBounds(pts.map(d=>[d.lat,d.lng]),{padding:[30,30]});
+  setTimeout(()=>mapa.invalidateSize(),150);
+}
+
+function renderBarras(titulo, subtitulo, corBarra, lista){
+  if(!lista.length)return'';
+  const max=lista[0][1]||1;
+  return`<div class="dash-card dash-card-full">
+    <h4>${titulo}</h4>
+    <p style="font-size:12px;color:var(--text3);margin:-4px 0 12px">${subtitulo}</p>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      ${lista.map(([b,v])=>`
+        <div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
+            <span style="font-size:13px;font-weight:500">${b}</span>
+            <span style="font-size:12px;font-family:var(--font-mono);color:var(--text2)">${v}x</span>
+          </div>
+          <div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden">
+            <div style="height:100%;width:${Math.round(v/max*100)}%;background:${corBarra};border-radius:3px;transition:width .4s"></div>
+          </div>
+        </div>`).join('')}
+    </div>
+  </div>`;
+}
+
+function renderBairrosFreq(demandas, servicos, ano){
+  // Bloco 1 — Serviços de área (limpeza de bairro)
+  const contagemServ={};
+  servicos.forEach(s=>{
+    if(s.tipo!=='bairro'||!s.local)return;
+    const b=s.local;
+    contagemServ[b]=(contagemServ[b]||0)+1;
+  });
+  const listaServ=Object.entries(contagemServ).sort((a,b)=>b[1]-a[1]);
+
+  // Bloco 2 — Demandas com bairro detectado automaticamente
+  const contagemDem={};
+  if(demandas){
+    demandas.forEach(d=>{
+      if(!d.bairroDetectado)return;
+      const b=d.bairroDetectado;
+      contagemDem[b]=(contagemDem[b]||0)+1;
+    });
+  }
+  const listaDem=Object.entries(contagemDem).sort((a,b)=>b[1]-a[1]);
+
+  const blocoServ=renderBarras(
+    `<i class="ti ti-map-2"></i> Limpezas de bairro – ${ano}`,
+    'Serviços de área do tipo "Bairro" concluídos no período.',
+    'var(--purple)',
+    listaServ
+  );
+  const blocoDem=renderBarras(
+    `<i class="ti ti-map-pin"></i> Demandas por bairro – ${ano}`,
+    'Demandas concluídas com bairro detectado automaticamente pelo sistema.',
+    'var(--blue)',
+    listaDem
+  );
+
+  if(!blocoServ&&!blocoDem)return'';
+  return blocoServ+blocoDem;
+}
+
+// ══ MAPA ══════════════════════════════════════════════
+let _marcadorUsuario=null, _circuloUsuario=null;
+
+function mostrarLocalizacaoUsuario(){
+  if(!_mapaInstance)return;
+  if(!navigator.geolocation){showMsg('Geolocalização não suportada neste dispositivo.','danger');return;}
+  navigator.geolocation.getCurrentPosition(pos=>{
+    const lat=pos.coords.latitude,lng=pos.coords.longitude;
+    const acc=pos.coords.accuracy;
+    if(_marcadorUsuario){_marcadorUsuario.remove();_circuloUsuario.remove();}
+    const iconeUser=L.divIcon({
+      html:`<div style="width:18px;height:18px;background:#16a34a;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 2px #16a34a,0 2px 6px rgba(0,0,0,.4)"></div>`,
+      className:'',iconSize:[18,18],iconAnchor:[9,9]
+    });
+    _marcadorUsuario=L.marker([lat,lng],{icon:iconeUser,zIndexOffset:1000}).addTo(_mapaInstance);
+    _marcadorUsuario.bindPopup('<div style="font-family:sans-serif;font-size:13px"><strong>📍 Você está aqui</strong><br><span style="color:#666;font-size:11px">Precisão: ±'+Math.round(acc)+'m</span></div>');
+    _circuloUsuario=L.circle([lat,lng],{radius:acc,color:'#16a34a',fillColor:'#16a34a',fillOpacity:0.08,weight:1}).addTo(_mapaInstance);
+    _mapaInstance.setView([lat,lng],16);
+  },err=>{
+    const msgs={1:'Permissão de localização negada.',2:'Localização indisponível.',3:'Tempo esgotado ao obter localização.'};
+    showMsg(msgs[err.code]||'Erro ao obter localização.','danger');
+  },{enableHighAccuracy:true,timeout:10000});
+}
+
+async function renderMapa(){
+  carregarCSS('https://unpkg.com/leaflet@1.9.4/dist/leaflet.css');
+  await carregarScript('https://unpkg.com/leaflet@1.9.4/dist/leaflet.js');
+  if(secaoAtual!=='mapa')return; // usuário já saiu da tela enquanto a biblioteca carregava
+  const lista=_demandas.filter(d=>(d.equipe===equipeAtual||d.equipeApoio===equipeAtual)&&d.status!=='concluído'&&d.status!=='revisao');
+  if(!_mapaInstance){
+    _mapaInstance=L.map('mapa-container').setView([-21.1775,-47.8103],13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap',maxZoom:19}).addTo(_mapaInstance);
+  } else {_mapaMarkers.forEach(m=>m.remove());_mapaMarkers=[];}
+  // Botão de localização
+  const btnLoc=document.getElementById('btn-minha-localizacao');
+  if(btnLoc) btnLoc.onclick=mostrarLocalizacaoUsuario;
+  const avisoEl=document.getElementById('mapa-aviso-sem-coord');
+  if(avisoEl) avisoEl.remove();
+  if(!lista.length){setTimeout(()=>_mapaInstance.invalidateSize(),100);return;}
+
+  function plotarMarcador(d,lat,lng){
+    const cor=d.prioridade==='urgente'?'#e05555':'#1a3f7a';
+    const icone=L.divIcon({html:`<div style="width:16px;height:16px;background:${cor};border-radius:50%;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4)"></div>`,className:'',iconSize:[16,16],iconAnchor:[8,8]});
+    const marker=L.marker([lat,lng],{icon:icone}).addTo(_mapaInstance);
+    marker.bindPopup(`<div style="font-family:sans-serif;font-size:13px;min-width:180px"><strong>${d.prioridade==='urgente'?'⚡ ':''}${d.descricao}</strong><br><span style="color:#666;font-size:12px">${d.endereco}</span><br><span style="color:#666;font-size:12px">${d.zona||''} · ${d.data}</span>${d.prioridade==='urgente'?'<br><span style="color:#e05555;font-weight:600;font-size:12px">⚡ URGENTE</span>':''}</div>`);
+    _mapaMarkers.push(marker);
+  }
+
+  // O mapa só exibe demandas que já têm coordenada salva no Firestore — instantâneo,
+  // sem nenhuma chamada de rede. A coordenada é gravada uma única vez, ao criar a
+  // demanda (ou ao corrigir o endereço na revisão). Demandas antigas que ainda não
+  // têm coordenada precisam da ferramenta de migração (migrar-coordenadas.html).
+  const comCoord=lista.filter(d=>typeof d.lat==='number'&&typeof d.lng==='number');
+  const semCoord=lista.filter(d=>!(typeof d.lat==='number'&&typeof d.lng==='number'));
+
+  const bounds=[];
+  comCoord.forEach(d=>{plotarMarcador(d,d.lat,d.lng);bounds.push([d.lat,d.lng]);});
+  if(bounds.length>1) _mapaInstance.fitBounds(bounds,{padding:[30,30]});
+  else if(bounds.length===1) _mapaInstance.setView(bounds[0],16);
+
+  if(semCoord.length){
+    const aviso=document.createElement('p');
+    aviso.id='mapa-aviso-sem-coord';
+    aviso.style.cssText='font-size:12px;color:var(--amber);text-align:center;margin-top:8px;background:var(--amber-bg);border:1px solid var(--amber-border);border-radius:var(--radius);padding:8px 10px';
+    aviso.innerHTML=`<i class="ti ti-map-pin-off"></i> ${semCoord.length} demanda${semCoord.length>1?'s':''} sem localização no mapa ainda (endereço não geocodificado).`;
+    $('mapa-container').insertAdjacentElement('afterend',aviso);
+  }
+
+  setTimeout(()=>_mapaInstance.invalidateSize(),100);
+}
+
+// ══ SERVIÇOS DE ÁREA ══════════════════════════════════
+function tipoTag(tipo){
+  const map={bairro:'area-tipo-bairro',avenida:'area-tipo-avenida',acao:'area-tipo-acao'};
+  const label={bairro:'🏘️ Bairro',avenida:'🛣️ Avenida/Rua',acao:'⭐ Ação Especial'};
+  return`<span class="area-tipo-tag ${map[tipo]||'area-tipo-bairro'}">${label[tipo]||tipo}</span>`;
+}
+
+function statusServicoHtml(s){
+  if(s==='concluido') return`<span class="badge badge-done">✅ Concluído</span>`;
+  if(s==='em-andamento') return`<span class="badge badge-doing">🔄 Em andamento</span>`;
+  return`<span class="badge badge-pending">⏳ Aguardando</span>`;
+}
+
+function areaCardHtml(s, opts={}){
+  const{podeConcluir=false,podeApagar=false}=opts;
+  const cls=s.status==='concluido'?'concluido':s.status==='em-andamento'?'em-andamento':'aguardando';
+  return`<div class="area-card ${cls}">
+    ${s.marcarData&&s.dataEvento&&s.status!=='concluido'?`<div class="evento-banner"><i class="ti ti-star"></i> AÇÃO marcada para <u>${brFromISO(s.dataEvento)}</u> — executar neste dia</div>`:''}
+    <div class="area-header">
+      <div style="flex:1">
+        ${tipoTag(s.tipo)}
+        <div style="font-size:15px;font-weight:600;margin-top:6px">${s.local}</div>
+        ${s.tipo==='avenida'&&s.extensao==='trecho'&&s.trecho?`<div style="font-size:12px;color:var(--blue);margin-top:3px;display:flex;align-items:center;gap:4px"><i class="ti ti-ruler-2" style="font-size:12px"></i> Trecho: ${s.trecho}</div>`:''}
+        ${s.tipo==='avenida'&&s.extensao==='inteira'?`<div style="font-size:12px;color:var(--text3);margin-top:3px;display:flex;align-items:center;gap:4px"><i class="ti ti-ruler-2" style="font-size:12px"></i> Via inteira</div>`:''}
+        <div style="font-size:12px;color:var(--text2);margin-top:4px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <span class="tag-equipe">${s.equipe||'—'}</span>
+          <span><i class="ti ti-calendar" style="font-size:12px"></i> Criado: ${s.dataCriacao||'—'}</span>
+          ${s.marcarData&&s.dataEvento?`<span class="badge" style="background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-border)"><i class="ti ti-calendar-event" style="font-size:11px"></i> ${brFromISO(s.dataEvento)}</span>`:''}
+        </div>
+      </div>
+      <div style="flex-shrink:0">${statusServicoHtml(s.status)}</div>
+    </div>
+    ${s.tipo==='acao'&&s.enderecoAcao?cardMaps(s.enderecoAcao):''}
+    ${s.tipo==='acao'&&s.necessitaRetroescavadeira?`<div style="margin-bottom:8px"><span class="badge" style="background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-border)"><i class="ti ti-bulldozer" style="font-size:11px"></i> Necessita retroescavadeira</span></div>`:''}
+    ${s.obsInicial?`<div style="font-size:12px;color:var(--text2);margin-top:6px;background:var(--bg);border-radius:var(--radius);padding:8px 10px"><i class="ti ti-message" style="font-size:12px"></i> ${s.obsInicial}</div>`:''}
+    ${s.dataInicio||s.dataFim?`<div style="font-size:12px;margin-top:8px;display:flex;gap:12px;flex-wrap:wrap">
+      ${s.dataInicio?`<span>🟢 <strong>Início:</strong> ${s.dataInicio}</span>`:''}
+      ${s.dataFim?`<span>🏁 <strong>Conclusão:</strong> ${s.dataFim}</span>`:''}
+    </div>`:''}
+    ${s.obs?`<div style="font-size:12px;color:var(--text2);margin-top:6px;background:var(--amber-bg);border:1px solid var(--amber-border);border-radius:var(--radius);padding:8px 10px"><i class="ti ti-message"></i> <strong>Obs. da equipe:</strong> ${s.obs}</div>`:''}
+    ${s.tipo==='acao'&&(s.fotoAntes||s.fotoAcao)?`<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+      ${s.fotoAntes?`<div style="flex:1;min-width:120px"><div style="font-size:11px;color:var(--text3);margin-bottom:4px;font-weight:600">ANTES</div><img src="${s.fotoAntes}" class="photo-preview" data-src="${s.fotoAntes}" alt="Antes" style="margin-top:0;max-height:160px;width:100%"></div>`:''}
+      ${s.fotoAcao?`<div style="flex:1;min-width:120px"><div style="font-size:11px;color:var(--text3);margin-bottom:4px;font-weight:600">DEPOIS</div><img src="${s.fotoAcao}" class="photo-preview" data-src="${s.fotoAcao}" alt="Depois" style="margin-top:0;max-height:160px;width:100%"></div>`:''}
+    </div>`:''}
+    ${podeApagar&&s.marcarData?`<div class="alocar-box" style="background:var(--blue-bg);border-color:var(--blue-border)">
+      <div class="alocar-label" style="color:var(--blue)"><i class="ti ti-calendar-event"></i> Data da ação (aviso Telegram 1 dia antes)</div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <input type="date" class="data-evento-input" value="${s.dataEvento||''}" style="flex:1;min-width:140px;padding:9px 10px;border:1px solid var(--blue-border);border-radius:var(--radius);font-size:14px;background:#fff">
+        <button class="btn btn-sm btn-info" data-salvar-data-evento-servico="${s._id}"><i class="ti ti-check"></i> Salvar</button>
+      </div>
+      <div style="font-size:11px;color:var(--text3);margin-top:6px">${s.notificadoEvento?'✓ Aviso já enviado para esta data':'Aviso ainda não enviado'}</div>
+    </div>`:''}
+    <div class="demand-actions">
+      ${podeConcluir&&s.status!=='concluido'?`<button class="btn-done" data-exec="${s._id}"><i class="ti ti-calendar-check"></i> ${s.status==='aguardando'?'Iniciar serviço':'Registrar conclusão'}</button>`:''}
+      ${podeApagar&&s.tipo==='avenida'?`<button class="btn btn-sm btn-info" data-edit-trecho="${s._id}"><i class="ti ti-ruler-2"></i> ${s.extensao?'Editar trecho':'Definir trecho'}</button>`:''}
+      ${podeApagar?`<button class="btn-del" data-del-servico="${s._id}"><i class="ti ti-trash"></i> Apagar</button>`:''}
+    </div>
+  </div>`;
+}
+
+function bindAreaCards(container){
+  container.querySelectorAll('[data-exec]').forEach(b=>b.addEventListener('click',()=>abrirExecServico(b.dataset.exec)));
+  container.querySelectorAll('[data-del-servico]').forEach(b=>b.addEventListener('click',()=>deletarServico(b.dataset.delServico)));
+  container.querySelectorAll('[data-edit-trecho]').forEach(b=>b.addEventListener('click',()=>abrirEditarTrecho(b.dataset.editTrecho)));
+  container.querySelectorAll('.photo-preview[data-src]').forEach(img=>img.addEventListener('click',()=>abrirLightbox(img.dataset.src)));
+  container.querySelectorAll('[data-salvar-data-evento-servico]').forEach(b=>b.addEventListener('click',()=>salvarDataEventoServico(b.dataset.salvarDataEventoServico,b)));
+}
+
+async function salvarDataEventoServico(id,btnEl){
+  const input=btnEl.closest('.alocar-box').querySelector('.data-evento-input');
+  const novaData=input.value;
+  if(!novaData){alert('Informe uma data válida.');return;}
+  try{
+    await fbUpdServico(id,{dataEvento:novaData,notificadoEvento:false});
+    showMsg('Data da ação atualizada! O aviso será enviado 1 dia antes.');
+  }catch(e){showMsg('Erro ao atualizar a data da ação.','danger');}
+}
+
+function renderServicos(){
+  const el=$('servicos-conteudo');if(!el)return;
+  const ano=new Date().getFullYear();
+
+  // Equipe vê: seus serviços em andamento OU aguardando (não vê concluídos de outras equipes)
+  // Secretaria/Fiscal veem tudo
+  let lista=[..._servicos];
+  if(perfil&&perfil.startsWith('equipe')){
+    lista=lista.filter(s=>s.equipe===equipeAtual&&s.status!=='aguardando');
+    // também mostra aguardando da própria equipe
+    const aguardando=_servicos.filter(s=>s.equipe===equipeAtual&&s.status==='aguardando');
+    lista=[..._servicos.filter(s=>s.equipe===equipeAtual)];
+  }
+
+  const abaSel=el.dataset.aba||'ativos';
+  const ativos=lista.filter(s=>s.status!=='concluido');
+  const concluidos=lista.filter(s=>s.status==='concluido');
+  const bairrosAno=concluidos.filter(s=>s.tipo==='bairro'&&(s.dataFim||'').includes(String(ano))).length;
+  const avenidasAno=concluidos.filter(s=>s.tipo==='avenida'&&(s.dataFim||'').includes(String(ano))).length;
+  const acoesAno=concluidos.filter(s=>s.tipo==='acao'&&(s.dataFim||'').includes(String(ano))).length;
+
+  const podeApagar=perfil==='secretaria';
+  const podeConcluir=perfil==='secretaria'||perfil?.startsWith('equipe');
+  const podeCriar=perfil==='secretaria';
+  const podePDF=perfil==='secretaria'||perfil==='fiscal';
+
+  const listaExibir=abaSel==='ativos'?ativos:abaSel==='concluidos'?concluidos:lista;
+
+  el.innerHTML=`
+    ${realtimeBadge()}
+    <div class="resumo-anual">
+      <div class="resumo-card"><div class="resumo-num" style="color:var(--purple)">${bairrosAno}</div><div class="resumo-label">Bairros ${ano}</div></div>
+      <div class="resumo-card"><div class="resumo-num" style="color:var(--blue)">${avenidasAno}</div><div class="resumo-label">Avenidas ${ano}</div></div>
+      <div class="resumo-card"><div class="resumo-num" style="color:var(--orange)">${acoesAno}</div><div class="resumo-label">Ações ${ano}</div></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+      ${podeCriar?`<button class="btn btn-primary" style="flex:1;min-width:160px;justify-content:center" id="btn-abrir-novo-servico"><i class="ti ti-plus"></i> Novo serviço</button>`:''}
+      ${podePDF?`<button class="btn btn-info btn-sm" id="btn-gerar-pdf-servicos"><i class="ti ti-file-type-pdf"></i> Gerar PDF</button>`:''}
+    </div>
+    <div class="area-sec-tabs">
+      <button class="area-sec-tab ${abaSel==='ativos'?'active':''}" data-aba="ativos">Em aberto (${ativos.length})</button>
+      <button class="area-sec-tab ${abaSel==='concluidos'?'active':''}" data-aba="concluidos">Concluídos (${concluidos.length})</button>
+      <button class="area-sec-tab ${abaSel==='todos'?'active':''}" data-aba="todos">Todos (${lista.length})</button>
+    </div>
+    ${listaExibir.length?listaExibir.map(s=>areaCardHtml(s,{podeConcluir,podeApagar})).join(''):`<div class="empty"><i class="ti ti-map-2"></i>${abaSel==='ativos'?'Nenhum serviço em aberto':'Nenhum serviço encontrado'}</div>`}
+  `;
+
+  el.querySelectorAll('.area-sec-tab').forEach(btn=>{
+    btn.addEventListener('click',()=>{el.dataset.aba=btn.dataset.aba;renderServicos();});
+  });
+  if(podeCriar){const b=$('btn-abrir-novo-servico');if(b)b.addEventListener('click',abrirNovoServico);}
+  if(podePDF){const b=$('btn-gerar-pdf-servicos');if(b)b.addEventListener('click',gerarRelatorioServicos);}
+  bindAreaCards(el);
+}
+
+function abrirNovoServico(){
+  _tipoServicoSel='bairro';
+  $('servico-local-bairro').value='';
+  $('servico-local-avenida').value='';
+  $('servico-local-acao').value='';
+  $('servico-avenida-extensao').value='inteira';
+  $('servico-avenida-trecho-desc').value='';
+  $('field-avenida-trecho').style.display='none';
+  $('servico-equipe').value='';
+  $('servico-obs-inicial').value='';
+  $('servico-acao-endereco').value='';
+  $('servico-acao-foto-antes').value='';
+  $('servico-acao-foto-antes-prev').style.display='none';
+  $('servico-acao-foto-antes-prev').src='';
+  $('servico-acao-retro').checked=false;
+  $('marcar-data-servico').checked=false;
+  $('campo-data-evento-servico').style.display='none';
+  $('data-evento-servico').value='';
+  $('autocomplete-lista').style.display='none';
+  selecionarTipoServico('bairro');
+  $('modal-novo-servico').style.display='flex';
+  setTimeout(()=>$('servico-local-bairro').focus(),150);
+}
+
+function selecionarTipoServico(tipo){
+  _tipoServicoSel=tipo;
+  ['bairro','avenida','acao'].forEach(t=>{
+    $('tipo-btn-'+t).classList.toggle('selected',t===tipo);
+    const f=$('field-'+t);if(f)f.style.display=t===tipo?'block':'none';
+  });
+  const placeholdersObs={
+    bairro:'Ex: Priorizar ruas internas do bairro…',
+    avenida:'Ex: Atenção especial ao canteiro central…',
+    acao:'Ex: Ação de reintegração de posse de área pública'
+  };
+  $('servico-obs-inicial').placeholder=placeholdersObs[tipo]||'';
+}
+
+function setupAutocomplete(){
+  const input=$('servico-local-bairro');
+  const lista=$('autocomplete-lista');
+  if(!input||!lista)return;
+  input.addEventListener('input',()=>{
+    const q=input.value.trim().toLowerCase();
+    if(!q){lista.style.display='none';return;}
+    const matches=BAIRROS_RP.filter(b=>b.toLowerCase().includes(q)).slice(0,8);
+    if(!matches.length){lista.style.display='none';return;}
+    lista.innerHTML=matches.map(b=>`<div class="autocomplete-item">${b}</div>`).join('');
+    lista.style.display='block';
+    lista.querySelectorAll('.autocomplete-item').forEach(item=>{
+      item.addEventListener('click',()=>{input.value=item.textContent;lista.style.display='none';});
+    });
+  });
+  document.addEventListener('click',e=>{if(!e.target.closest('.autocomplete-wrap'))lista.style.display='none';});
+}
+
+async function salvarNovoServico(){
+  const tipo=_tipoServicoSel;
+  let local='';
+  if(tipo==='bairro') local=$('servico-local-bairro').value.trim();
+  else if(tipo==='avenida') local=$('servico-local-avenida').value.trim();
+  else local=$('servico-local-acao').value.trim();
+  const equipe=$('servico-equipe').value;
+  if(!local){alert('Preencha o nome do local.');return;}
+  if(!equipe){alert('Selecione a equipe responsável.');return;}
+  const obs=$('servico-obs-inicial').value.trim();
+  let extensao=null,trecho=null;
+  if(tipo==='avenida'){
+    extensao=$('servico-avenida-extensao').value;
+    if(extensao==='trecho'){
+      trecho=$('servico-avenida-trecho-desc').value.trim();
+      if(!trecho){alert('Descreva qual trecho da avenida será atendido.');return;}
+    }
+  }
+  // Campos exclusivos da Ação Especial: endereço, foto do antes, retroescavadeira e data do evento.
+  let enderecoAcao=null,fotoAntes=null,necessitaRetroescavadeira=false,marcarData=false,dataEventoISO=null;
+  if(tipo==='acao'){
+    enderecoAcao=$('servico-acao-endereco').value.trim()||null;
+    const prevAntes=$('servico-acao-foto-antes-prev');
+    if(prevAntes.style.display!=='none'&&prevAntes.src) fotoAntes=await comprimirImagem(prevAntes.src);
+    necessitaRetroescavadeira=$('servico-acao-retro').checked;
+    marcarData=$('marcar-data-servico').checked;
+    dataEventoISO=$('data-evento-servico').value;
+    if(marcarData&&!dataEventoISO){alert('Informe a data da ação, ou desmarque "Marcar data da ação".');return;}
+  }
+  try{
+    await fbAddServico({tipo,local,equipe,obsInicial:obs||null,status:'aguardando',dataCriacao:new Date().toLocaleDateString('pt-BR'),dataInicio:null,dataFim:null,obs:null,extensao,trecho,enderecoAcao,fotoAntes,necessitaRetroescavadeira,marcarData,dataEvento:marcarData?dataEventoISO:null,notificadoEvento:false});
+    fecharModal('modal-novo-servico');
+    showMsg(`✓ Serviço de área registrado para ${equipe}!`);
+  }catch(e){showMsg('Erro ao salvar.','danger');}
+}
+
+function abrirExecServico(id){
+  _execServicoId=id;
+  const s=_servicos.find(x=>x._id===id);
+  const hoje=new Date().toISOString().split('T')[0];
+  $('exec-data-inicio').value=s?.dataInicio?isoFromBR(s.dataInicio):hoje;
+  $('exec-data-fim').value=s?.dataFim?isoFromBR(s.dataFim):'';
+  $('exec-obs').value=s?.obs||'';
+  // Troca de equipe só quando ainda aguardando
+  const campoEquipe=$('exec-campo-equipe');
+  if(s?.status==='aguardando'&&perfil==='secretaria'){
+    campoEquipe.style.display='block';
+    $('exec-equipe').value=s?.equipe||'';
+  } else {
+    campoEquipe.style.display='none';
+  }
+  // Foto somente para Ação Especial
+  const campoFoto=$('exec-campo-foto');
+  if(s?.tipo==='acao'){
+    campoFoto.style.display='block';
+    $('exec-foto').value='';
+    $('exec-foto-prev').style.display='none';
+  } else {
+    campoFoto.style.display='none';
+  }
+  $('modal-exec-servico').style.display='flex';
+}
+
+function isoFromBR(br){
+  if(!br)return'';const p=br.split('/');return p.length===3?`${p[2]}-${p[1]}-${p[0]}`:'';
+}
+function brFromISO(iso){
+  if(!iso)return'';const p=iso.split('-');return p.length===3?`${p[2]}/${p[1]}/${p[0]}`:'';
+}
+// Retorna, em formato BR, o dia anterior a uma data ISO (usado no aviso de
+// Demandas-evento: o serviço precisa estar pronto ATÉ o dia anterior ao evento).
+function diaAnteriorBR(iso){
+  if(!iso)return'';
+  const[y,m,d]=iso.split('-').map(Number);
+  const dt=new Date(y,m-1,d);
+  dt.setDate(dt.getDate()-1);
+  const yy=dt.getFullYear(),mm=String(dt.getMonth()+1).padStart(2,'0'),dd=String(dt.getDate()).padStart(2,'0');
+  return`${dd}/${mm}/${yy}`;
+}
+
+async function confirmarExecServico(){
+  const inicio=$('exec-data-inicio').value;
+  const fim=$('exec-data-fim').value;
+  const obs=$('exec-obs').value.trim();
+  if(!inicio){alert('Informe a data de início.');return;}
+  const s=_servicos.find(x=>x._id===_execServicoId);
+  const status = fim ? 'concluido' : 'em-andamento';
+  const novaEquipe=$('exec-campo-equipe').style.display!=='none'?$('exec-equipe').value:null;
+
+  // Foto para ação especial
+  let fotoBase64=s?.fotoAcao||null;
+  if(s?.tipo==='acao'){
+    const fotoInput=$('exec-foto');
+    const prev=$('exec-foto-prev');
+    if(prev&&prev.style.display!=='none'&&prev.src){
+      try{fotoBase64=await comprimirImagem(prev.src);}catch(e){/* segue sem foto */}
+    }
+  }
+
+  try{
+    const upd={
+      dataInicio:brFromISO(inicio),
+      dataFim: fim ? brFromISO(fim) : null,
+      obs:obs||null,
+      status
+    };
+    if(novaEquipe) upd.equipe=novaEquipe;
+    if(s?.tipo==='acao') upd.fotoAcao=fotoBase64;
+    await fbUpdServico(_execServicoId,upd);
+    fecharModal('modal-exec-servico');
+    showMsg(status==='concluido' ? 'Serviço marcado como concluído!' : 'Serviço iniciado com sucesso!');
+  }catch(e){
+    console.error(e);
+    showMsg('Erro ao salvar. Verifique a conexão e tente novamente.','danger');
+  }
+}
+
+async function deletarServico(id){
+  if(!confirm('Apagar este serviço de área?'))return;
+  try{await fbDelServico(id);showMsg('Serviço apagado.');}
+  catch(e){showMsg('Erro ao apagar.','danger');}
+}
+
+let _editarTrechoId=null;
+function abrirEditarTrecho(id){
+  _editarTrechoId=id;
+  const s=_servicos.find(x=>x._id===id);
+  $('editar-trecho-extensao').value=s?.extensao||'inteira';
+  $('editar-trecho-desc').value=s?.trecho||'';
+  $('editar-trecho-campo').style.display=$('editar-trecho-extensao').value==='trecho'?'block':'none';
+  $('modal-editar-trecho').style.display='flex';
+}
+async function salvarEditarTrecho(){
+  const extensao=$('editar-trecho-extensao').value;
+  let trecho=null;
+  if(extensao==='trecho'){
+    trecho=$('editar-trecho-desc').value.trim();
+    if(!trecho){alert('Descreva qual trecho da avenida será atendido.');return;}
+  }
+  try{
+    await fbUpdServico(_editarTrechoId,{extensao,trecho});
+    fecharModal('modal-editar-trecho');
+    showMsg('Trecho atualizado!');
+  }catch(e){showMsg('Erro ao salvar.','danger');}
+}
+
+// ══ PDF ═══════════════════════════════════════════════
+async function gerarRelatorio(){
+  const mesSel=$('filtro-mes-historico').value;
+  // Usa a lista COMPLETA (coleção "demandas") — a mesma que preenche o seletor
+  // de mês desta tela. Antes usava o resumo leve, e se alguma demanda tivesse
+  // ficado sem resumo, o mês aparecia no seletor mas o PDF dizia "não há
+  // demandas" (bug de out/2026).
+  let conc;
+  try{conc=await carregarConcluidasCompletas();}catch(e){alert('Erro ao carregar as demandas concluídas. Tente novamente.');return;}
+  conc=filtrarPorMes(conc,mesSel,'dataConclusao');
+  if(!conc.length){alert('Não há demandas concluídas para gerar relatório.');return;}
+  const hoje=new Date().toLocaleDateString('pt-BR');
+  $('rel-conteudo').innerHTML=`<strong>Total: ${conc.length} demandas concluídas</strong><br>Gerado em: ${hoje}<br><br>`+conc.map((d,i)=>`<div style="margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--border)"><strong>${i+1}. ${d.descricao}</strong><br>Solicitante: ${d.solicitante}<br>Endereço: ${d.endereco}<br>Zona: ${d.zona||'—'}<br>Abertura: ${d.data} ${d.hora}<br>Conclusão: ${d.dataConclusao||'—'}<br>Equipe: ${d.equipe||'—'}${d.prioridade==='urgente'?' ⚡':''}</div>`).join('');
+  $('modal-relatorio').style.display='flex';
+}
+
+async function baixarPDF(){
+  const mesSel=$('filtro-mes-historico').value;
+  // Checagem rápida com os dados leves (sem foto) primeiro — evita baixar as
+  // fotos todas se não houver nada pra gerar naquele mês.
+  const completas=await carregarConcluidasCompletas();
+  let conc=filtrarPorMes(completas,mesSel,'dataConclusao');
+  if(!conc.length)return;
+  await carregarScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+  const{jsPDF}=window.jspdf;
+  const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+  const hoje=new Date().toLocaleDateString('pt-BR');
+  const W=210,M=15,lH=6;let y=M;
+  function chk(n=10){if(y+n>284){doc.addPage();y=M;}}
+  doc.setFillColor(26,25,23);doc.rect(0,0,W,26,'F');
+  doc.setTextColor(255,255,255);doc.setFontSize(13);doc.setFont('helvetica','bold');
+  doc.text('Secretaria da Infraestrutura – Ribeirão Preto',M,11);
+  doc.setFontSize(9);doc.setFont('helvetica','normal');doc.text('Gestão de Limpeza Urbana',M,17);doc.text(`Gerado em: ${hoje}`,W-M,17,{align:'right'});
+  y=34;
+  const tMes=mesSel?` – ${$('filtro-mes-historico').options[$('filtro-mes-historico').selectedIndex]?.text||''}` : '';
+  doc.setTextColor(26,25,23);doc.setFontSize(14);doc.setFont('helvetica','bold');
+  doc.text(`Relatório de Demandas Concluídas${tMes}`,M,y);y+=7;
+  doc.setFontSize(10);doc.setFont('helvetica','normal');doc.setTextColor(100,100,100);
+  doc.text(`Total: ${conc.length} demanda${conc.length>1?'s':''} concluída${conc.length>1?'s':''}`,M,y);y+=4;
+  doc.setDrawColor(210,210,210);doc.line(M,y,W-M,y);y+=8;
+  conc.forEach((d,i)=>{
+    chk(38);
+    doc.setFillColor(244,243,239);doc.roundedRect(M,y,W-M*2,10,1,1,'F');
+    doc.setFontSize(10);doc.setFont('helvetica','bold');doc.setTextColor(26,25,23);
+    const tit=doc.splitTextToSize(`${i+1}. ${d.descricao}`,W-M*2-6);doc.text(tit,M+3,y+6.5);y+=10+(tit.length-1)*5+4;
+    [['Solicitante',d.solicitante],['Endereço',d.endereco],['Zona',d.zona||'—'],['Abertura',`${d.data} às ${d.hora}`],['Conclusão',d.dataConclusao||'—'],['Equipe',d.equipe||'—'],['Prioridade',d.prioridade==='urgente'?'URGENTE':'Normal']].forEach(([l,v])=>{
+      chk(7);doc.setFontSize(9);doc.setFont('helvetica','bold');doc.setTextColor(90,90,90);doc.text(l+':',M+3,y);
+      doc.setFont('helvetica','normal');doc.setTextColor(26,25,23);const lines=doc.splitTextToSize(String(v),W-M*2-36);doc.text(lines,M+36,y);y+=lH*lines.length;
+    });
+    if(d.observacao){chk(12);doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(90,90,90);doc.text('Observação:',M+3,y);y+=4;doc.setFont('helvetica','normal');doc.setTextColor(26,25,23);const ol=doc.splitTextToSize(d.observacao,W-M*2-6);doc.text(ol,M+3,y);y+=lH*ol.length+2;}
+    const temA=!!d.foto,temD=!!d.fotoConclusao;
+    if(temA||temD){
+      chk(58);doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(90,90,90);
+      if(temA&&temD){doc.text('ANTES',M+3,y);doc.text('DEPOIS',M+93,y);y+=4;try{doc.addImage(d.foto,'JPEG',M+3,y,82,55);}catch(e){}try{doc.addImage(d.fotoConclusao,'JPEG',M+93,y,82,55);}catch(e){}y+=58;}
+      else if(temD){doc.text('Foto concluído:',M+3,y);y+=4;try{doc.addImage(d.fotoConclusao,'JPEG',M+3,y,70,50);y+=53;}catch(e){}}
+      else if(temA){doc.text('Foto do local:',M+3,y);y+=4;try{doc.addImage(d.foto,'JPEG',M+3,y,70,50);y+=53;}catch(e){}}
+    }
+    chk(6);doc.setDrawColor(220,220,220);doc.line(M,y,W-M,y);y+=7;
+  });
+  chk(10);doc.setFontSize(8);doc.setTextColor(160,160,160);doc.setFont('helvetica','italic');
+  doc.text('Documento gerado automaticamente – Sistema de Gestão de Limpeza Urbana / Secretaria da Infraestrutura de Ribeirão Preto',M,y,{maxWidth:W-M*2});
+  const sf=mesSel?`_${mesSel}`:'';doc.save(`relatorio_demandas${sf}_${hoje.replace(/\//g,'-')}.pdf`);
+}
+
+// ══ PDF SERVIÇOS ══════════════════════════════════════
+function gerarRelatorioServicos(){
+  if(!_servicos.length){alert('Nenhum serviço cadastrado para gerar relatório.');return;}
+  const hoje=new Date().toLocaleDateString('pt-BR');
+  const concluidos=_servicos.filter(s=>s.status==='concluido');
+  const andamento=_servicos.filter(s=>s.status==='em-andamento');
+  const aguardando=_servicos.filter(s=>s.status==='aguardando');
+  $('rel-servicos-conteudo').innerHTML=`
+    <strong>Total: ${_servicos.length} serviços</strong> · ${concluidos.length} concluídos · ${andamento.length} em andamento · ${aguardando.length} aguardando<br>
+    Gerado em: ${hoje}<br><br>
+    ${_servicos.map((s,i)=>`<div style="margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--border)">
+      <strong>${i+1}. ${s.local}</strong> <span style="font-size:12px;color:var(--text2)">[${s.tipo}]</span><br>
+      ${s.tipo==='avenida'?`Extensão: ${s.extensao==='trecho'?`Trecho – ${s.trecho||'—'}`:'Via inteira'}<br>`:''}
+      ${s.tipo==='acao'&&s.enderecoAcao?`Endereço: ${s.enderecoAcao}<br>`:''}
+      ${s.tipo==='acao'&&s.necessitaRetroescavadeira?`Necessita retroescavadeira: Sim<br>`:''}
+      Equipe: ${s.equipe||'—'} · Status: ${s.status}<br>
+      ${s.dataInicio?`Início: ${s.dataInicio}`:''} ${s.dataFim?`· Conclusão: ${s.dataFim}`:''}
+      ${s.obs?`<br>Obs: ${s.obs}`:''}
+    </div>`).join('')}
+  `;
+  $('modal-relatorio-servicos').style.display='flex';
+}
+
+async function baixarPDFServicos(){
+  if(!_servicos.length)return;
+  await carregarScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+  const{jsPDF}=window.jspdf;
+  const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+  const hoje=new Date().toLocaleDateString('pt-BR');
+  const ano=new Date().getFullYear();
+  const W=210,M=15,lH=6;let y=M;
+  function chk(n=10){if(y+n>284){doc.addPage();y=M;}}
+
+  // Cabeçalho
+  doc.setFillColor(26,25,23);doc.rect(0,0,W,26,'F');
+  doc.setTextColor(255,255,255);doc.setFontSize(13);doc.setFont('helvetica','bold');
+  doc.text('Secretaria da Infraestrutura – Ribeirão Preto',M,11);
+  doc.setFontSize(9);doc.setFont('helvetica','normal');
+  doc.text('Gestão de Limpeza Urbana',M,17);
+  doc.text(`Gerado em: ${hoje}`,W-M,17,{align:'right'});
+  y=34;
+
+  doc.setTextColor(26,25,23);doc.setFontSize(14);doc.setFont('helvetica','bold');
+  doc.text(`Relatório de Serviços de Área – ${ano}`,M,y);y+=7;
+
+  // Resumo
+  const conc=_servicos.filter(s=>s.status==='concluido');
+  const and=_servicos.filter(s=>s.status==='em-andamento');
+  const agu=_servicos.filter(s=>s.status==='aguardando');
+  const bairros=conc.filter(s=>s.tipo==='bairro');
+  const avenidas=conc.filter(s=>s.tipo==='avenida');
+  const acoes=conc.filter(s=>s.tipo==='acao');
+
+  doc.setFontSize(10);doc.setFont('helvetica','normal');doc.setTextColor(100,100,100);
+  doc.text(`Total: ${_servicos.length} serviço(s)  ·  ${conc.length} concluído(s)  ·  ${and.length} em andamento  ·  ${agu.length} aguardando`,M,y);y+=5;
+  doc.text(`Bairros concluídos: ${bairros.length}  ·  Avenidas/Ruas: ${avenidas.length}  ·  Ações especiais: ${acoes.length}`,M,y);y+=4;
+  doc.setDrawColor(210,210,210);doc.line(M,y,W-M,y);y+=8;
+
+  // Agrupar por tipo
+  // Mesmas cores usadas nas etiquetas de tipo dentro do site (roxo=bairro,
+  // azul=avenida, laranja=ação), pra manter a identidade visual e destacar
+  // bem cada seção do relatório.
+  const grupos=[
+    {label:'Limpeza de Bairros',tipo:'bairro',cor:[74,26,122]},
+    {label:'Avenidas e Ruas',tipo:'avenida',cor:[26,63,122]},
+    {label:'Ações Especiais',tipo:'acao',cor:[122,58,0]}
+  ];
+
+  grupos.forEach(g=>{
+    const itens=_servicos.filter(s=>s.tipo===g.tipo);
+    if(!itens.length)return;
+    chk(17);
+    doc.setFillColor(...g.cor);doc.rect(M,y,W-M*2,12,'F');
+    doc.setFontSize(14);doc.setFont('helvetica','bold');doc.setTextColor(255,255,255);
+    doc.text(g.label.toUpperCase(),M+4,y+8);y+=16;
+
+    itens.forEach((s,i)=>{
+      chk(32);
+      // status cor
+      const statusLabel=s.status==='concluido'?'CONCLUÍDO':s.status==='em-andamento'?'EM ANDAMENTO':'AGUARDANDO';
+      const corStatus=s.status==='concluido'?[26,102,64]:s.status==='em-andamento'?[26,63,122]:[122,79,0];
+      doc.setFillColor(244,243,239);doc.roundedRect(M,y,W-M*2,10,1,1,'F');
+      doc.setFontSize(10);doc.setFont('helvetica','bold');doc.setTextColor(...corStatus);
+      doc.text(statusLabel,W-M-3,y+6.5,{align:'right'});
+      doc.setTextColor(26,25,23);
+      const tit=doc.splitTextToSize(`${i+1}. ${s.local}`,W-M*2-50);
+      doc.text(tit,M+3,y+6.5);y+=10+(tit.length-1)*5+4;
+
+      const campos=[
+        ['Equipe',s.equipe||'—'],
+        ...(s.tipo==='avenida'?[['Extensão',s.extensao==='trecho'?`Trecho: ${s.trecho||'—'}`:'Via inteira']]:[]),
+        ...(s.tipo==='acao'&&s.enderecoAcao?[['Endereço',s.enderecoAcao]]:[]),
+        ...(s.tipo==='acao'&&s.necessitaRetroescavadeira?[['Retroescavadeira','Necessária']]:[]),
+        ['Criado em',s.dataCriacao||'—'],
+        ...(s.dataInicio?[['Início',s.dataInicio]]:[]),
+        ...(s.dataFim?[['Conclusão',s.dataFim]]:[]),
+      ];
+      campos.forEach(([l,v])=>{
+        chk(7);doc.setFontSize(9);doc.setFont('helvetica','bold');doc.setTextColor(90,90,90);doc.text(l+':',M+3,y);
+        doc.setFont('helvetica','normal');doc.setTextColor(26,25,23);const linhasV=doc.splitTextToSize(String(v),W-M*2-36);doc.text(linhasV,M+36,y);y+=lH*linhasV.length;
+      });
+      if(s.obsInicial){chk(10);doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(90,90,90);doc.text('Obs. inicial:',M+3,y);y+=4;doc.setFont('helvetica','normal');doc.setTextColor(26,25,23);const ol=doc.splitTextToSize(s.obsInicial,W-M*2-6);doc.text(ol,M+3,y);y+=lH*ol.length+2;}
+      if(s.obs){chk(10);doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(90,90,90);doc.text('Obs. da equipe:',M+3,y);y+=4;doc.setFont('helvetica','normal');doc.setTextColor(26,25,23);const ol=doc.splitTextToSize(s.obs,W-M*2-6);doc.text(ol,M+3,y);y+=lH*ol.length+2;}
+      if(s.tipo==='acao'&&(s.fotoAntes||s.fotoAcao)){
+        chk(58);doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(90,90,90);
+        if(s.fotoAntes&&s.fotoAcao){doc.text('ANTES',M+3,y);doc.text('DEPOIS',M+93,y);y+=4;try{doc.addImage(s.fotoAntes,'JPEG',M+3,y,82,55);}catch(e){}try{doc.addImage(s.fotoAcao,'JPEG',M+93,y,82,55);}catch(e){}y+=58;}
+        else if(s.fotoAcao){doc.text('Foto da ação (depois):',M+3,y);y+=4;try{doc.addImage(s.fotoAcao,'JPEG',M+3,y,70,50);y+=53;}catch(e){}}
+        else if(s.fotoAntes){doc.text('Foto do local (antes):',M+3,y);y+=4;try{doc.addImage(s.fotoAntes,'JPEG',M+3,y,70,50);y+=53;}catch(e){}}
+      }
+      chk(6);doc.setDrawColor(220,220,220);doc.line(M,y,W-M,y);y+=7;
+    });
+    y+=4;
+  });
+
+  chk(10);doc.setFontSize(8);doc.setTextColor(160,160,160);doc.setFont('helvetica','italic');
+  doc.text('Documento gerado automaticamente – Sistema de Gestão de Limpeza Urbana / Secretaria da Infraestrutura de Ribeirão Preto',M,y,{maxWidth:W-M*2});
+  doc.save(`relatorio_servicos_${ano}_${hoje.replace(/\//g,'-')}.pdf`);
+}
+
+// ══ CLIMA ═════════════════════════════════════════════
+async function carregarClima(){
+  const card=$('clima-card');if(!card)return;
+  // Coordenadas de Ribeirão Preto
+  const LAT=-21.1775,LNG=-47.8103;
+  try{
+    const url=`https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LNG}&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weather_code&timezone=America%2FSao_Paulo&forecast_days=1`;
+    const res=await fetch(url);
+    const d=await res.json();
+    const c=d.current,dy=d.daily;
+    const temp=Math.round(c.temperature_2m);
+    const sensacao=Math.round(c.apparent_temperature);
+    const umidade=c.relative_humidity_2m;
+    const chuva=c.precipitation;
+    const vento=Math.round(c.wind_speed_10m);
+    const tmax=Math.round(dy.temperature_2m_max[0]);
+    const tmin=Math.round(dy.temperature_2m_min[0]);
+    const chuvaTotal=dy.precipitation_sum[0];
+    const wcode=c.weather_code;
+    const agora=new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+
+    // Traduz código de tempo
+    function descClima(code){
+      if(code===0)return{emoji:'☀️',desc:'Céu limpo',tipo:'ok'};
+      if(code<=2)return{emoji:'🌤️',desc:'Parcialmente nublado',tipo:'ok'};
+      if(code===3)return{emoji:'☁️',desc:'Nublado',tipo:'ok'};
+      if(code<=49)return{emoji:'🌫️',desc:'Névoa / neblina',tipo:'atencao'};
+      if(code<=59)return{emoji:'🌦️',desc:'Garoa',tipo:'atencao'};
+      if(code<=69)return{emoji:'🌧️',desc:'Chuva',tipo:'atencao'};
+      if(code<=79)return{emoji:'🌨️',desc:'Neve / granizo',tipo:'alerta'};
+      if(code<=82)return{emoji:'🌧️',desc:'Chuva forte',tipo:'alerta'};
+      if(code<=99)return{emoji:'⛈️',desc:'Tempestade',tipo:'alerta'};
+      return{emoji:'🌡️',desc:'Condição variável',tipo:'ok'};
+    }
+
+    const{emoji,desc,tipo}=descClima(wcode);
+
+    // Alertas
+    const alertas=[];
+    if(temp>=37) alertas.push('🌡️ Calor extremo — hidratação obrigatória em campo');
+    else if(temp>=35) alertas.push('☀️ Temperatura muito alta — atenção ao calor');
+    if(wcode>=80) alertas.push('⛈️ Tempestade prevista — avaliar segurança das equipes');
+    else if(wcode>=60) alertas.push('🌧️ Chuva — atenção à segurança no trabalho');
+    if(umidade<=30) alertas.push('💧 Umidade muito baixa — risco à saúde em campo');
+
+    const alertaHtml=alertas.length?`<div class="clima-alerta-banner"><i class="ti ti-alert-triangle"></i>${alertas[0]}</div>`:'';
+
+    card.className=`clima-card${tipo==='alerta'?' alerta':tipo==='atencao'?' atencao':''}`;
+    card.innerHTML=`
+      ${alertaHtml}
+      <div class="clima-header">
+        <span class="clima-titulo"><i class="ti ti-cloud" style="font-size:11px"></i> Tempo agora · Ribeirão Preto</span>
+        <span class="clima-atualizado">Atualizado às ${agora}</span>
+      </div>
+      <div class="clima-principal">
+        <div class="clima-emoji">${emoji}</div>
+        <div>
+          <div class="clima-temp">${temp}°C</div>
+          <div class="clima-desc">${desc}</div>
+          <div class="clima-max-min">↑ ${tmax}° ↓ ${tmin}° · Sensação ${sensacao}°C</div>
+        </div>
+      </div>
+      <div class="clima-detalhes">
+        <div class="clima-detalhe">
+          <div class="clima-detalhe-val" style="color:var(--blue)">${umidade}%</div>
+          <div class="clima-detalhe-label">Umidade</div>
+        </div>
+        <div class="clima-detalhe">
+          <div class="clima-detalhe-val" style="color:${chuvaTotal>0?'var(--blue)':'var(--text3)'}">${chuvaTotal>0?chuvaTotal.toFixed(1)+' mm':'Sem chuva'}</div>
+          <div class="clima-detalhe-label">Chuva hoje</div>
+        </div>
+        <div class="clima-detalhe">
+          <div class="clima-detalhe-val">${vento} km/h</div>
+          <div class="clima-detalhe-label">Vento</div>
+        </div>
+      </div>`;
+  }catch(e){
+    card.innerHTML=`<div class="clima-loading" style="color:var(--text3)"><i class="ti ti-cloud-off"></i> Previsão indisponível no momento</div>`;
+  }
+}
+
+// ══ RELATÓRIO EXECUTIVO ═══════════════════════════════
+function todasDemandas(){return todasDemandasCombinadas();}
+
+function gerarRelatorioExecutivo(){
+  const hoje=new Date().toLocaleDateString('pt-BR');
+  const anoAtual=String(new Date().getFullYear());
+  const todas=todasDemandas();
+  const servsAno=_servicos.filter(s=>{
+    const f=s.dataFim||s.dataInicio||s.dataCriacao||'';
+    return f.includes(anoAtual);
+  });
+
+  // Meses disponíveis (demandas + estatísticas arquivadas)
+  const mesesSet=new Set();
+  todas.forEach(d=>{const m=parseMes(d.data);if(m)mesesSet.add(m);});
+  _estatisticas.forEach(e=>{if(e._id)mesesSet.add(e._id);});
+  const meses=[...mesesSet].filter(m=>m.startsWith(anoAtual)).sort();
+
+  // Preview modal
+  let html=`<strong>Relatório Executivo – Secretaria da Infraestrutura</strong><br>`;
+  html+=`Ribeirão Preto – SP &nbsp;·&nbsp; Gerado em: ${hoje}<br><br>`;
+
+  // Resumo anual
+  const concAno=todas.filter(d=>d.status==='concluído'&&(d.dataConclusao||d.data||'').includes('/'+anoAtual.slice(2)));
+  const urgAno=todas.filter(d=>d.prioridade==='urgente'&&(d.data||'').split('/')[2]===anoAtual);
+  const bairrosAno=servsAno.filter(s=>s.tipo==='bairro'&&s.status==='concluido').length;
+  const avenidasAno=servsAno.filter(s=>s.tipo==='avenida'&&s.status==='concluido').length;
+  const acoesAno=servsAno.filter(s=>s.tipo==='acao'&&s.status==='concluido').length;
+
+  html+=`<strong>══ RESUMO ANUAL ${anoAtual} ══</strong><br>`;
+  html+=`Total de demandas concluídas: ${concAno.length}<br>`;
+  html+=`Demandas urgentes atendidas: ${urgAno.filter(d=>d.status==='concluído').length}<br>`;
+  html+=`Limpezas de bairro concluídas: ${bairrosAno}<br>`;
+  html+=`Avenidas/Ruas concluídas: ${avenidasAno}<br>`;
+  html+=`Ações especiais realizadas: ${acoesAno}<br><br>`;
+
+  // Mês a mês
+  html+=`<strong>══ DETALHAMENTO MÊS A MÊS ══</strong><br><br>`;
+  meses.forEach(m=>{
+    const[ano,mes]=m.split('-');
+    const stat=_estatisticas.find(e=>e._id===m);
+    const demMes=todas.filter(d=>{if(!d.data)return false;const p=d.data.split('/');return p[2]===ano&&p[1]===mes;});
+    const concMes=demMes.filter(d=>d.status==='concluído').length+(stat?.total||0);
+    const urgMes=demMes.filter(d=>d.prioridade==='urgente').length+(stat?.urgentes||0);
+    const servMes=_servicos.filter(s=>{const f=s.dataFim||s.dataInicio||'';const p=f.split('/');return p.length===3&&p[2]===ano&&p[1]===mes;});
+    const bMes=servMes.filter(s=>s.tipo==='bairro'&&s.status==='concluido').length;
+    const aMes=servMes.filter(s=>s.tipo==='avenida'&&s.status==='concluido').length;
+    html+=`<strong>${nomeMes(m).toUpperCase()}</strong><br>`;
+    html+=`  Demandas concluídas: ${concMes} (${urgMes} urgentes)<br>`;
+    if(bMes||aMes) html+=`  Limpezas de área: ${bMes} bairro${bMes!==1?'s':''}, ${aMes} avenida${aMes!==1?'s':''}<br>`;
+    EQUIPES.forEach(eq=>{
+      const n=demMes.filter(d=>d.equipe===eq&&d.status==='concluído').length+(stat?.porEquipe?.[eq]||0);
+      if(n>0) html+=`  ${eq}: ${n} concluída${n!==1?'s':''}<br>`;
+    });
+    html+=`<br>`;
+  });
+
+  $('rel-executivo-conteudo').innerHTML=html;
+  $('modal-relatorio-executivo').style.display='flex';
+}
+
+async function baixarPDFExecutivo(){
+  await carregarScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+  const{jsPDF}=window.jspdf;
+  const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+  const hoje=new Date().toLocaleDateString('pt-BR');
+  const anoAtual=String(new Date().getFullYear());
+  const W=210,M=15,lH=5.5;let y=M;
+  function chk(n=10){if(y+n>284){doc.addPage();y=M;}}
+
+  const todas=todasDemandas();
+  const servsAno=_servicos.filter(s=>{
+    const f=s.dataFim||s.dataInicio||s.dataCriacao||'';
+    return f.includes(anoAtual);
+  });
+
+  // ── Cabeçalho ──
+  doc.setFillColor(26,25,23);doc.rect(0,0,W,32,'F');
+  // Brasão embutido em base64 (sem dependência de rede)
+  try{
+    doc.addImage(BRASAO_BASE64,'PNG',M,3,24,24);
+  }catch(e){}
+  doc.setTextColor(255,255,255);
+  doc.setFontSize(14);doc.setFont('helvetica','bold');
+  doc.text('Secretaria da Infraestrutura',M+28,12);
+  doc.setFontSize(9);doc.setFont('helvetica','normal');
+  doc.text('Prefeitura Municipal de Ribeirão Preto – SP',M+28,18);
+  doc.text(`Gerado em: ${hoje}`,W-M,18,{align:'right'});
+
+  y=40;
+  // ── Título ──
+  doc.setTextColor(26,25,23);
+  doc.setFontSize(16);doc.setFont('helvetica','bold');
+  doc.text(`Relatório Executivo de Limpeza Urbana – ${anoAtual}`,M,y);y+=5;
+  doc.setDrawColor(26,25,23);doc.setLineWidth(0.5);doc.line(M,y,W-M,y);y+=8;
+
+  // ── Resumo anual ──
+  const concAno=todas.filter(d=>d.status==='concluído');
+  const urgConcAno=concAno.filter(d=>d.prioridade==='urgente').length;
+  const bairrosAno=servsAno.filter(s=>s.tipo==='bairro'&&s.status==='concluido').length;
+  const avenidasAno=servsAno.filter(s=>s.tipo==='avenida'&&s.status==='concluido').length;
+  const acoesAno=servsAno.filter(s=>s.tipo==='acao'&&s.status==='concluido').length;
+  const abertas=_demandas.filter(d=>d.status!=='concluído'&&d.status!=='revisao').length;
+
+  // Cards de resumo
+  const cards=[
+    {label:'Demandas\nConcluídas',val:String(concAno.length),cor:[26,102,64]},
+    {label:'Urgentes\nAtendidas',val:String(urgConcAno),cor:[139,26,26]},
+    {label:'Bairros\nLimpos',val:String(bairrosAno),cor:[74,26,122]},
+    {label:'Avenidas\nConcluídas',val:String(avenidasAno),cor:[26,63,122]},
+    {label:'Ações\nEspeciais',val:String(acoesAno),cor:[122,58,0]},
+    {label:'Em Aberto\nAgora',val:String(abertas),cor:[80,80,80]},
+  ];
+  const cW=(W-M*2-10)/3,cH=22;
+  cards.forEach((c,i)=>{
+    const col=i%3,row=Math.floor(i/3);
+    const cx=M+col*(cW+5),cy=y+row*(cH+4);
+    doc.setFillColor(...c.cor);doc.roundedRect(cx,cy,cW,cH,2,2,'F');
+    doc.setTextColor(255,255,255);
+    doc.setFontSize(18);doc.setFont('helvetica','bold');
+    doc.text(c.val,cx+cW/2,cy+11,{align:'center'});
+    doc.setFontSize(7);doc.setFont('helvetica','normal');
+    const ls=c.label.split('\n');
+    ls.forEach((l,li)=>doc.text(l,cx+cW/2,cy+16+li*4,{align:'center'}));
+  });
+  y+=cH*2+4+12;
+
+  // ── Detalhamento mês a mês ──
+  doc.setDrawColor(210,210,210);doc.line(M,y,W-M,y);y+=6;
+  doc.setTextColor(26,25,23);doc.setFontSize(12);doc.setFont('helvetica','bold');
+  doc.text(`Detalhamento Mensal – ${anoAtual}`,M,y);y+=8;
+
+  const mesesSet=new Set();
+  todas.forEach(d=>{const m=parseMes(d.data);if(m)mesesSet.add(m);});
+  _estatisticas.forEach(e=>{if(e._id)mesesSet.add(e._id);});
+  const meses=[...mesesSet].filter(m=>m.startsWith(anoAtual)).sort();
+
+  meses.forEach(m=>{
+    chk(40);
+    const[ano,mes]=m.split('-');
+    const stat=_estatisticas.find(e=>e._id===m);
+    const demMes=todas.filter(d=>{if(!d.data)return false;const p=d.data.split('/');return p[2]===ano&&p[1]===mes;});
+    const concMes=demMes.filter(d=>d.status==='concluído').length+(stat?.total||0);
+    const urgMes=demMes.filter(d=>d.prioridade==='urgente'&&d.status==='concluído').length+(stat?.urgentes||0);
+    const servMes=_servicos.filter(s=>{const f=s.dataFim||s.dataInicio||'';const p=f.split('/');return p.length===3&&p[2]===ano&&p[1]===mes;});
+    const bMes=servMes.filter(s=>s.tipo==='bairro'&&s.status==='concluido').length;
+    const aMes=servMes.filter(s=>s.tipo==='avenida'&&s.status==='concluido').length;
+    const acMes=servMes.filter(s=>s.tipo==='acao'&&s.status==='concluido').length;
+
+    // Cabeçalho do mês
+    doc.setFillColor(238,236,234);doc.rect(M,y,W-M*2,8,'F');
+    doc.setFontSize(10);doc.setFont('helvetica','bold');doc.setTextColor(26,25,23);
+    doc.text(nomeMes(m).toUpperCase(),M+3,y+5.5);
+    doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(80,80,80);
+    doc.text(`${concMes} demanda${concMes!==1?'s':''} concluída${concMes!==1?'s':''}`,W-M-3,y+5.5,{align:'right'});
+    y+=11;
+
+    // Linha de serviços de área
+    if(bMes||aMes||acMes){
+      doc.setFontSize(8.5);doc.setFont('helvetica','normal');doc.setTextColor(74,26,122);
+      doc.text(`Serviços de área: ${bMes} bairro${bMes!==1?'s':''} · ${aMes} avenida${aMes!==1?'s':''} · ${acMes} ação${acMes!==1?'ões':''}`,M+3,y);y+=lH+1;
+    }
+
+    // Por equipe
+    const equipesCols=[];
+    EQUIPES.forEach(eq=>{
+      const n=demMes.filter(d=>d.equipe===eq&&d.status==='concluído').length+(stat?.porEquipe?.[eq]||0);
+      if(n>0) equipesCols.push(`${eq.replace(' (Retroescavadeira)','')}: ${n}`);
+    });
+    if(equipesCols.length){
+      doc.setFontSize(8);doc.setTextColor(60,60,60);doc.setFont('helvetica','normal');
+      const linhas=doc.splitTextToSize(equipesCols.join('  ·  '),W-M*2-6);
+      doc.text(linhas,M+3,y);y+=linhas.length*lH+1;
+    }
+
+    // Por zona
+    const zonasCols=[];
+    ZONAS.forEach(z=>{
+      const n=demMes.filter(d=>d.zona===z&&d.status==='concluído').length+(stat?.porZona?.[z]||0);
+      if(n>0) zonasCols.push(`${z}: ${n}`);
+    });
+    if(zonasCols.length){
+      doc.setFontSize(8);doc.setTextColor(26,63,122);
+      const linhas=doc.splitTextToSize(zonasCols.join('  ·  '),W-M*2-6);
+      doc.text(linhas,M+3,y);y+=linhas.length*lH+1;
+    }
+
+    // Urgentes
+    if(urgMes>0){
+      doc.setFontSize(8);doc.setTextColor(139,26,26);
+      doc.text(`${urgMes} demanda${urgMes!==1?'s':''} urgente${urgMes!==1?'s':''} atendida${urgMes!==1?'s':''}`,M+3,y);y+=lH+1;
+    }
+    y+=4;
+  });
+
+  // ── Rodapé ──
+  chk(12);
+  doc.setDrawColor(210,210,210);doc.line(M,y,W-M,y);y+=5;
+  doc.setFontSize(7.5);doc.setTextColor(150,150,150);doc.setFont('helvetica','italic');
+  doc.text('Documento gerado automaticamente – Sistema de Gestão de Limpeza Urbana / Secretaria da Infraestrutura de Ribeirão Preto',M,y,{maxWidth:W-M*2});
+
+  doc.save(`relatorio_executivo_${anoAtual}_${hoje.replace(/\//g,'-')}.pdf`);
+}
+
+// ══ EVENT LISTENERS ═══════════════════════════════════
+document.addEventListener('DOMContentLoaded', ()=>{
+  $('brasao-header-img').src = BRASAO_BASE64;
+  carregarClima();
+  setInterval(carregarClima, 30*60*1000);
+  // Perfil
+  $('btn-secretaria').addEventListener('click',()=>{
+    $('input-senha').value='';$('msg-senha-erro').style.display='none';$('modal-senha').style.display='flex';
+    setTimeout(()=>$('input-senha').focus(),150);
+  });
+  $('btn-fiscal').addEventListener('click',()=>entrarComo('fiscal'));
+  document.querySelectorAll('.equipe-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>entrarComo('equipe'+btn.dataset.equipe));
+  });
+
+  // Calendário de eventos (tela inicial)
+  $('btn-calendario-inicial').addEventListener('click',abrirCalendario);
+  $('btn-fechar-calendario').addEventListener('click',()=>fecharModal('modal-calendario'));
+  $('btn-cal-mes-anterior').addEventListener('click',()=>mudarMesCalendario(-1));
+  $('btn-cal-mes-proximo').addEventListener('click',()=>mudarMesCalendario(1));
+
+  // Voltar
+  $('btn-voltar-header').addEventListener('click',voltarPerfil);
+  $('btn-voltar-app').addEventListener('click',voltarPerfil);
+
+  // Senha
+  $('btn-cancelar-senha').addEventListener('click',()=>fecharModal('modal-senha'));
+  $('btn-confirmar-senha').addEventListener('click',()=>{
+    if($('input-senha').value===SENHA){fecharModal('modal-senha');entrarComo('secretaria');}
+    else{$('msg-senha-erro').style.display='flex';$('input-senha').value='';$('input-senha').focus();}
+  });
+  $('input-senha').addEventListener('keydown',e=>{if(e.key==='Enter')$('btn-confirmar-senha').click();});
+
+  // Nova demanda
+  $('btn-enviar-demanda').addEventListener('click',enviarDemanda);
+  $('foto').addEventListener('change',()=>previewFoto($('foto'),'foto-preview'));
+  $('marcar-data-nova').addEventListener('change',()=>{
+    $('campo-data-evento-nova').style.display=$('marcar-data-nova').checked?'block':'none';
+  });
+  $('marcar-data-servico').addEventListener('change',()=>{
+    $('campo-data-evento-servico').style.display=$('marcar-data-servico').checked?'block':'none';
+  });
+  // Histórico de endereço no formulário nova demanda
+  let _debounceEnd=null;
+  $('endereco').addEventListener('input',()=>{
+    clearTimeout(_debounceEnd);
+    _debounceEnd=setTimeout(()=>{
+      const end=$('endereco').value.trim();
+      const el=$('hist-end-nova');
+      if(end.length<6){el.style.display='none';el.innerHTML='';return;}
+      const hist=historicoDemanda(end,null);
+      if(hist.length){el.innerHTML=htmlHistorico(hist);el.style.display='block';}
+      else{el.style.display='none';el.innerHTML='';}
+    },400);
+  });
+
+  // Duplicado
+  $('btn-cancelar-duplicado').addEventListener('click',()=>fecharModal('modal-duplicado'));
+  $('btn-confirmar-duplicado').addEventListener('click',()=>{fecharModal('modal-duplicado');salvarDemanda();});
+
+  // Check
+  $('btn-cancelar-check').addEventListener('click',()=>fecharModal('modal-check'));
+  $('btn-confirmar-check').addEventListener('click',confirmarCheck);
+  $('check-foto').addEventListener('change',()=>previewFoto($('check-foto'),'check-foto-prev'));
+  $('btn-cancelar-editar-fotos').addEventListener('click',()=>fecharModal('modal-editar-fotos'));
+  $('btn-salvar-editar-fotos').addEventListener('click',salvarEditarFotos);
+  $('editar-fotos-depois-novo').addEventListener('change',()=>previewFoto($('editar-fotos-depois-novo'),'editar-fotos-depois-novo-prev'));
+  $('btn-cancelar-senha-corrigir').addEventListener('click',()=>fecharModal('modal-senha-corrigir'));
+  $('btn-confirmar-senha-corrigir').addEventListener('click',()=>{
+    if($('input-senha-corrigir').value===SENHA_CORRIGIR){
+      fecharModal('modal-senha-corrigir');
+      abrirEditarFotosConcluida(_editarFotosIdPendente);
+    } else {
+      $('msg-senha-corrigir-erro').style.display='flex';$('input-senha-corrigir').value='';$('input-senha-corrigir').focus();
+    }
+  });
+  $('input-senha-corrigir').addEventListener('keydown',e=>{if(e.key==='Enter')$('btn-confirmar-senha-corrigir').click();});
+
+  // Não encontrado
+  $('btn-cancelar-nao-encontrado').addEventListener('click',()=>fecharModal('modal-nao-encontrado'));
+  $('btn-confirmar-nao-encontrado').addEventListener('click',confirmarNaoEncontrado);
+
+  // Revisão
+  $('btn-cancelar-revisao').addEventListener('click',()=>fecharModal('modal-revisao'));
+  $('btn-reenviar-revisao').addEventListener('click',reenviarDemanda);
+  $('btn-apagar-revisao').addEventListener('click',apagarDemandaRevisao);
+  $('revisao-foto').addEventListener('change',()=>previewFoto($('revisao-foto'),'revisao-foto-prev'));
+
+  // Apagar concluídas
+  $('btn-apagar-concluidas').addEventListener('click',abrirApagarConcluidas);
+  $('btn-cancelar-apagar').addEventListener('click',()=>fecharModal('modal-confirmar-apagar'));
+  $('btn-executar-apagar').addEventListener('click',executarApagarConcluidas);
+
+  // Relatório
+  $('btn-gerar-relatorio').addEventListener('click',gerarRelatorio);
+  $('btn-fechar-relatorio').addEventListener('click',()=>fecharModal('modal-relatorio'));
+  $('btn-baixar-pdf').addEventListener('click',baixarPDF);
+
+  // Filtros painel
+  $('filtro-status').addEventListener('change',renderPainel);
+  $('filtro-equipe-painel').addEventListener('change',renderPainel);
+  $('filtro-zona-painel').addEventListener('change',renderPainel);
+
+  // Filtros equipe e historico
+  $('filtro-zona-equipe').addEventListener('change',renderEquipe);
+  $('filtro-mes-historico').addEventListener('change',renderHistorico);
+
+  // Dashboard
+  $('sel-mes-dash').addEventListener('change',renderDashboard);
+
+  // Relatório Executivo
+  $('btn-abrir-relatorio-executivo').addEventListener('click',gerarRelatorioExecutivo);
+  $('btn-fechar-relatorio-executivo').addEventListener('click',()=>fecharModal('modal-relatorio-executivo'));
+  $('btn-baixar-pdf-executivo').addEventListener('click',baixarPDFExecutivo);
+
+  // Lightbox
+  $('lightbox').addEventListener('click',fecharLightbox);
+  $('btn-fechar-lightbox').addEventListener('click',e=>{e.stopPropagation();fecharLightbox();});
+  document.addEventListener('keydown',e=>{if(e.key==='Escape')fecharLightbox();});
+
+  // Serviços de área – tipo selector
+  ['bairro','avenida','acao'].forEach(t=>{
+    const b=$('tipo-btn-'+t);
+    if(b) b.addEventListener('click',()=>selecionarTipoServico(t));
+  });
+  setupAutocomplete();
+  $('servico-avenida-extensao').addEventListener('change',()=>{
+    $('field-avenida-trecho').style.display=$('servico-avenida-extensao').value==='trecho'?'block':'none';
+  });
+  $('editar-trecho-extensao').addEventListener('change',()=>{
+    $('editar-trecho-campo').style.display=$('editar-trecho-extensao').value==='trecho'?'block':'none';
+  });
+  $('btn-cancelar-editar-trecho').addEventListener('click',()=>fecharModal('modal-editar-trecho'));
+  $('btn-salvar-editar-trecho').addEventListener('click',salvarEditarTrecho);
+  $('btn-cancelar-novo-servico').addEventListener('click',()=>fecharModal('modal-novo-servico'));
+  $('btn-salvar-novo-servico').addEventListener('click',salvarNovoServico);
+  $('btn-cancelar-exec').addEventListener('click',()=>fecharModal('modal-exec-servico'));
+  $('btn-confirmar-exec').addEventListener('click',confirmarExecServico);
+  $('exec-foto').addEventListener('change',()=>previewFoto($('exec-foto'),'exec-foto-prev'));
+  $('servico-acao-foto-antes').addEventListener('change',()=>previewFoto($('servico-acao-foto-antes'),'servico-acao-foto-antes-prev'));
+  $('btn-fechar-relatorio-servicos').addEventListener('click',()=>fecharModal('modal-relatorio-servicos'));
+  $('btn-baixar-pdf-servicos').addEventListener('click',baixarPDFServicos);
+});
+</script>
+
+<div style="text-align:center;padding:24px 16px 32px;font-size:11px;color:var(--text3);font-family:var(--font-mono);border-top:1px solid var(--border);margin-top:40px">
+  © 2026 Fernando Sbrogio · Todos os direitos reservados<br>
+  <span style="font-size:10px;opacity:.7">Sistema de Gestão de Limpeza Urbana · Desenvolvido pelo autor</span>
+</div>
+
+</body>
+</html>
