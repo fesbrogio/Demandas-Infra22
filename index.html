@@ -522,7 +522,7 @@
     <p style="font-size:16px;font-weight:600;color:var(--text);line-height:1.5;margin-bottom:10px">Você está prestes a apagar permanentemente demandas concluídas.</p>
     <p style="font-size:14px;color:var(--text2);line-height:1.6;margin-bottom:10px">Esta ação <strong>não pode ser desfeita</strong>.</p>
     <div class="mes-filter-box" style="text-align:left;margin-bottom:14px"><label><i class="ti ti-calendar"></i> Selecione o mês a apagar</label><select id="filtro-mes-apagar"><option value="">Todos os meses</option></select></div>
-    <div style="background:var(--red-bg);border:1px solid var(--red-border);border-radius:var(--radius);padding:12px;margin-bottom:20px"><p style="font-size:13px;font-weight:700;color:var(--red)">💡 Gere o PDF antes!<br><span style="font-weight:400">O resumo mensal será salvo automaticamente no Dashboard.</span></p></div>
+    <div style="background:var(--red-bg);border:1px solid var(--red-border);border-radius:var(--radius);padding:12px;margin-bottom:20px"><p style="font-size:13px;font-weight:700;color:var(--red)">💡 Gere o PDF antes!<br><span style="font-weight:400">O resumo mensal vai para o Dashboard e os dados (sem fotos) ficam guardados no arquivo.</span></p></div>
     <div class="modal-actions" style="justify-content:center;gap:12px">
       <button class="btn" id="btn-cancelar-apagar"><i class="ti ti-x"></i> Cancelar</button>
       <button class="btn btn-danger" id="btn-executar-apagar" style="font-size:14px;font-weight:600"><i class="ti ti-trash"></i> Sim, apagar</button>
@@ -734,7 +734,7 @@
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { initializeFirestore, persistentLocalCache, persistentSingleTabManager, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, query, where, orderBy, serverTimestamp, setDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { initializeFirestore, persistentLocalCache, persistentSingleTabManager, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, query, where, orderBy, serverTimestamp, setDoc, getDocs, writeBatch } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 // ══ FIREBASE ══════════════════════════════════════════
 const app = initializeApp({
@@ -944,44 +944,95 @@ function carregarConcluidasCompletas(){
   return _promiseConcluidasCompletas;
 }
 
-// Auto-reparo do resumo: se alguma demanda concluída existe na coleção completa
-// mas NÃO tem cópia em "demandas_concluidas_resumo" (ex.: a gravação do resumo
-// falhou na hora de concluir), recria o resumo dela — sem fotos. Assim Painel,
-// Dashboard e "atendimentos anteriores" voltam a contar essas demandas.
-// Roda em segundo plano, uma vez por sessão, só quando a lista completa é baixada.
+// ══ ARQUIVO PERMANENTE (SEM FOTOS) ════════════════════
+// Coleção "demandas_arquivo": cópia só de texto + coordenada de cada demanda
+// concluída (poucos KB cada). NUNCA é apagada junto com o mês — assim, mesmo
+// apagando as fotos antigas pra deixar o sistema leve, o histórico detalhado
+// (endereço, datas, equipe, zona, bairro, lat/lng) continua disponível pra
+// relatórios anuais, mapa de calor e pontos recorrentes.
+// É escrita (1) no momento da conclusão, junto com a demanda e o resumo, numa
+// única gravação atômica, e (2) logo antes de "Apagar concluídas" (idempotente).
+const colArquivo = collection(db,"demandas_arquivo");
+let _arquivo=null, _promiseArquivo=null;
+function carregarArquivo(){
+  if(_arquivo) return Promise.resolve(_arquivo);
+  if(_promiseArquivo) return _promiseArquivo;
+  _promiseArquivo=getDocs(colArquivo)
+    .then(snap=>{_arquivo=snap.docs.map(d=>({_id:d.id,...d.data()}));return _arquivo;})
+    .catch(err=>{_promiseArquivo=null;throw err;});
+  return _promiseArquivo;
+}
+// Campos de texto (sem foto) de uma demanda concluída — usados no resumo e no arquivo.
+function camposResumo(o){
+  return{
+    descricao:o.descricao||null,
+    endereco:o.endereco||null,
+    zona:o.zona||null,
+    equipe:o.equipe||null,
+    equipeApoio:o.equipeApoio||null,
+    prioridade:o.prioridade||null,
+    solicitante:o.solicitante||null,
+    data:o.data||null,
+    hora:o.hora||null,
+    dataConclusao:o.dataConclusao||null,
+    observacao:o.observacao||null,
+    status:'concluído',
+    marcarData:o.marcarData||false,
+    dataEvento:o.dataEvento||null,
+    notificadoEvento:o.notificadoEvento||false,
+    lat:typeof o.lat==='number'?o.lat:null,
+    lng:typeof o.lng==='number'?o.lng:null,
+    bairroDetectado:o.bairroDetectado||null
+  };
+}
+function docArquivo(o){
+  return{...camposResumo(o),mesConclusao:parseMes(o.dataConclusao||o.data)||null,arquivadoEm:serverTimestamp(),criadoEm:o.criadoEm||serverTimestamp()};
+}
+// União do que temos com detalhe (resumo + arquivo), sem duplicar por id.
+// Usado só pelas análises do Dashboard — os totais/gráficos continuam como eram.
+function dadosDetalhados(){
+  const m=new Map();
+  (_arquivo||[]).forEach(d=>m.set(d._id,d));
+  _demandasConcluidas.forEach(d=>{
+    const b=m.get(d._id)||{};
+    m.set(d._id,{...b,...d,
+      lat:typeof d.lat==='number'?d.lat:b.lat,
+      lng:typeof d.lng==='number'?d.lng:b.lng,
+      bairroDetectado:d.bairroDetectado||b.bairroDetectado});
+  });
+  return [...m.values()];
+}
+
+// Auto-reparo do resumo: (a) recria o resumo de concluídas que existem na coleção
+// completa mas não têm cópia (ex.: gravação falhou na conclusão — caso de out/2026);
+// (b) completa lat/lng/bairro nos resumos antigos que ainda não têm coordenada.
+// Roda em segundo plano, uma vez por sessão, quando a lista completa é baixada.
 let _resumoReparado=false;
 async function repararResumoConcluidas(completas){
   if(_resumoReparado||!_concluidasCarregadas)return;
   _resumoReparado=true;
-  const idsResumo=new Set(_demandasConcluidas.map(d=>d._id));
-  const faltando=completas.filter(d=>d.status==='concluído'&&!idsResumo.has(d._id));
-  if(!faltando.length)return;
-  console.warn(`[resumo] ${faltando.length} demanda(s) concluída(s) sem resumo — recriando…`,faltando.map(d=>`${d._id} (${d.dataConclusao})`));
+  const porId=new Map(_demandasConcluidas.map(d=>[d._id,d]));
+  const ops=[];
+  completas.filter(d=>d.status==='concluído').forEach(o=>{
+    const r=porId.get(o._id);
+    if(!r){
+      ops.push({id:o._id,dados:{...camposResumo(o),criadoEm:o.criadoEm||serverTimestamp()},tipo:'criar'});
+    }else if(typeof r.lat!=='number'&&typeof o.lat==='number'&&typeof o.lng==='number'){
+      ops.push({id:o._id,dados:{lat:o.lat,lng:o.lng,bairroDetectado:o.bairroDetectado||null},tipo:'coord'});
+    }
+  });
+  if(!ops.length)return;
+  console.warn(`[resumo] reparando ${ops.length} resumo(s):`,ops.filter(o=>o.tipo==='criar').length,'faltando,',ops.filter(o=>o.tipo==='coord').length,'sem coordenada');
   let ok=0;
-  for(const o of faltando){
+  for(let i=0;i<ops.length;i+=400){
     try{
-      await setDoc(doc(db,"demandas_concluidas_resumo",o._id),{
-        descricao:o.descricao||null,
-        endereco:o.endereco||null,
-        zona:o.zona||null,
-        equipe:o.equipe||null,
-        equipeApoio:o.equipeApoio||null,
-        prioridade:o.prioridade||null,
-        solicitante:o.solicitante||null,
-        data:o.data||null,
-        hora:o.hora||null,
-        dataConclusao:o.dataConclusao||null,
-        observacao:o.observacao||null,
-        status:'concluído',
-        marcarData:o.marcarData||false,
-        dataEvento:o.dataEvento||null,
-        notificadoEvento:o.notificadoEvento||false,
-        criadoEm:o.criadoEm||serverTimestamp()
-      });
-      ok++;
-    }catch(e){console.error('[resumo] falha ao recriar',o._id,e);}
+      const b=writeBatch(db);
+      ops.slice(i,i+400).forEach(o=>b.set(doc(db,"demandas_concluidas_resumo",o.id),o.dados,{merge:true}));
+      await b.commit();
+      ok+=Math.min(400,ops.length-i);
+    }catch(e){console.error('[resumo] falha no reparo',e);}
   }
-  console.warn(`[resumo] ${ok}/${faltando.length} resumo(s) recriado(s).`);
+  console.warn(`[resumo] ${ok}/${ops.length} reparo(s) concluído(s).`);
 }
 
 onSnapshot(query(colStats,orderBy("mesISO","asc")), snap=>{
@@ -1439,32 +1490,20 @@ async function confirmarCheck(){
   const obs=$('check-observacao').value.trim();
   const dataConclusao=new Date(data+'T12:00:00').toLocaleDateString('pt-BR');
   try{
-    await fbUpd(checkId,{status:'concluído',dataConclusao,fotoConclusao:foto,observacao:obs||null});
-    // Grava também um resumo leve (sem fotos) numa coleção separada — é o que
-    // alimenta Painel, Dashboard, Localização e "atendimentos anteriores" sem
-    // precisar baixar fotos pra isso. Ver o comentário grande junto do listener
-    // de _demandasConcluidas, mais acima no arquivo, pra entender o porquê.
+    // Uma ÚNICA gravação atômica: a demanda vira "concluído" E o resumo leve E o
+    // arquivo permanente são gravados juntos — ou vão os três, ou nenhum. (Antes
+    // eram gravações separadas, e se a segunda falhasse a demanda ficava concluída
+    // sem resumo: sumia do Painel/Dashboard e dava "não há demandas" no PDF.)
     const original=_demandas.find(d=>d._id===checkId);
+    const lote=writeBatch(db);
+    lote.update(doc(db,"demandas",checkId),{status:'concluído',dataConclusao,fotoConclusao:foto,observacao:obs||null});
     if(original){
-      await setDoc(doc(db,"demandas_concluidas_resumo",checkId),{
-        descricao:original.descricao||null,
-        endereco:original.endereco||null,
-        zona:original.zona||null,
-        equipe:original.equipe||null,
-        equipeApoio:original.equipeApoio||null,
-        prioridade:original.prioridade||null,
-        solicitante:original.solicitante||null,
-        data:original.data||null,
-        hora:original.hora||null,
-        dataConclusao,
-        observacao:obs||null,
-        status:'concluído',
-        marcarData:original.marcarData||false,
-        dataEvento:original.dataEvento||null,
-        notificadoEvento:original.notificadoEvento||false,
-        criadoEm:serverTimestamp()
-      });
+      const base={...original,dataConclusao,observacao:obs||null};
+      lote.set(doc(db,"demandas_concluidas_resumo",checkId),{...camposResumo(base),criadoEm:serverTimestamp()});
+      lote.set(doc(db,"demandas_arquivo",checkId),docArquivo({...base,criadoEm:null}));
     }
+    await lote.commit();
+    _arquivo=null;_promiseArquivo=null;
     fecharModal('modal-check');showMsg('Demanda marcada como concluída!');
     // Invalida o cache da busca completa (com fotos) — a próxima vez que alguém
     // abrir o Histórico, ele busca de novo, já incluindo essa demanda nova.
@@ -1553,8 +1592,10 @@ async function apagarDemandaRevisao(){
 }
 
 // ══ APAGAR CONCLUÍDAS ════════════════════════════════
-function abrirApagarConcluidas(){
-  const conc=_demandasConcluidas;
+async function abrirApagarConcluidas(){
+  let conc;
+  try{conc=await carregarConcluidasCompletas();}
+  catch(e){alert('Erro ao carregar as demandas concluídas. Tente novamente.');return;}
   if(!conc.length){alert('Não há demandas concluídas para apagar.');return;}
   popularSelectMes('filtro-mes-apagar',conc);
   $('modal-confirmar-apagar').style.display='flex';
@@ -1562,21 +1603,48 @@ function abrirApagarConcluidas(){
 async function executarApagarConcluidas(){
   fecharModal('modal-confirmar-apagar');
   const mesSel=$('filtro-mes-apagar').value;
-  let conc=_demandasConcluidas;
+  let completas;
+  try{completas=await carregarConcluidasCompletas();}
+  catch(e){showMsg('Erro ao carregar as demandas. Nada foi apagado.','danger');return;}
+  // Fonte de verdade = coleção completa (não depende do resumo estar íntegro).
+  let conc=completas.filter(d=>d.status==='concluído');
   if(mesSel) conc=filtrarPorMes(conc,mesSel,'dataConclusao');
   if(!conc.length){showMsg('Nenhuma demanda no período.','danger');return;}
-  // Salva estatísticas
-  const porMes={};
-  conc.forEach(d=>{const m=parseMes(d.dataConclusao||d.data)||new Date().toISOString().slice(0,7);if(!porMes[m])porMes[m]=[];porMes[m].push(d);});
-  for(const[m,lista] of Object.entries(porMes)){
-    const ex=_estatisticas.find(e=>e._id===m);
-    const nE={...(ex?.porEquipe||{})},nZ={...(ex?.porZona||{})};
-    EQUIPES.forEach(e=>nE[e]=(nE[e]||0)+lista.filter(d=>d.equipe===e).length);
-    ZONAS.forEach(z=>nZ[z]=(nZ[z]||0)+lista.filter(d=>d.zona===z).length);
-    await fbStat(m,{mesISO:m,nomeMes:nomeMes(m),total:(ex?.total||0)+lista.length,urgentes:(ex?.urgentes||0)+lista.filter(d=>d.prioridade==='urgente').length,porEquipe:nE,porZona:nZ});
+  // 1) Arquiva (sem fotos) ANTES de apagar. Se falhar, não apaga nada.
+  try{
+    for(let i=0;i<conc.length;i+=400){
+      const b=writeBatch(db);
+      conc.slice(i,i+400).forEach(d=>b.set(doc(db,"demandas_arquivo",d._id),docArquivo(d)));
+      await b.commit();
+    }
+  }catch(e){showMsg('Erro ao arquivar os dados. Nada foi apagado.','danger');return;}
+  // 2) Apaga a demanda e o resumo, em lotes. Guarda o que realmente saiu.
+  const apagadas=[];
+  let falhou=false;
+  for(let i=0;i<conc.length;i+=200){
+    const parte=conc.slice(i,i+200);
+    try{
+      const b=writeBatch(db);
+      parte.forEach(d=>{b.delete(doc(db,"demandas",d._id));b.delete(doc(db,"demandas_concluidas_resumo",d._id));});
+      await b.commit();
+      apagadas.push(...parte);
+    }catch(e){falhou=true;break;}
   }
-  try{await Promise.all(conc.map(d=>Promise.all([fbDel(d._id),deleteDoc(doc(db,"demandas_concluidas_resumo",d._id)).catch(()=>{})])));showMsg(`✓ ${conc.length} demandas apagadas. Resumo salvo no Dashboard!`);}
-  catch(e){showMsg('Erro ao apagar.','danger');}
+  // 3) Estatística mensal só do que foi de fato apagado (evita contar em dobro numa nova tentativa).
+  const porMes={};
+  apagadas.forEach(d=>{const m=parseMes(d.dataConclusao||d.data)||new Date().toISOString().slice(0,7);if(!porMes[m])porMes[m]=[];porMes[m].push(d);});
+  try{
+    for(const[m,lista] of Object.entries(porMes)){
+      const ex=_estatisticas.find(e=>e._id===m);
+      const nE={...(ex?.porEquipe||{})},nZ={...(ex?.porZona||{})};
+      EQUIPES.forEach(e=>nE[e]=(nE[e]||0)+lista.filter(d=>d.equipe===e).length);
+      ZONAS.forEach(z=>nZ[z]=(nZ[z]||0)+lista.filter(d=>d.zona===z).length);
+      await fbStat(m,{mesISO:m,nomeMes:nomeMes(m),total:(ex?.total||0)+lista.length,urgentes:(ex?.urgentes||0)+lista.filter(d=>d.prioridade==='urgente').length,porEquipe:nE,porZona:nZ});
+    }
+  }catch(e){showMsg('Demandas apagadas, mas houve erro ao salvar o resumo mensal. Avise o administrador antes de apagar mais.','danger');}
+  _demandasConcluidasCompletas=null;_promiseConcluidasCompletas=null;_arquivo=null;_promiseArquivo=null;
+  if(falhou) showMsg(`Apagou ${apagadas.length} de ${conc.length} demandas e parou por erro. Os dados estão no arquivo; tente de novo.`,'danger');
+  else showMsg(`✓ ${apagadas.length} demandas apagadas (dados guardados no arquivo, sem fotos). Resumo salvo no Dashboard!`);
 }
 
 // ══ RENDERS ═══════════════════════════════════════════
@@ -2075,6 +2143,8 @@ async function renderDashboard(){
   const sel=$('sel-mes-dash');if(!sel)return;
   await carregarScript('https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js');
   if(secaoAtual!=='dashboard')return; // usuário já saiu da tela enquanto a biblioteca carregava
+  try{await carregarArquivo();}catch(e){console.warn('[arquivo] não foi possível carregar o arquivo permanente',e);}
+  if(secaoAtual!=='dashboard')return;
 
   // Popula select de meses + opção "Todos"
   const meses=new Set();
@@ -2089,6 +2159,11 @@ async function renderDashboard(){
   const mesISO=sel.value;
   const conteudo=$('dash-conteudo');if(!conteudo)return;
   const anoAtual=String(new Date().getFullYear());
+  // Dados com detalhe (resumo + arquivo permanente) do período, para as análises de
+  // tempo de atendimento, pontos recorrentes e mapa. Os totais e gráficos acima
+  // continuam usando a lógica original (resumo + estatísticas mensais).
+  const _det=dadosDetalhados().filter(d=>{const m=parseMes(d.dataConclusao||d.data);return mesISO?m===mesISO:(m&&m.startsWith(anoAtual+'-'));});
+  const insHtml=insightsDashHtml(_det);
 
   // ── Dados filtrados ──
   // IMPORTANTE: "Concluídas" deve contar pelo mês em que a demanda foi
@@ -2152,6 +2227,7 @@ async function renderDashboard(){
         <div class="dash-card"><h4><i class="ti ti-chart-pie"></i> Concluídas por zona</h4><canvas id="chart-zona"></canvas></div>
         <div class="dash-card dash-card-full"><h4><i class="ti ti-users"></i> Em aberto por equipe</h4><canvas id="chart-abertas"></canvas></div>
       </div>
+      ${insHtml}
       ${bairroHtml}
       <div class="dash-card"><h4><i class="ti ti-history"></i> Histórico de meses anteriores</h4>
         <div class="historico-meses">${_estatisticas.slice().sort((a,b)=>b.mesISO?.localeCompare(a.mesISO)).map(m=>`<div class="mes-row"><span class="mes-row-nome">${m.nomeMes||m.mesISO}</span><span class="mes-row-num">${m.total||0} concluídas</span></div>`).join('')||'<div class="sem-dados">Nenhum mês anterior salvo ainda.</div>'}</div>
@@ -2160,6 +2236,7 @@ async function renderDashboard(){
     _charts['chart-equipe']=new Chart($('chart-equipe'),{type:'bar',data:{labels:eqLabels,datasets:[{data:porEquipe,backgroundColor:cores,borderRadius:6}]},options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:1}}},responsive:true}});
     _charts['chart-zona']=new Chart($('chart-zona'),{type:'doughnut',data:{labels:ZONAS,datasets:[{data:porZona,backgroundColor:cores.slice(0,5),borderWidth:2,borderColor:'#fff'}]},options:{plugins:{legend:{position:'bottom',labels:{font:{size:11},boxWidth:12}}},responsive:true}});
     _charts['chart-abertas']=new Chart($('chart-abertas'),{type:'bar',data:{labels:eqLabels,datasets:[{data:abertasEq,backgroundColor:'#a8bce0',borderRadius:6}]},options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:1}}},responsive:true}});
+    montarMapaDash(_det);
     return;
   }
 
@@ -2183,6 +2260,7 @@ async function renderDashboard(){
       <div class="dash-card"><h4><i class="ti ti-chart-pie"></i> Concluídas por zona</h4><canvas id="chart-zona"></canvas></div>
       <div class="dash-card dash-card-full"><h4><i class="ti ti-users"></i> Em aberto por equipe</h4><canvas id="chart-abertas"></canvas></div>
     </div>
+    ${insHtml}
     ${bairroHtml}
     <div class="dash-card"><h4><i class="ti ti-history"></i> Histórico de meses anteriores</h4>
       <div class="historico-meses">${_estatisticas.slice().sort((a,b)=>b.mesISO?.localeCompare(a.mesISO)).map(m=>`<div class="mes-row"><span class="mes-row-nome">${m.nomeMes||m.mesISO}</span><span class="mes-row-num">${m.total||0} concluídas</span></div>`).join('')||'<div class="sem-dados">Nenhum mês anterior salvo ainda.</div>'}</div>
@@ -2191,6 +2269,111 @@ async function renderDashboard(){
   _charts['chart-equipe']=new Chart($('chart-equipe'),{type:'bar',data:{labels:eqLabels,datasets:[{data:porEquipeTodos,backgroundColor:cores,borderRadius:6}]},options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:1}}},responsive:true}});
   _charts['chart-zona']=new Chart($('chart-zona'),{type:'doughnut',data:{labels:ZONAS,datasets:[{data:porZonaTodos,backgroundColor:cores.slice(0,5),borderWidth:2,borderColor:'#fff'}]},options:{plugins:{legend:{position:'bottom',labels:{font:{size:11},boxWidth:12}}},responsive:true}});
   _charts['chart-abertas']=new Chart($('chart-abertas'),{type:'bar',data:{labels:eqLabels,datasets:[{data:abertasEqTodos,backgroundColor:'#a8bce0',borderRadius:6}]},options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:1}}},responsive:true}});
+  montarMapaDash(_det);
+}
+
+// ══ ANÁLISES DO DASHBOARD: tempo de atendimento, recorrência e mapa ══
+let _dashMapa=null;
+function escHtml(t){return String(t==null?'':t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function fmtNum(n,casas=1){return n.toFixed(casas).replace('.',',');}
+// Dias entre abertura (data) e conclusão (dataConclusao); null se faltar/inconsistente.
+function diasAtendimento(d){
+  const a=tsBR(d.data),b=tsBR(d.dataConclusao);
+  if(!a||!b||b<a)return null;
+  return Math.round((b-a)/86400000);
+}
+function rotuloEquipe(e){return e.replace('Equipe ','Eq. ').replace(' (Retroescavadeira)','').replace('Demandas ESAL','ESAL');}
+function linhaMes(nome,num){return`<div class="mes-row"><span class="mes-row-nome">${nome}</span><span class="mes-row-num">${num}</span></div>`;}
+function insightsDashHtml(dados){
+  const cab=(t,i)=>`<h4><i class="ti ti-${i}"></i> ${t}</h4>`;
+  if(!dados.length){
+    return`<div class="dash-card dash-card-full" style="margin-bottom:12px">${cab('Análises detalhadas','report-analytics')}<div class="sem-dados">Sem dados detalhados neste período.</div></div>`;
+  }
+  // — Tempo de atendimento —
+  const comTempo=dados.map(d=>({d,t:diasAtendimento(d)})).filter(x=>x.t!==null);
+  let tempoHtml;
+  if(!comTempo.length){
+    tempoHtml='<div class="sem-dados">Sem datas suficientes para calcular.</div>';
+  }else{
+    const ts=comTempo.map(x=>x.t);
+    const media=ts.reduce((a,b)=>a+b,0)/ts.length;
+    const ord=ts.slice().sort((a,b)=>a-b);
+    const mediana=ord.length%2?ord[(ord.length-1)/2]:(ord[ord.length/2-1]+ord[ord.length/2])/2;
+    const ate7=ts.filter(t=>t<=7).length;
+    const mediaDe=lista=>{const v=lista.map(x=>x.t);return v.length?fmtNum(v.reduce((a,b)=>a+b,0)/v.length)+' dias · '+v.length:null;};
+    const porEq=EQUIPES.map(e=>[rotuloEquipe(e),mediaDe(comTempo.filter(x=>x.d.equipe===e))]).filter(x=>x[1]);
+    const porZn=ZONAS.map(z=>[z,mediaDe(comTempo.filter(x=>x.d.zona===z))]).filter(x=>x[1]);
+    tempoHtml=`
+      <div class="dash-stat-row">
+        <div class="dash-stat"><div class="dash-stat-num" style="color:var(--blue)">${fmtNum(media)}</div><div class="dash-stat-label">Média (dias)</div></div>
+        <div class="dash-stat"><div class="dash-stat-num" style="color:var(--text)">${fmtNum(mediana,mediana%1?1:0)}</div><div class="dash-stat-label">Mediana (dias)</div></div>
+        <div class="dash-stat"><div class="dash-stat-num" style="color:var(--green)">${Math.round(ate7/ts.length*100)}%</div><div class="dash-stat-label">Em até 7 dias</div></div>
+      </div>
+      <div class="dash-grid" style="margin-bottom:0">
+        <div><div style="font-size:11px;font-weight:600;color:var(--text3);margin-bottom:6px">POR EQUIPE (média · nº)</div><div class="historico-meses">${porEq.map(x=>linhaMes(x[0],x[1])).join('')}</div></div>
+        <div><div style="font-size:11px;font-weight:600;color:var(--text3);margin-bottom:6px">POR ZONA (média · nº)</div><div class="historico-meses">${porZn.map(x=>linhaMes(x[0],x[1])).join('')||'<div class="sem-dados" style="padding:10px">Sem zona definida.</div>'}</div></div>
+      </div>
+      <div style="font-size:11px;color:var(--text3);margin-top:8px">Tempo = da abertura à conclusão. Baseado em ${ts.length} demandas com dados detalhados.</div>`;
+  }
+  // — Pontos recorrentes —
+  const ruas=new Map();
+  dados.forEach(d=>{
+    const{rua}=extrairRuaNumero(d.endereco||'');
+    if(!rua||rua.length<4)return;
+    const x=ruas.get(rua)||{nome:(d.endereco||'').split(',')[0].trim(),n:0,ultima:0,ultimaTxt:''};
+    x.n++;const ts=tsBR(d.dataConclusao||d.data);if(ts>=x.ultima){x.ultima=ts;x.ultimaTxt=d.dataConclusao||d.data||'';}
+    ruas.set(rua,x);
+  });
+  const topRuas=[...ruas.values()].filter(x=>x.n>=2).sort((a,b)=>b.n-a.n||b.ultima-a.ultima).slice(0,10);
+  const bairros=new Map();
+  dados.forEach(d=>{if(d.bairroDetectado)bairros.set(d.bairroDetectado,(bairros.get(d.bairroDetectado)||0)+1);});
+  const topBairros=[...bairros.entries()].sort((a,b)=>b[1]-a[1]).slice(0,8);
+  const recHtml=`
+    <div class="dash-grid" style="margin-bottom:0">
+      <div><div style="font-size:11px;font-weight:600;color:var(--text3);margin-bottom:6px">RUAS COM MAIS ATENDIMENTOS</div><div class="historico-meses">${topRuas.map(x=>linhaMes(escHtml(x.nome)+` <span style="font-size:11px;color:var(--text3)">· últ. ${escHtml(x.ultimaTxt)}</span>`,x.n+'×')).join('')||'<div class="sem-dados" style="padding:10px">Nenhuma rua com 2 ou mais atendimentos.</div>'}</div></div>
+      <div><div style="font-size:11px;font-weight:600;color:var(--text3);margin-bottom:6px">BAIRROS COM MAIS ATENDIMENTOS</div><div class="historico-meses">${topBairros.map(x=>linhaMes(escHtml(x[0]),x[1])).join('')||'<div class="sem-dados" style="padding:10px">Bairro ainda não identificado nesses dados.</div>'}</div></div>
+    </div>`;
+  const comCoord=dados.filter(d=>typeof d.lat==='number'&&typeof d.lng==='number').length;
+  return`
+    <div class="dash-card dash-card-full" style="margin-bottom:12px">${cab('Tempo de atendimento','clock-check')}${tempoHtml}</div>
+    <div class="dash-card dash-card-full" style="margin-bottom:12px">${cab('Pontos recorrentes','repeat')}${recHtml}</div>
+    <div class="dash-card dash-card-full" style="margin-bottom:12px">${cab('Mapa de calor das demandas concluídas','map-2')}
+      <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap">
+        <button class="btn btn-sm btn-primary" id="dash-mapa-calor">Mapa de calor</button>
+        <button class="btn btn-sm" id="dash-mapa-pontos">Pontos</button>
+      </div>
+      <div id="dash-mapa" style="height:340px;border-radius:8px;border:1px solid var(--border);z-index:0"></div>
+      <div style="font-size:11px;color:var(--text3);margin-top:6px">${comCoord} de ${dados.length} demandas têm coordenada e aparecem no mapa.</div>
+    </div>`;
+}
+async function montarMapaDash(dados){
+  if(!$('dash-mapa'))return;
+  carregarCSS('https://unpkg.com/leaflet@1.9.4/dist/leaflet.css');
+  await carregarScript('https://unpkg.com/leaflet@1.9.4/dist/leaflet.js');
+  if(secaoAtual!=='dashboard'||!$('dash-mapa'))return;
+  if(_dashMapa){try{_dashMapa.remove();}catch(e){}_dashMapa=null;}
+  const mapa=_dashMapa=L.map('dash-mapa',{preferCanvas:true}).setView([-21.1775,-47.8103],12);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap',maxZoom:19}).addTo(mapa);
+  const pts=dados.filter(d=>typeof d.lat==='number'&&typeof d.lng==='number');
+  const calor=L.layerGroup(), pontos=L.layerGroup();
+  pts.forEach(d=>{
+    // "Calor" sem plugin: círculos de 150 m bem transparentes — onde se sobrepõem, a cor acumula.
+    L.circle([d.lat,d.lng],{radius:150,stroke:false,fillColor:'#d9381e',fillOpacity:.13,interactive:false}).addTo(calor);
+    L.circleMarker([d.lat,d.lng],{radius:5,color:'#fff',weight:1,fillColor:d.prioridade==='urgente'?'#e05555':'#1a3f7a',fillOpacity:.9})
+      .bindPopup(`<div style="font-family:sans-serif;font-size:12px"><strong>${escHtml(d.descricao||'')}</strong><br>${escHtml(d.endereco||'')}<br><span style="color:#666">${escHtml(d.equipe||'')} · concluída em ${escHtml(d.dataConclusao||'—')}</span></div>`)
+      .addTo(pontos);
+  });
+  const bCalor=$('dash-mapa-calor'),bPontos=$('dash-mapa-pontos');
+  function modo(m){
+    if(m==='calor'){mapa.removeLayer(pontos);calor.addTo(mapa);}else{mapa.removeLayer(calor);pontos.addTo(mapa);}
+    if(bCalor)bCalor.className='btn btn-sm'+(m==='calor'?' btn-primary':'');
+    if(bPontos)bPontos.className='btn btn-sm'+(m==='pontos'?' btn-primary':'');
+  }
+  if(bCalor)bCalor.onclick=()=>modo('calor');
+  if(bPontos)bPontos.onclick=()=>modo('pontos');
+  modo('calor');
+  if(pts.length>1)mapa.fitBounds(pts.map(d=>[d.lat,d.lng]),{padding:[30,30]});
+  setTimeout(()=>mapa.invalidateSize(),150);
 }
 
 function renderBarras(titulo, subtitulo, corBarra, lista){
