@@ -937,10 +937,51 @@ function carregarConcluidasCompletas(){
   _promiseConcluidasCompletas = getDocs(query(col, where("status","==","concluído"), orderBy("criadoEm","desc")))
     .then(snap=>{
       _demandasConcluidasCompletas = snap.docs.map(d=>({_id:d.id,...d.data()}));
+      repararResumoConcluidas(_demandasConcluidasCompletas);
       return _demandasConcluidasCompletas;
     })
     .catch(err=>{ _promiseConcluidasCompletas=null; throw err; });
   return _promiseConcluidasCompletas;
+}
+
+// Auto-reparo do resumo: se alguma demanda concluída existe na coleção completa
+// mas NÃO tem cópia em "demandas_concluidas_resumo" (ex.: a gravação do resumo
+// falhou na hora de concluir), recria o resumo dela — sem fotos. Assim Painel,
+// Dashboard e "atendimentos anteriores" voltam a contar essas demandas.
+// Roda em segundo plano, uma vez por sessão, só quando a lista completa é baixada.
+let _resumoReparado=false;
+async function repararResumoConcluidas(completas){
+  if(_resumoReparado||!_concluidasCarregadas)return;
+  _resumoReparado=true;
+  const idsResumo=new Set(_demandasConcluidas.map(d=>d._id));
+  const faltando=completas.filter(d=>d.status==='concluído'&&!idsResumo.has(d._id));
+  if(!faltando.length)return;
+  console.warn(`[resumo] ${faltando.length} demanda(s) concluída(s) sem resumo — recriando…`,faltando.map(d=>`${d._id} (${d.dataConclusao})`));
+  let ok=0;
+  for(const o of faltando){
+    try{
+      await setDoc(doc(db,"demandas_concluidas_resumo",o._id),{
+        descricao:o.descricao||null,
+        endereco:o.endereco||null,
+        zona:o.zona||null,
+        equipe:o.equipe||null,
+        equipeApoio:o.equipeApoio||null,
+        prioridade:o.prioridade||null,
+        solicitante:o.solicitante||null,
+        data:o.data||null,
+        hora:o.hora||null,
+        dataConclusao:o.dataConclusao||null,
+        observacao:o.observacao||null,
+        status:'concluído',
+        marcarData:o.marcarData||false,
+        dataEvento:o.dataEvento||null,
+        notificadoEvento:o.notificadoEvento||false,
+        criadoEm:o.criadoEm||serverTimestamp()
+      });
+      ok++;
+    }catch(e){console.error('[resumo] falha ao recriar',o._id,e);}
+  }
+  console.warn(`[resumo] ${ok}/${faltando.length} resumo(s) recriado(s).`);
 }
 
 onSnapshot(query(colStats,orderBy("mesISO","asc")), snap=>{
@@ -1534,7 +1575,7 @@ async function executarApagarConcluidas(){
     ZONAS.forEach(z=>nZ[z]=(nZ[z]||0)+lista.filter(d=>d.zona===z).length);
     await fbStat(m,{mesISO:m,nomeMes:nomeMes(m),total:(ex?.total||0)+lista.length,urgentes:(ex?.urgentes||0)+lista.filter(d=>d.prioridade==='urgente').length,porEquipe:nE,porZona:nZ});
   }
-  try{await Promise.all(conc.map(d=>fbDel(d._id)));showMsg(`✓ ${conc.length} demandas apagadas. Resumo salvo no Dashboard!`);}
+  try{await Promise.all(conc.map(d=>Promise.all([fbDel(d._id),deleteDoc(doc(db,"demandas_concluidas_resumo",d._id)).catch(()=>{})])));showMsg(`✓ ${conc.length} demandas apagadas. Resumo salvo no Dashboard!`);}
   catch(e){showMsg('Erro ao apagar.','danger');}
 }
 
@@ -2618,9 +2659,14 @@ async function salvarEditarTrecho(){
 }
 
 // ══ PDF ═══════════════════════════════════════════════
-function gerarRelatorio(){
+async function gerarRelatorio(){
   const mesSel=$('filtro-mes-historico').value;
-  let conc=_demandasConcluidas;
+  // Usa a lista COMPLETA (coleção "demandas") — a mesma que preenche o seletor
+  // de mês desta tela. Antes usava o resumo leve, e se alguma demanda tivesse
+  // ficado sem resumo, o mês aparecia no seletor mas o PDF dizia "não há
+  // demandas" (bug de out/2026).
+  let conc;
+  try{conc=await carregarConcluidasCompletas();}catch(e){alert('Erro ao carregar as demandas concluídas. Tente novamente.');return;}
   conc=filtrarPorMes(conc,mesSel,'dataConclusao');
   if(!conc.length){alert('Não há demandas concluídas para gerar relatório.');return;}
   const hoje=new Date().toLocaleDateString('pt-BR');
@@ -2632,7 +2678,6 @@ async function baixarPDF(){
   const mesSel=$('filtro-mes-historico').value;
   // Checagem rápida com os dados leves (sem foto) primeiro — evita baixar as
   // fotos todas se não houver nada pra gerar naquele mês.
-  if(!filtrarPorMes(_demandasConcluidas,mesSel,'dataConclusao').length)return;
   const completas=await carregarConcluidasCompletas();
   let conc=filtrarPorMes(completas,mesSel,'dataConclusao');
   if(!conc.length)return;
