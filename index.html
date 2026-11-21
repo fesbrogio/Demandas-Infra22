@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Gestão de Limpeza Urbana – Secretaria da Infraestrutura</title>
 <!-- App instalável (Adicionar à tela inicial): ver manifest.json e icon-*.png na raiz do repositório -->
 <link rel="manifest" href="manifest.json">
@@ -249,6 +249,24 @@
   .calendario-dia.hoje{border-color:var(--text2);font-weight:700}
   .calendario-dia .ponto{width:5px;height:5px;border-radius:50%;background:var(--purple);margin-top:1px}
   .calendario-detalhe{margin-top:16px;border-top:1px solid var(--border);padding-top:14px}
+  /* ── Busca e filtros em botões ── */
+  .busca-wrap{position:relative;margin-bottom:10px}
+  .busca-wrap>i{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:16px;pointer-events:none}
+  .busca-wrap input{width:100%;padding:11px 38px 11px 36px;border:1px solid var(--border);border-radius:var(--radius);font-size:14px;font-family:var(--font);background:var(--surface);color:var(--text);-webkit-appearance:none;appearance:none}
+  .busca-wrap input:focus{outline:none;border-color:var(--text);box-shadow:0 0 0 3px rgba(26,25,23,.08)}
+  .busca-wrap input::-webkit-search-cancel-button{display:none}
+  .busca-limpar{position:absolute;right:4px;top:50%;transform:translateY(-50%);border:none;background:none;color:var(--text3);font-size:20px;width:34px;height:34px;cursor:pointer;display:none}
+  .chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-bottom:6px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .chips::-webkit-scrollbar{display:none}
+  .chips-rotulo{flex-shrink:0;font-size:10px;font-weight:600;color:var(--text3);align-self:center;font-family:var(--font-mono);text-transform:uppercase;min-width:42px}
+  .chip{flex-shrink:0;border:1px solid var(--border);background:var(--surface);color:var(--text2);border-radius:20px;padding:8px 13px;font-size:13px;font-family:var(--font);cursor:pointer;white-space:nowrap;min-height:36px;-webkit-tap-highlight-color:transparent}
+  .chip.ativo{background:var(--text);color:#fff;border-color:var(--text);font-weight:500}
+  .chip.urg.ativo{background:var(--red);border-color:var(--red)}
+  .chip.atr.ativo{background:var(--orange);border-color:var(--orange)}
+  .barra-info{display:none;align-items:center;justify-content:space-between;gap:8px;font-size:12px;color:var(--text2);margin:2px 0 12px}
+  .barra-info button{border:none;background:none;color:var(--blue);font-size:12px;font-family:var(--font);cursor:pointer;text-decoration:underline;padding:4px}
+  /* iPhone dá zoom automático ao tocar em campo com fonte menor que 16px */
+  @supports (-webkit-touch-callout:none){input,select,textarea{font-size:16px!important}}
   @keyframes fadeIn{from{opacity:0}to{opacity:1}}
   @keyframes slideUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
   @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
@@ -349,21 +367,19 @@
         </div>
         <div id="localizar-progresso" style="display:none;font-size:12px;color:var(--text2);margin-top:10px;padding-top:10px;border-top:1px solid var(--border)"></div>
       </div>
+      <div id="barra-gerenciar"></div>
       <div id="lista-gerenciar"></div>
     </div>
 
     <div id="sec-revisao" class="section">
       <p class="section-title">⚠️ Endereços para revisão</p>
+      <div id="barra-revisao"></div>
       <div id="lista-revisao"></div>
     </div>
 
     <div id="sec-painel" class="section">
       <div class="stats" id="stats-box"></div>
-      <div class="filter-row">
-        <select id="filtro-status"><option value="">Todos os status</option><option value="pendente">Pendente</option><option value="em andamento">Em andamento</option><option value="concluído">Concluído</option></select>
-        <select id="filtro-equipe-painel"><option value="">Todas as equipes</option><option value="Equipe 1">Equipe 1</option><option value="Equipe 2">Equipe 2</option><option value="Equipe 3">Equipe 3</option><option value="Equipe 4">Equipe 4</option><option value="Equipe 5">Equipe 5</option><option value="Equipe 6 (Retroescavadeira)">Equipe 6</option><option value="Demandas ESAL">Demandas ESAL</option></select>
-        <select id="filtro-zona-painel"><option value="">Todas as zonas</option><option value="Zona Norte">Zona Norte</option><option value="Zona Sul">Zona Sul</option><option value="Zona Leste">Zona Leste</option><option value="Zona Oeste">Zona Oeste</option><option value="Centro">Centro</option></select>
-      </div>
+      <div id="barra-painel"></div>
       <div id="lista-painel"></div>
     </div>
 
@@ -382,14 +398,13 @@
         <button class="btn btn-info btn-sm" id="btn-gerar-relatorio"><i class="ti ti-file-type-pdf"></i> Gerar PDF</button>
       </div>
       <div class="mes-filter-box"><label><i class="ti ti-calendar"></i> Filtrar por mês</label><select id="filtro-mes-historico"><option value="">Todos os meses</option></select></div>
+      <div id="barra-historico"></div>
       <div id="lista-historico"></div>
     </div>
 
     <div id="sec-equipe" class="section">
-      <div class="filter-row" style="align-items:center">
-        <select id="filtro-zona-equipe"><option value="">Todas as zonas</option><option value="Zona Norte">Zona Norte</option><option value="Zona Sul">Zona Sul</option><option value="Zona Leste">Zona Leste</option><option value="Zona Oeste">Zona Oeste</option><option value="Centro">Centro</option></select>
-        <div id="contador-equipe" style="flex-shrink:0;font-size:13px;font-weight:600;font-family:var(--font-mono);background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:7px 14px;white-space:nowrap;color:var(--text2)"></div>
-      </div>
+      <div id="barra-equipe"></div>
+      <div id="contador-equipe" style="font-size:13px;font-weight:600;font-family:var(--font-mono);color:var(--text2);margin-bottom:10px"></div>
       <div id="lista-equipe"></div>
     </div>
 
@@ -1071,6 +1086,83 @@ const fbAddServico = data => addDoc(colServicos,{...data,criadoEm:serverTimestam
 const fbUpdServico = (id,data) => updateDoc(doc(db,"servicos_area",id),data);
 const fbDelServico = id => deleteDoc(doc(db,"servicos_area",id));
 
+
+// ══ BUSCA E FILTROS EM BOTÕES ═════════════════════════
+// Cada lista (painel, equipe, gerenciar, revisao, historico) tem a sua barra: campo de busca
+// (endereço, descrição, solicitante, bairro) + botões de filtro. O estado fica em _filtros[chave].
+const _filtros={}, _barras={};
+function normBusca(t){return String(t||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9 ]+/g,' ').replace(/\s+/g,' ').trim();}
+const OPC_ZONA=()=>ZONAS.map(z=>[z,z.replace('Zona ','')]);
+const OPC_EQUIPE=()=>EQUIPES.map(e=>[e,rotuloEquipe(e)]);
+const TOGGLES_URG_ATR=[{id:'urg',rotulo:'⚡ Urgentes',cls:'urg'},{id:'atras',rotulo:'⏰ +7 dias',cls:'atr'}];
+function aplicarFiltros(lista,key){
+  const f=_filtros[key]||{};
+  const palavras=normBusca(f.q||'').split(' ').filter(Boolean);
+  return lista.filter(d=>{
+    if(f.status&&d.status!==f.status)return false;
+    if(f.equipe&&d.equipe!==f.equipe&&d.equipeApoio!==f.equipe)return false;
+    if(f.zona&&d.zona!==f.zona)return false;
+    if(f.urg&&d.prioridade!=='urgente')return false;
+    if(f.atras&&!(d.status!=='concluído'&&d.status!=='revisao'&&horasAbertas(d)>=HORAS_ALERTA))return false;
+    if(palavras.length){
+      const txt=normBusca([d.endereco,d.descricao,d.solicitante,d.bairroDetectado,d.equipe,d.zona].join(' '));
+      if(!palavras.every(w=>txt.includes(w)))return false;
+    }
+    return true;
+  });
+}
+const filtroAtivo=key=>{const f=_filtros[key]||{};return !!(f.q||f.status||f.equipe||f.zona||f.urg||f.atras);};
+function atualizarInfoBarra(key,n,total){
+  const el=$('info-'+key);if(!el)return;
+  if(!filtroAtivo(key)){el.style.display='none';return;}
+  el.style.display='flex';
+  el.innerHTML=`<span><strong>${n}</strong> de ${total} demanda${total===1?'':'s'}</span><button data-limpar-filtros="${key}">Limpar filtros</button>`;
+}
+function vazioFiltrado(key,msgPadrao){
+  return filtroAtivo(key)?'<div class="empty"><i class="ti ti-search-off"></i>Nada encontrado com esse filtro ou busca.</div>':msgPadrao;
+}
+function sincronizarBarra(key){
+  const f=_filtros[key]||{};
+  document.querySelectorAll(`[data-chip="${key}"]`).forEach(c=>{
+    const ativo=c.dataset.toggle?!!f[c.dataset.campo]:f[c.dataset.campo]===c.dataset.valor;
+    c.classList.toggle('ativo',ativo);
+  });
+  const inp=document.querySelector(`[data-busca="${key}"]`);
+  if(inp){if(inp.value!==(f.q||''))inp.value=f.q||'';const x=document.querySelector(`[data-busca-limpar="${key}"]`);if(x)x.style.display=inp.value?'block':'none';}
+}
+function montarBarra(containerId,key,cfg,onChange){
+  const el=$(containerId);if(!el)return;
+  _filtros[key]={};_barras[key]=onChange;
+  let h='';
+  if(cfg.busca)h+=`<div class="busca-wrap"><i class="ti ti-search"></i><input type="search" data-busca="${key}" placeholder="${cfg.placeholder||'Buscar endereço, descrição ou nome…'}" autocomplete="off" enterkeyhint="search"><button class="busca-limpar" data-busca-limpar="${key}" aria-label="Limpar busca">×</button></div>`;
+  if(cfg.toggles)h+=`<div class="chips">${cfg.toggles.map(t=>`<button class="chip ${t.cls||''}" data-chip="${key}" data-campo="${t.id}" data-toggle="1">${t.rotulo}</button>`).join('')}</div>`;
+  (cfg.grupos||[]).forEach(g=>{h+=`<div class="chips"><span class="chips-rotulo">${g.rotulo}</span>${g.opcoes.map(([v,l])=>`<button class="chip" data-chip="${key}" data-campo="${g.id}" data-valor="${escHtml(v)}">${l}</button>`).join('')}</div>`;});
+  h+=`<div class="barra-info" id="info-${key}"></div>`;
+  el.innerHTML=h;
+}
+function resetarFiltros(){Object.keys(_barras).forEach(k=>{_filtros[k]={};sincronizarBarra(k);});}
+(function(){
+  let tmr=null;
+  document.addEventListener('click',e=>{
+    const c=e.target.closest('[data-chip]');
+    if(c){
+      const key=c.dataset.chip,f=_filtros[key]||(_filtros[key]={}),campo=c.dataset.campo;
+      if(c.dataset.toggle)f[campo]=!f[campo];else f[campo]=(f[campo]===c.dataset.valor)?'':c.dataset.valor;
+      sincronizarBarra(key);if(_barras[key])_barras[key]();return;
+    }
+    const x=e.target.closest('[data-busca-limpar]');
+    if(x){const key=x.dataset.buscaLimpar;_filtros[key].q='';sincronizarBarra(key);if(_barras[key])_barras[key]();const i=document.querySelector(`[data-busca="${key}"]`);if(i)i.focus();return;}
+    const l=e.target.closest('[data-limpar-filtros]');
+    if(l){const key=l.dataset.limparFiltros;_filtros[key]={};sincronizarBarra(key);if(_barras[key])_barras[key]();}
+  });
+  document.addEventListener('input',e=>{
+    const i=e.target.closest&&e.target.closest('[data-busca]');if(!i)return;
+    const key=i.dataset.busca;_filtros[key].q=i.value;
+    const x=document.querySelector(`[data-busca-limpar="${key}"]`);if(x)x.style.display=i.value?'block':'none';
+    clearTimeout(tmr);tmr=setTimeout(()=>{if(_barras[key])_barras[key]();},180);
+  });
+})();
+
 // ══ RENDER ATUAL ══════════════════════════════════════
 // Redesenha a tela aberta. Chamada assim que as demandas ATIVAS chegam — que
 // são poucas e leves — para a tela aparecer rápido, sem esperar o download
@@ -1327,6 +1419,7 @@ function entrarComo(p){
 
 function voltarPerfil(){
   perfil='';equipeAtual='';secaoAtual='';
+  resetarFiltros();
   _mapaRenderToken++; // interrompe qualquer fila de geocodificação do mapa em andamento
   Object.values(_charts).forEach(c=>c.destroy());_charts={};
   if(_dashMapa){try{_dashMapa.remove();}catch(e){}_dashMapa=null;}
@@ -2284,30 +2377,32 @@ function renderLocalizacao(){
 
 function renderGerenciar(){
   atualizarResumoLocalizar();
-  const lista=_demandas.filter(d=>d.status!=='concluído'&&d.status!=='revisao');
+  const base=_demandas.filter(d=>d.status!=='concluído'&&d.status!=='revisao');
+  const lista=aplicarFiltros(base,'gerenciar');
+  atualizarInfoBarra('gerenciar',lista.length,base.length);
   const el=$('lista-gerenciar');
-  if(!lista.length){el.innerHTML='<div class="empty"><i class="ti ti-check"></i>Nenhuma demanda aberta</div>';return;}
+  if(!lista.length){el.innerHTML=vazioFiltrado('gerenciar','<div class="empty"><i class="ti ti-check"></i>Nenhuma demanda aberta</div>');return;}
   el.innerHTML=realtimeBadge()+lista.map(d=>cardHtml(d,{mostrarAlocar:true,mostrarApagar:true})).join('');
   bindCards(el);
 }
 
 function renderRevisao(){
-  const lista=_demandas.filter(d=>d.status==='revisao');
+  const base=_demandas.filter(d=>d.status==='revisao');
+  const lista=aplicarFiltros(base,'revisao');
+  atualizarInfoBarra('revisao',lista.length,base.length);
   const el=$('lista-revisao');
-  if(!lista.length){el.innerHTML='<div class="empty"><i class="ti ti-circle-check"></i>Nenhuma demanda aguardando revisão</div>';return;}
+  if(!lista.length){el.innerHTML=vazioFiltrado('revisao','<div class="empty"><i class="ti ti-circle-check"></i>Nenhuma demanda aguardando revisão</div>');return;}
   el.innerHTML=realtimeBadge()+lista.map(d=>cardHtml(d,{mostrarRevisao:true,mostrarApagar:true})).join('');
   bindCards(el);
 }
 
 function renderPainel(){
   renderStats();
-  const fs=$('filtro-status').value,fe=$('filtro-equipe-painel').value,fz=$('filtro-zona-painel').value;
-  let lista=todasDemandasCombinadas();
-  if(fs)lista=lista.filter(d=>d.status===fs);
-  if(fe)lista=lista.filter(d=>d.equipe===fe);
-  if(fz)lista=lista.filter(d=>d.zona===fz);
+  const base=todasDemandasCombinadas();
+  const lista=aplicarFiltros(base,'painel');
+  atualizarInfoBarra('painel',lista.length,base.length);
   const el=$('lista-painel');
-  if(!lista.length){el.innerHTML='<div class="empty"><i class="ti ti-check"></i>Nenhuma demanda encontrada</div>';return;}
+  if(!lista.length){el.innerHTML=vazioFiltrado('painel','<div class="empty"><i class="ti ti-check"></i>Nenhuma demanda encontrada</div>');return;}
   const urg=lista.filter(d=>d.prioridade==='urgente'&&d.status!=='concluído');
   const atr=lista.filter(d=>d.status!=='concluído'&&d.status!=='revisao'&&horasAbertas(d)>=HORAS_ALERTA&&d.prioridade!=='urgente');
   const rev=lista.filter(d=>d.status==='revisao');
@@ -2321,13 +2416,14 @@ function renderPainel(){
 }
 
 function renderEquipe(){
-  const fz=$('filtro-zona-equipe').value;
-  let lista=_demandas.filter(d=>(d.equipe===equipeAtual||d.equipeApoio===equipeAtual)&&d.status!=='concluído'&&d.status!=='revisao');
-  if(fz)lista=lista.filter(d=>d.zona===fz);
+  const fz=(_filtros.equipe&&_filtros.equipe.zona)||'';
+  const base=_demandas.filter(d=>(d.equipe===equipeAtual||d.equipeApoio===equipeAtual)&&d.status!=='concluído'&&d.status!=='revisao');
+  const lista=aplicarFiltros(base,'equipe');
+  atualizarInfoBarra('equipe',lista.length,base.length);
   const cont=$('contador-equipe');
   if(cont){const t=lista.length,u=lista.filter(d=>d.prioridade==='urgente').length;const lbl=fz||'Total';cont.innerHTML=`${lbl}: <span style="color:var(--text)">${t}</span> demanda${t!==1?'s':''}${u>0?` · <span style="color:var(--red)">⚡ ${u} urgente${u>1?'s':''}</span>`:''}`;}
   const el=$('lista-equipe');
-  if(!lista.length){el.innerHTML=`<div class="empty"><i class="ti ti-check"></i>Nenhuma demanda${fz?' na '+fz:''} para ${equipeAtual}</div>`;return;}
+  if(!lista.length){el.innerHTML=vazioFiltrado('equipe',`<div class="empty"><i class="ti ti-check"></i>Nenhuma demanda para ${equipeAtual}</div>`);return;}
   const urg=lista.filter(d=>d.prioridade==='urgente');
   const atr=lista.filter(d=>horasAbertas(d)>=HORAS_ALERTA&&d.prioridade!=='urgente');
   let html=realtimeBadge();
@@ -2339,14 +2435,16 @@ function renderEquipe(){
 
 async function renderHistorico(){
   const el=$('lista-historico');
-  el.innerHTML='<div class="empty"><i class="ti ti-loader-2"></i> Carregando concluídas com fotos (pode levar alguns segundos)…</div>';
+  if(!_demandasConcluidasCompletas)el.innerHTML='<div class="empty"><i class="ti ti-loader-2"></i> Carregando concluídas com fotos (pode levar alguns segundos)…</div>';
   const conc=await carregarConcluidasCompletas();
   if(secaoAtual!=='historico')return; // usuário já saiu da tela enquanto carregava
   popularSelectMes('filtro-mes-historico',conc);
   const mesSel=$('filtro-mes-historico').value;
-  let lista=filtrarPorMes(conc,mesSel,'dataConclusao');
+  const doMes=filtrarPorMes(conc,mesSel,'dataConclusao');
+  let lista=aplicarFiltros(doMes,'historico');
+  atualizarInfoBarra('historico',lista.length,doMes.length);
   lista=lista.slice().sort((a,b)=>tsBR(b.dataConclusao||b.data)-tsBR(a.dataConclusao||a.data));
-  if(!lista.length){el.innerHTML='<div class="empty"><i class="ti ti-history"></i>Nenhum serviço concluído ainda</div>';return;}
+  if(!lista.length){el.innerHTML=vazioFiltrado('historico','<div class="empty"><i class="ti ti-history"></i>Nenhum serviço concluído ainda</div>');return;}
   el.innerHTML=`<div class="card">${lista.map(d=>`
     <div class="hist-row">
       <div style="font-size:14px;font-weight:600;margin-bottom:6px">${d.descricao}</div>
@@ -3644,13 +3742,14 @@ document.addEventListener('DOMContentLoaded', ()=>{
   $('btn-baixar-pdf').addEventListener('click',baixarPDF);
 
   // Filtros painel
-  $('filtro-status').addEventListener('change',renderPainel);
-  $('filtro-equipe-painel').addEventListener('change',renderPainel);
-  $('filtro-zona-painel').addEventListener('change',renderPainel);
 
   // Filtros equipe e historico
-  $('filtro-zona-equipe').addEventListener('change',renderEquipe);
   $('filtro-mes-historico').addEventListener('change',renderHistorico);
+  montarBarra('barra-painel','painel',{busca:true,toggles:TOGGLES_URG_ATR,grupos:[{id:'status',rotulo:'Status',opcoes:[['pendente','Pendente'],['em andamento','Em andamento'],['concluído','Concluído']]},{id:'equipe',rotulo:'Equipe',opcoes:OPC_EQUIPE()},{id:'zona',rotulo:'Zona',opcoes:OPC_ZONA()}]},renderPainel);
+  montarBarra('barra-equipe','equipe',{busca:true,toggles:TOGGLES_URG_ATR,grupos:[{id:'zona',rotulo:'Zona',opcoes:OPC_ZONA()}]},renderEquipe);
+  montarBarra('barra-gerenciar','gerenciar',{busca:true,toggles:TOGGLES_URG_ATR,grupos:[{id:'zona',rotulo:'Zona',opcoes:OPC_ZONA()},{id:'equipe',rotulo:'Equipe',opcoes:OPC_EQUIPE()}]},renderGerenciar);
+  montarBarra('barra-revisao','revisao',{busca:true},renderRevisao);
+  montarBarra('barra-historico','historico',{busca:true,placeholder:'Buscar endereço, descrição ou nome…'},renderHistorico);
 
   // Dashboard
   $('sel-mes-dash').addEventListener('change',renderDashboard);
