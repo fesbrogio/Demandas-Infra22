@@ -1447,13 +1447,14 @@ async function salvarDemanda(){
 }
 
 // ══ GEOCODIFICAÇÃO (endereço → coordenada) ═══════════
-// Usa o Nominatim (OpenStreetMap, gratuito). Ele é rígido: se o texto não bater com o
-// que está no mapa (abreviação "R.", "Dr.", bairro/cidade no meio, número que o OSM
-// não tem), devolve VAZIO — e antes o sistema desistia na primeira tentativa. Agora:
-//  1) o endereço é separado em rua / número / bairro e a rua é escrita por extenso;
-//  2) a busca é restrita ao município de Ribeirão Preto;
-//  3) se o número exato não existe no mapa, cai para a rua (e depois para o bairro),
-//     guardando o grau de precisão em "precisaoCoord": 'endereco' | 'rua' | 'bairro'.
+// Cadeia de tentativas, da mais exata para a mais aproximada. Cada ponto guarda o grau
+// de precisão em "precisaoCoord": 'endereco' | 'rua' | 'bairro' | 'manual'.
+//  1) Nominatim (OpenStreetMap), busca estruturada com número, depois só a rua, depois
+//     texto livre (com e sem os títulos "Doutor", "Professor"…), restrito a Ribeirão Preto;
+//  2) Photon (também OpenStreetMap, mas tolera erro de digitação e acento);
+//  3) bairro;
+//  4) o que sobrar vai para a lista, onde dá para colar a coordenada à mão.
+// Falha de conexão/limite do servidor NÃO é tratada como "não encontrado" (e não vai pro cache).
 const VIEWBOX_RP='-48.05,-21.00,-47.60,-21.40'; // esquerda,topo,direita,baixo (município)
 const _geoCache=new Map();
 let _geoUltimaChamada=0;
@@ -1462,13 +1463,21 @@ async function geoEsperar(){ // política do Nominatim: no máximo 1 consulta po
   if(falta>0)await new Promise(r=>setTimeout(r,falta));
   _geoUltimaChamada=Date.now();
 }
-const ABREV_VIA=[[/^(r|rua)\.?\s+/i,'Rua '],[/^(av|avda|avd)\.?\s+/i,'Avenida '],[/^al\.?\s+/i,'Alameda '],[/^(pç|pca|pc|praca)\.?\s+/i,'Praça '],[/^trav\.?\s+/i,'Travessa '],[/^rod\.?\s+/i,'Rodovia '],[/^estr\.?\s+/i,'Estrada '],[/^lgo\.?\s+/i,'Largo '],[/^vd\.?\s+/i,'Viaduto ']];
-const ABREV_TITULO=[[/\bdr\.?\s/gi,'Doutor '],[/\bdra\.?\s/gi,'Doutora '],[/\bprof\.?\s/gi,'Professor '],[/\bprofa\.?\s/gi,'Professora '],[/\bcel\.?\s/gi,'Coronel '],[/\beng\.?\s/gi,'Engenheiro '],[/\bpe\.?\s/gi,'Padre '],[/\bmons\.?\s/gi,'Monsenhor '],[/\bgen\.?\s/gi,'General '],[/\bcap\.?\s/gi,'Capitão '],[/\bsto\.?\s/gi,'Santo '],[/\bsta\.?\s/gi,'Santa ']];
+const ABREV_VIA=[[/^(r|rua)\.?\s+/i,'Rua '],[/^(av|avda|avd)\.?\s+/i,'Avenida '],[/^al\.?\s+/i,'Alameda '],[/^(pç|pca|pc|praca)\.?\s+/i,'Praça '],[/^(tv|trav)\.?\s+/i,'Travessa '],[/^rod\.?\s+/i,'Rodovia '],[/^estr\.?\s+/i,'Estrada '],[/^lgo\.?\s+/i,'Largo '],[/^vd\.?\s+/i,'Viaduto ']];
+const ABREV_TITULO=[[/\bdr\.?\s/gi,'Doutor '],[/\bdra\.?\s/gi,'Doutora '],[/\bprof\.?\s/gi,'Professor '],[/\bprofa\.?\s/gi,'Professora '],[/\bcel\.?\s/gi,'Coronel '],[/\beng\.?\s/gi,'Engenheiro '],[/\bpe\.?\s/gi,'Padre '],[/\bmons\.?\s/gi,'Monsenhor '],[/\bgen\.?\s/gi,'General '],[/\bcap\.?\s/gi,'Capitão '],[/\bsto\.?\s/gi,'Santo '],[/\bsta\.?\s/gi,'Santa '],[/\bsra\.?\s/gi,'Senhora '],[/\bsen\.?\s/gi,'Senador '],[/\bver\.?\s/gi,'Vereador '],[/\bcmte\.?\s/gi,'Comandante '],[/\bsrg\.?\s/gi,'Sargento '],[/\bten\.?\s/gi,'Tenente '],[/\bmaj\.?\s/gi,'Major '],[/\bdep\.?\s/gi,'Deputado '],[/\bgov\.?\s/gi,'Governador '],[/\bpres\.?\s/gi,'Presidente ']];
+const TIPOS_VIA_RE=/^(rua|avenida|alameda|praça|travessa|rodovia|estrada|largo|viaduto)\s+/i;
+const TITULOS_RE=/\b(doutor|doutora|professor|professora|coronel|engenheiro|padre|monsenhor|general|capitão|senador|vereador|comandante|sargento|tenente|major|deputado|governador|presidente|reverendo|santo|santa)\b/gi;
 function normalizarNomeVia(t){
-  let v=String(t||'').replace(/\([^)]*\)/g,' ').replace(/\s+/g,' ').trim();
+  let v=String(t||'').replace(/\([^)]*\)/g,' ').replace(/^([A-Za-z]{1,4})[:;]\s*/,'$1. ').replace(/\s+/g,' ').trim();
   for(const[re,nv]of ABREV_VIA){if(re.test(v)){v=v.replace(re,nv);break;}}
   for(const[re,nv]of ABREV_TITULO)v=v.replace(re,nv);
+  v=v.replace(/\b(d[aeo]s?|e)\s+\1\b/gi,'$1'); // "da da" digitado em duplicidade
   return v.replace(/\s+/g,' ').trim();
+}
+// Nome da rua sem o tipo (Rua/Avenida) e sem títulos: tolera "Doutor" x "Dr." x ausente no mapa.
+function nucleoVia(rua){
+  const v=String(rua||'').replace(TIPOS_VIA_RE,'').replace(TITULOS_RE,' ').replace(/\s+/g,' ').trim();
+  return v.split(' ').length>=2?v:'';
 }
 // "R. Ernesto Petersen, 36 - Quintino Facci II - Ribeirão Preto" → {rua, numero, bairro}
 function parseEndereco(end){
@@ -1476,32 +1485,51 @@ function parseEndereco(end){
   for(let k=0;k<3;k++)e=e.replace(/\s*[,\-–]\s*(brasil|brazil|sp|s[ãa]o paulo|ribeir[ãa]o preto)\s*$/i,'').trim();
   const tokens=e.split(/\s*,\s*|\s+[-–]\s+/).map(t=>t.trim()).filter(Boolean);
   let rua=tokens[0]||'',numero=null,bairro=null;
-  // "Rua Fulano 120" (número colado no nome da rua)
-  const colado=rua.match(/^(.*[A-Za-zÀ-ÿ]{3,}.*\D)\s+(\d{1,5})$/);
+  const colado=rua.match(/^(.*[A-Za-zÀ-ÿ]{3,}.*\D)\s+(\d{1,5})$/); // "Rua Fulano 120"
   if(colado){rua=colado[1];numero=colado[2];}
-  // esquina / cruzamento: usa só a primeira via
-  rua=rua.split(/\s+(?:x|e esquina com|esquina com|esq\.?|c\/)\s+/i)[0];
+  rua=rua.split(/\s+(?:x|e esquina com|esquina com|esq\.?|c\/)\s+/i)[0]; // esquina: só a primeira via
   for(const t of tokens.slice(1)){
     if(/^(esquina|esq\b|pr[óo]x|em frente|ao lado|altura|ref)/i.test(t))continue;
-    const n=t.match(/^(?:n[ºo°.]?\s*)?(\d{1,5})\b/i);
-    if(n&&!numero){numero=n[1];continue;}
-    if(!bairro&&!/^s\/?n$/i.test(t)&&!/^\d/.test(t))bairro=t.replace(/^bairro\s+/i,'');
+    // "400-526" (faixa do Google), "263-Planalto Verde" (número colado no bairro)
+    const n=t.match(/^(?:n[ºo°.]?\s*)?(\d{1,5})(?:\s*-\s*\d{1,5})?\s*-?\s*(.*)$/i);
+    if(n){
+      if(!numero)numero=n[1];
+      if(!bairro&&n[2]&&/[A-Za-zÀ-ÿ]{3,}/.test(n[2]))bairro=n[2].trim();
+      continue;
+    }
+    if(!bairro&&!/^s\/?n$/i.test(t))bairro=t.replace(/^bairro\s+/i,'');
   }
   return{rua:normalizarNomeVia(rua),numero,bairro:bairro?bairro.replace(/\s+/g,' ').trim():null};
 }
+// Resposta: objeto = achou; null = não existe; {erro:true} = servidor indisponível/limite.
 async function nominatim(params){
   const qs=new URLSearchParams({format:'json',addressdetails:'1',limit:'1','accept-language':'pt-BR',countrycodes:'br',viewbox:VIEWBOX_RP,bounded:'1',...params});
   for(let t=0;t<2;t++){
     await geoEsperar();
     try{
       const res=await fetch('https://nominatim.openstreetmap.org/search?'+qs);
-      if(res.status===429||res.status===503){await new Promise(r=>setTimeout(r,4000));continue;}
+      if(res.status===429||res.status===403||res.status>=500){await new Promise(r=>setTimeout(r,4000));continue;}
       if(!res.ok)return null;
       const data=await res.json();
       return Array.isArray(data)&&data[0]?data[0]:null;
-    }catch(e){return null;}
+    }catch(e){await new Promise(r=>setTimeout(r,2000));}
   }
-  return null;
+  return{erro:true};
+}
+async function photon(q){
+  await geoEsperar();
+  try{
+    const qs=new URLSearchParams({q,limit:'3',bbox:'-48.05,-21.40,-47.60,-21.00'});
+    const res=await fetch('https://photon.komoot.io/api/?'+qs);
+    if(res.status===429||res.status>=500)return{erro:true};
+    if(!res.ok)return null;
+    const j=await res.json();
+    const f=(j.features||[]).find(x=>{const k=x.properties&&x.properties.osm_key;return k==='highway'||k==='place'||k==='building'||(x.properties&&x.properties.housenumber);});
+    if(!f)return null;
+    const pr=f.properties,c=f.geometry&&f.geometry.coordinates;
+    if(!c)return null;
+    return{lat:c[1],lon:c[0],_prec:pr.housenumber?'endereco':(pr.osm_key==='place'?'bairro':'rua'),address:{suburb:pr.district||pr.locality||null}};
+  }catch(e){return{erro:true};}
 }
 async function geocodificarEndereco(end){
   const p=parseEndereco(end);
@@ -1509,12 +1537,23 @@ async function geocodificarEndereco(end){
   const chave=[p.rua,p.numero||'',p.bairro||''].join('|').toLowerCase();
   if(_geoCache.has(chave))return _geoCache.get(chave);
   const cidade={city:'Ribeirão Preto',state:'São Paulo',country:'Brasil'};
-  let hit=null,prec=null;
-  if(p.numero){hit=await nominatim({...cidade,street:`${p.numero} ${p.rua}`});if(hit)prec=hit.address&&hit.address.house_number?'endereco':'rua';}
-  if(!hit){hit=await nominatim({...cidade,street:p.rua});if(hit)prec='rua';}
-  if(!hit){hit=await nominatim({q:`${p.rua}, Ribeirão Preto, SP`});if(hit)prec='rua';}
-  if(!hit&&p.bairro){hit=await nominatim({q:`${p.rua}, ${p.bairro}, Ribeirão Preto, SP`});if(hit)prec='rua';}
-  if(!hit&&p.bairro){hit=await nominatim({q:`${p.bairro}, Ribeirão Preto, SP`});if(hit)prec='bairro';}
+  const nuc=nucleoVia(p.rua);
+  let hit=null,prec=null,houveErro=false;
+  const tentar=async(fn,precisao)=>{
+    if(hit)return;
+    const r=await fn();
+    if(r&&r.erro){houveErro=true;return;}
+    if(r){hit=r;prec=r._prec||precisao;}
+  };
+  if(p.numero)await tentar(async()=>{const r=await nominatim({...cidade,street:`${p.numero} ${p.rua}`});if(r&&!r.erro)r._prec=r.address&&r.address.house_number?'endereco':'rua';return r;},'rua');
+  await tentar(()=>nominatim({...cidade,street:p.rua}),'rua');
+  await tentar(()=>nominatim({q:`${p.rua}, Ribeirão Preto, SP`}),'rua');
+  if(nuc)await tentar(()=>nominatim({q:`${nuc}, Ribeirão Preto, SP`}),'rua');
+  if(p.bairro)await tentar(()=>nominatim({q:`${p.rua}, ${p.bairro}, Ribeirão Preto, SP`}),'rua');
+  await tentar(()=>photon(`${p.rua} ${p.numero||''} ${p.bairro||''} Ribeirão Preto`.replace(/\s+/g,' ')),'rua');
+  if(nuc)await tentar(()=>photon(`${nuc} Ribeirão Preto`),'rua');
+  if(p.bairro)await tentar(()=>nominatim({q:`${p.bairro}, Ribeirão Preto, SP`}),'bairro');
+  if(!hit&&houveErro)return{erro:true}; // não guarda no cache: pode dar certo mais tarde
   let r=null;
   if(hit){
     const lat=parseFloat(hit.lat),lng=parseFloat(hit.lon);
@@ -1530,6 +1569,7 @@ async function geocodificarBairro(endereco, docId){ // mantém o nome: é chamad
   if(!endereco||!docId)return;
   try{
     const g=await geocodificarEndereco(endereco);
+    if(g&&g.erro)return; // sem conexão agora: o botão "Localizar endereços" pega depois
     if(!g){await fbUpd(docId,{geoFalhou:true});return;}
     const upd={lat:g.lat,lng:g.lng,precisaoCoord:g.precisao,geoFalhou:false};
     if(g.bairro)upd.bairroDetectado=g.bairro;
@@ -1539,7 +1579,7 @@ async function geocodificarBairro(endereco, docId){ // mantém o nome: é chamad
 
 // Procura coordenada para as demandas (abertas e concluídas) que ainda não têm.
 // Roda aqui no aparelho, 1 consulta por segundo; endereços repetidos usam o cache.
-let _localizando=false,_pararLocalizar=false;
+let _localizando=false,_pararLocalizar=false,_falhasLocalizar=new Map();
 const _semCoord=d=>!(typeof d.lat==='number'&&typeof d.lng==='number');
 function atualizarResumoLocalizar(){
   const el=$('localizar-resumo');if(!el||_localizando)return;
@@ -1547,13 +1587,57 @@ function atualizarResumoLocalizar(){
   const co=_demandasConcluidas.filter(_semCoord).length;
   el.textContent=(ab||co)?`${ab} aberta${ab===1?'':'s'} e ${co} concluída${co===1?'':'s'} sem localização no mapa.`:'Todas as demandas têm localização no mapa.';
 }
+// Grava a coordenada numa demanda (aberta ou concluída; nas concluídas atualiza também resumo e arquivo).
+async function gravarCoordenada(d,aberta,upd,idsResumo){
+  if(aberta){await fbUpd(d._id,upd);return;}
+  const b=writeBatch(db);
+  b.update(doc(db,"demandas",d._id),upd);
+  if(idsResumo.has(d._id))b.update(doc(db,"demandas_concluidas_resumo",d._id),upd);
+  b.set(doc(db,"demandas_arquivo",d._id),docArquivo({...d,...upd}));
+  await b.commit();
+}
+function renderResultadoLocalizar(achou,total,interrompido,errosRede){
+  const prog=$('localizar-progresso');
+  const lista=[...(_falhasLocalizar.keys())];
+  prog.innerHTML=`${interrompido?'Interrompido. ':'Concluído. '}<strong>${achou}</strong> de ${total} localizadas.`
+    +(errosRede?` <span style="color:var(--orange)">${errosRede} não puderam ser consultadas por falha de conexão com o servidor de mapas — tente de novo em alguns minutos.</span>`:'')
+    +(lista.length?` <strong>${lista.length}</strong> endereço${lista.length===1?'':'s'} não encontrado${lista.length===1?'':'s'}. Para cada um, cole a coordenada (no Google Maps: segure o dedo no local e toque nos números que aparecem) ou o link com a posição:`
+      +`<div style="margin-top:8px">${lista.slice(0,80).map((e,i)=>`<div style="padding:8px 0;border-top:1px solid var(--border)"><div style="margin-bottom:5px">${escHtml(e)}</div><div style="display:flex;gap:6px"><input type="text" data-coord-end="${i}" placeholder="-21.1775, -47.8103" style="flex:1;min-width:0;padding:7px 9px;border:1px solid var(--border);border-radius:var(--radius);font-size:13px;background:var(--bg)"><button class="btn btn-sm" data-coord-salvar="${i}">Salvar</button></div></div>`).join('')}${lista.length>80?'<div style="padding-top:8px">… e mais '+(lista.length-80)+'</div>':''}</div>`:'');
+  prog.querySelectorAll('[data-coord-salvar]').forEach(b=>b.addEventListener('click',()=>salvarCoordenadaManual(+b.dataset.coordSalvar)));
+}
+function lerCoordenadas(txt){
+  const n=(String(txt||'').match(/-?\d{1,3}[.,]\d{3,}/g)||[]).map(x=>parseFloat(x.replace(',','.')));
+  if(n.length<2)return null;
+  let[lat,lng]=n;
+  // link do Google Maps traz "@lat,lng"; se vier "lng,lat" (lng é o de módulo maior na região), troca
+  if(Math.abs(lat)>Math.abs(lng)){[lat,lng]=[lng,lat];}
+  return{lat,lng};
+}
+async function salvarCoordenadaManual(idx){
+  const lista=[...(_falhasLocalizar.keys())];
+  const end=lista[idx];if(end==null)return;
+  const inp=document.querySelector(`[data-coord-end="${idx}"]`);
+  const c=lerCoordenadas(inp&&inp.value);
+  if(!c){showMsg('Não entendi a coordenada. Cole algo como -21.1775, -47.8103.','danger');return;}
+  if(c.lat<-21.45||c.lat>-20.95||c.lng<-48.1||c.lng>-47.55){showMsg('Essa coordenada está fora de Ribeirão Preto. Confira.','danger');return;}
+  const upd={lat:c.lat,lng:c.lng,precisaoCoord:'manual',geoFalhou:false};
+  const idsResumo=new Set(_demandasConcluidas.map(d=>d._id));
+  try{
+    for(const{d,aberta}of _falhasLocalizar.get(end))await gravarCoordenada(d,aberta,upd,idsResumo);
+    _falhasLocalizar.delete(end);
+    _demandasConcluidasCompletas=null;_promiseConcluidasCompletas=null;_arquivo=null;_promiseArquivo=null;
+    const row=inp.closest('div[style*="border-top"]');if(row)row.remove();
+    showMsg('Localização salva!');
+    atualizarResumoLocalizar();
+  }catch(e){showMsg('Erro ao salvar a localização.','danger');}
+}
 async function localizarEnderecosPendentes(){
   if(_localizando){_pararLocalizar=true;return;}
   const btn=$('btn-localizar-pendentes'),prog=$('localizar-progresso');
-  _localizando=true;_pararLocalizar=false;
+  _localizando=true;_pararLocalizar=false;_falhasLocalizar=new Map();
   btn.innerHTML='<i class="ti ti-player-stop"></i> Parar';
   prog.style.display='block';prog.textContent='Carregando demandas…';
-  const falhas=new Map();let achou=0,feitas=0,total=0;
+  let achou=0,feitas=0,total=0,errosRede=0,seguidos=0;
   try{
     const completas=await carregarConcluidasCompletas();
     const idsResumo=new Set(_demandasConcluidas.map(d=>d._id));
@@ -1567,28 +1651,28 @@ async function localizarEnderecosPendentes(){
       prog.textContent=`Localizando ${feitas+1} de ${total}… (${achou} encontrados)`;
       const g=await geocodificarEndereco(d.endereco);
       feitas++;
-      if(!g){falhas.set(d.endereco,(falhas.get(d.endereco)||0)+1);continue;}
+      if(g&&g.erro){
+        errosRede++;seguidos++;
+        if(seguidos>=5){prog.textContent='O servidor de mapas está pedindo para esperar. Parando por agora.';_pararLocalizar=true;}
+        continue;
+      }
+      seguidos=0;
+      if(!g){
+        if(!_falhasLocalizar.has(d.endereco))_falhasLocalizar.set(d.endereco,[]);
+        _falhasLocalizar.get(d.endereco).push({d,aberta});
+        continue;
+      }
       const upd={lat:g.lat,lng:g.lng,precisaoCoord:g.precisao,geoFalhou:false};
       if(g.bairro)upd.bairroDetectado=g.bairro;
-      try{
-        if(aberta){await fbUpd(d._id,upd);}
-        else{
-          const b=writeBatch(db);
-          b.update(doc(db,"demandas",d._id),upd);
-          if(idsResumo.has(d._id))b.update(doc(db,"demandas_concluidas_resumo",d._id),upd);
-          b.set(doc(db,"demandas_arquivo",d._id),docArquivo({...d,...upd}));
-          await b.commit();
-        }
-        achou++;
-      }catch(e){falhas.set(d.endereco+' (erro ao salvar)',1);}
+      try{await gravarCoordenada(d,aberta,upd,idsResumo);achou++;}
+      catch(e){errosRede++;}
     }
   }catch(e){prog.textContent='Erro ao localizar. Tente novamente.';}
   _demandasConcluidasCompletas=null;_promiseConcluidasCompletas=null;_arquivo=null;_promiseArquivo=null;
+  const interrompido=_pararLocalizar;
   _localizando=false;
   btn.innerHTML='<i class="ti ti-map-search"></i> Localizar endereços';
-  const lista=[...falhas.keys()];
-  prog.innerHTML=`${_pararLocalizar?'Interrompido. ':'Concluído. '}<strong>${achou}</strong> de ${total} localizadas.`
-    +(lista.length?` <strong>${lista.length}</strong> endereço${lista.length===1?'':'s'} não encontrado${lista.length===1?'':'s'}:<details style="margin-top:6px"><summary style="cursor:pointer">ver lista</summary><div style="margin-top:6px;line-height:1.6">${lista.slice(0,60).map(e=>'• '+escHtml(e)).join('<br>')}${lista.length>60?'<br>… e mais '+(lista.length-60):''}</div></details>`:'');
+  renderResultadoLocalizar(achou,total,interrompido,errosRede);
   atualizarResumoLocalizar();
 }
 
